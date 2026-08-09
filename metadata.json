@@ -1,0 +1,6 @@
+{
+  "name": "DOMUS Living System",
+  "description": "A luxury home operating and family management system for tasks, household expenses, and system preferences.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
