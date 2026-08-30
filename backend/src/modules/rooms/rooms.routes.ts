@@ -5,11 +5,17 @@ import { ensureArchitect } from '../../shared/middlewares/ensureArchitect.js';
 export const roomRoutes = Router();
 const controller = new RoomController();
 
-// Listagem e criação de salas
+// Listagem de salas privadas do usuário autenticado (Minhas Salas)
+roomRoutes.get('/my-rooms', controller.listMyRooms);
+
+// Listagem geral e criação de salas
 roomRoutes.get('/', controller.listRooms);
 roomRoutes.post('/', controller.createRoom);
 
-// Entrada na sala com verificação de senha
+// Entrada na sala por credenciais privadas (Nome Exato + Senha)
+roomRoutes.post('/join', controller.joinRoomByCredentials);
+
+// Entrada na sala por ID com verificação de senha
 roomRoutes.post('/:id/join', controller.joinRoom);
 
 // Promoção de membros (Protegido por ensureArchitect)

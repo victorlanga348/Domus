@@ -25,3 +25,9 @@ export interface UpdateMemberRoleDTO {
 export interface PromoteMemberDTO {
   targetUserId: string;
 }
+
+export interface JoinRoomByCredentialsDTO {
+  title: string;
+  password: string;
+  user_id: string;
+}

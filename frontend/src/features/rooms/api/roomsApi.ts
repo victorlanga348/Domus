@@ -4,6 +4,47 @@ import type { RoomItem, RoomMessage, RoomParticipant, CreateRoomInput } from '..
 const BASE_URL = `${APP_CONFIG.API_BASE_URL}/rooms`;
 
 export const roomsApi = {
+  async listMyRooms(userId: string): Promise<RoomItem[]> {
+    try {
+      const response = await fetch(`${BASE_URL}/my-rooms?userId=${encodeURIComponent(userId)}`, {
+        headers: {
+          'x-user-id': userId,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Falha ao carregar minhas salas');
+      }
+
+      const json = await response.json();
+      return json.data || [];
+    } catch {
+      return [];
+    }
+  },
+
+  async joinByCredentials(data: { title: string; password: string }, userId: string): Promise<{ room: RoomItem; participant: RoomParticipant }> {
+    const response = await fetch(`${BASE_URL}/join`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-user-id': userId,
+      },
+      body: JSON.stringify({
+        title: data.title,
+        password: data.password,
+        user_id: userId,
+      }),
+    });
+
+    const json = await response.json();
+    if (!response.ok) {
+      throw new Error(json.message || 'Credenciais da sala inválidas');
+    }
+
+    return json.data;
+  },
+
   async listRooms(houseId: string, userId: string): Promise<RoomItem[]> {
     try {
       const response = await fetch(`${BASE_URL}?houseId=${encodeURIComponent(houseId)}&userId=${encodeURIComponent(userId)}`, {
@@ -20,7 +61,6 @@ export const roomsApi = {
       const json = await response.json();
       return json.data || [];
     } catch {
-      // Retorna fallback local de salas padrão se offline/dev sem backend rodando
       return [];
     }
   },

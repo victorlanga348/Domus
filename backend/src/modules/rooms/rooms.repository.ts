@@ -81,6 +81,16 @@ export class RoomRepository {
     });
   }
 
+  async findByTitle(title: string): Promise<Room | null> {
+    return prisma.room.findFirst({
+      where: {
+        title: {
+          equals: title,
+        },
+      },
+    });
+  }
+
   async findByIdWithDetails(id: string): Promise<RoomWithParticipants | null> {
     return prisma.room.findUnique({
       where: { id },
@@ -103,6 +113,38 @@ export class RoomRepository {
           },
         },
       },
+    });
+  }
+
+  async listMyRooms(userId: string): Promise<RoomWithParticipants[]> {
+    return prisma.room.findMany({
+      where: {
+        participants: {
+          some: {
+            user_id: userId,
+          },
+        },
+      },
+      include: {
+        participants: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+              },
+            },
+          },
+        },
+        _count: {
+          select: {
+            messages: true,
+            participants: true,
+          },
+        },
+      },
+      orderBy: { created_at: 'desc' },
     });
   }
 

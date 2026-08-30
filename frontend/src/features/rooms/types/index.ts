@@ -37,3 +37,8 @@ export interface CreateRoomInput {
   title: string;
   password: string;
 }
+
+export interface JoinRoomInput {
+  title: string;
+  password: string;
+}

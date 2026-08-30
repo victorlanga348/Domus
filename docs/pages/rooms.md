@@ -1,25 +1,26 @@
-# Tela: Salas de Convivência & Governança (Rooms)
+# Tela: Salas Privadas & Lobby de Governança (Rooms & Lobby)
 
 ## 1. Objetivo da Tela
-Proporcionar um espaço de comunicação e coordenação doméstica através de salas temáticas ou gerais, com controle de acesso por senha e gestão hierárquica por "Arquitetos".
+Proporcionar um saguão (Lobby) seguro e privativo para criação e entrada em salas temáticas da residência. As salas não são expostas publicamente em diretórios abertos; o acesso ocorre estritamente por credenciais privadas (Nome Exato + Senha).
 
 ---
 
 ## 2. Estrutura e Seções do Layout
 
-### 2.1 Lista de Salas (`Rooms Grid`)
-- Exibição de cards de salas disponíveis.
-- **Indicador de Cadeado:** Ícone visual para salas protegidas por senha onde o usuário logado ainda não é participante.
-- **Badge de Cargo:** Indicação do papel do usuário na sala (`ARQUITETO` ou `MEMBRO`).
-- **Ação Rápida:** Botão de criar nova sala (com título e senha obrigatória).
+### 2.1 Saguão Principal (`Lobby`)
+- **Ação 1: "Fundar Nova Sala" (Arquiteto):**
+  - Formulário com campos `Nome da Sala` (único) e `Senha da Sala`.
+  - Ao submeter, cria a sala e redireciona imediatamente para o chat com cargo `ARCHITECT`.
+- **Ação 2: "Entrar em Sala Existente" (Convidado):**
+  - Formulário cego com campos `Nome da Sala` e `Senha da Sala`.
+  - Validação discreta contra enumeração: "Credenciais da sala inválidas".
+  - Ao autenticar, registra o vínculo em `Participant` (`MEMBER`) e abre o chat.
 
-### 2.2 Modal de Desafio de Senha (`PasswordPromptModal`)
-- Modal disparado ao clicar em uma sala protegida em que o usuário ainda não entrou.
-- Validação no backend via `bcrypt.compare` antes de conceder acesso.
+### 2.2 Barra Lateral / Atalhos VIP (`Minhas Salas`)
+- Exibe estritamente as salas onde o usuário logado já possui participação ativa confirmada.
+- Permite alternância rápida entre chats sem necessidade de reintroduzir senhas.
 
-### 2.3 Interface da Sala & Chat (`RoomChatView / RoomChatModal`)
-- Histórico de mensagens da sala com autor e timestamp.
-- Campo de input e envio de novas mensagens.
-- **Painel Lateral de Membros:**
-  - Lista de participantes da sala com seus respectivos papéis (`ARCHITECT` / `MEMBER`).
-  - **Botão "Promover a Arquiteto":** Visível exclusivamente quando o usuário logado for `ARCHITECT` nesta sala.
+### 2.3 Interface do Chat & Governança (`RoomChatView / RoomChatModal`)
+- Histórico em tempo real de mensagens com auto-scroll.
+- Painel de membros com papéis (`ARCHITECT` / `MEMBER`).
+- **Botão "Promover a Arquiteto":** Exibido exclusivamente para membros com status `ARCHITECT` na sala ativa.

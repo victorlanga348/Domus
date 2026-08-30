@@ -15,6 +15,20 @@ export class RoomController {
     }
   };
 
+  listMyRooms = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const currentUserId = (req.query.userId as string) || (req.headers['x-user-id'] as string);
+      if (!currentUserId) {
+        res.status(200).json({ status: 'success', data: [] });
+        return;
+      }
+      const rooms = await this.roomService.listMyRooms(currentUserId);
+      res.status(200).json({ status: 'success', data: rooms });
+    } catch (error) {
+      next(error);
+    }
+  };
+
   createRoom = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const creatorUserId = (req.headers['x-user-id'] as string) || req.body.creator_user_id;
@@ -23,6 +37,20 @@ export class RoomController {
         creator_user_id: creatorUserId,
       });
       res.status(201).json({ status: 'success', data: room });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  joinRoomByCredentials = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const userId = (req.headers['x-user-id'] as string) || req.body.user_id;
+      const result = await this.roomService.joinRoomByCredentials({
+        title: req.body.title,
+        password: req.body.password,
+        user_id: userId,
+      });
+      res.status(200).json({ status: 'success', data: result });
     } catch (error) {
       next(error);
     }

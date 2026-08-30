@@ -52,11 +52,11 @@
 
 ---
 
-## 4. Endpoints de Salas & Governança (`/api/rooms`)
+## 4. Endpoints de Salas Privadas & Governança (`/api/rooms`)
 
-### `GET /api/rooms`
-- Lista as salas disponíveis para a residência, indicando se é protegida e o papel do usuário.
-- **Headers:** `x-house-id`, `x-user-id`
+### `GET /api/rooms/my-rooms`
+- Lista exclusivamente as salas onde o usuário logado já é um `Participant` confirmado.
+- **Headers:** `x-user-id`
 - **Resposta (200):**
   ```json
   {
@@ -64,31 +64,33 @@
     "data": [
       {
         "id": "uuid-room",
-        "title": "Limpeza Geral",
+        "title": "Planejamento Financeiro",
         "is_protected": true,
         "is_member": true,
         "my_role": "ARCHITECT",
-        "members_count": 4,
-        "messages_count": 12
+        "members_count": 3,
+        "messages_count": 15
       }
     ]
   }
   ```
 
-### `POST /api/rooms`
-- Cria uma nova sala protegida e vincula o criador automaticamente como `ARCHITECT`.
-- **Payload:** `{ "title": "Sala de Jogos", "password": "secretPassword123" }`
+### `POST /api/rooms` (Fundar Nova Sala)
+- Cria uma nova sala protegida e vincula o criador como `ARCHITECT`.
+- **Regra:** Título da sala deve ser único (retorna `409 Conflict` caso já exista).
+- **Payload:** `{ "title": "ProjetoX", "password": "secretPassword123" }`
 - **Headers:** `x-user-id`, `x-house-id`
-- **Resposta (201):** Objeto da sala criada com participantes.
+- **Resposta (201):** Objeto da sala criada com o criador em `Participant` (`role: ARCHITECT`).
 
-### `POST /api/rooms/:id/join`
-- Valida a senha da sala via `bcrypt.compare` e adiciona o usuário como `MEMBER`.
-- **Payload:** `{ "password": "secretPassword123" }`
+### `POST /api/rooms/join` (Entrada Privada por Credenciais)
+- Valida o par `title` e `password` via `bcrypt.compare`.
+- **Segurança Anti-Enumeração:** Retorna `401 Unauthorized` com mensagem `"Credenciais da sala inválidas"` tanto para título inexistente quanto para senha incorreta.
+- **Payload:** `{ "title": "ProjetoX", "password": "secretPassword123" }`
 - **Headers:** `x-user-id`
-- **Resposta (200):** Registro de `Participant`.
+- **Resposta (200):** Objeto da sala com participantes e confirmação de entrada.
 
 ### `PATCH /api/rooms/:id/promote`
-- Promove um usuário membro da sala para o cargo de `ARCHITECT`.
+- Promove um membro da sala para o cargo de `ARCHITECT`.
 - **Proteção:** Middleware `ensureArchitect` (Requer que o solicitante seja `ARCHITECT` nesta sala).
 - **Payload:** `{ "targetUserId": "uuid-user-2" }`
 - **Headers:** `x-user-id`

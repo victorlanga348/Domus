@@ -2,17 +2,30 @@ import bcrypt from 'bcryptjs';
 import { RoomRepository, type RoomWithParticipants } from './rooms.repository.js';
 import { AppError } from '../../shared/errors/AppError.js';
 import type { Role, Participant, Message } from '@prisma/client';
-import type { CreateRoomDTO, JoinRoomDTO, SendMessageDTO } from './rooms.schemas.js';
+import type {
+  CreateRoomDTO,
+  JoinRoomDTO,
+  JoinRoomByCredentialsDTO,
+  SendMessageDTO,
+} from './rooms.schemas.js';
 
 export class RoomService {
   constructor(private roomRepo = new RoomRepository()) {}
 
   /**
-   * Criação da sala com senha criptografada e atribuição de ARCHITECT ao criador.
+   * Criação da sala com título único, senha criptografada e atribuição de ARCHITECT ao criador.
    */
   async createRoom(data: CreateRoomDTO): Promise<RoomWithParticipants> {
     if (!data.title || data.title.trim() === '') {
       throw new AppError('O título da sala é obrigatório.', 400, 'ROOM_TITLE_REQUIRED');
+    }
+
+    const trimmedTitle = data.title.trim();
+
+    // Verificação de unicidade de título
+    const existingRoom = await this.roomRepo.findByTitle(trimmedTitle);
+    if (existingRoom) {
+      throw new AppError('Já existe uma sala com este nome. Escolha outro nome.', 409, 'ROOM_ALREADY_EXISTS');
     }
 
     if (!data.password || data.password.trim().length < 4) {
@@ -24,10 +37,10 @@ export class RoomService {
     }
 
     const saltRounds = 10;
-    const passwordHash = await bcrypt.hash(data.password, saltRounds);
+    const passwordHash = await bcrypt.hash(data.password.trim(), saltRounds);
 
     return this.roomRepo.createRoomWithArchitect({
-      title: data.title.trim(),
+      title: trimmedTitle,
       passwordHash,
       creatorUserId: data.creator_user_id,
       houseId: data.house_id,
@@ -35,7 +48,44 @@ export class RoomService {
   }
 
   /**
-   * Entrada na sala com verificação criptográfica de senha.
+   * Entrada cega na sala via Nome Exato + Senha (Segurança anti-enumeração).
+   */
+  async joinRoomByCredentials(data: JoinRoomByCredentialsDTO) {
+    if (!data.title || !data.title.trim()) {
+      throw new AppError('O nome da sala é obrigatório.', 400, 'ROOM_TITLE_REQUIRED');
+    }
+
+    if (!data.password) {
+      throw new AppError('A senha da sala é obrigatória.', 400, 'PASSWORD_REQUIRED');
+    }
+
+    const room = await this.roomRepo.findByTitle(data.title.trim());
+
+    // Se a sala não existir ou a senha não bater, retorna erro genérico idêntico
+    if (!room) {
+      throw new AppError('Credenciais da sala inválidas (sala não encontrada ou senha incorreta).', 401, 'INVALID_ROOM_CREDENTIALS');
+    }
+
+    const isMatch = await bcrypt.compare(data.password.trim(), room.password);
+    if (!isMatch) {
+      throw new AppError('Credenciais da sala inválidas (sala não encontrada ou senha incorreta).', 401, 'INVALID_ROOM_CREDENTIALS');
+    }
+
+    // Se já é participante, apenas retorna os detalhes da sala
+    let participant = await this.roomRepo.findParticipant(room.id, data.user_id);
+    if (!participant) {
+      participant = await this.roomRepo.addParticipant(room.id, data.user_id, 'MEMBER');
+    }
+
+    const roomDetails = await this.roomRepo.findByIdWithDetails(room.id);
+    return {
+      room: roomDetails,
+      participant,
+    };
+  }
+
+  /**
+   * Entrada na sala via ID com verificação criptográfica de senha.
    */
   async joinRoom(roomId: string, data: JoinRoomDTO): Promise<Participant> {
     const room = await this.roomRepo.findById(roomId);
@@ -53,7 +103,7 @@ export class RoomService {
       throw new AppError('Senha da sala é obrigatória para entrar.', 401, 'PASSWORD_REQUIRED');
     }
 
-    const isMatch = await bcrypt.compare(data.password, room.password);
+    const isMatch = await bcrypt.compare(data.password.trim(), room.password);
     if (!isMatch) {
       throw new AppError('Senha da sala incorreta.', 401, 'INVALID_ROOM_PASSWORD');
     }
@@ -83,6 +133,35 @@ export class RoomService {
     }
 
     return this.roomRepo.updateParticipantRole(roomId, targetUserId, newRole);
+  }
+
+  /**
+   * Lista exclusivamente as salas onde o usuário é participante ativo (Minhas Salas).
+   */
+  async listMyRooms(userId: string) {
+    const rooms = await this.roomRepo.listMyRooms(userId);
+
+    return rooms.map((room) => {
+      const myMembership = room.participants.find((p) => p.user_id === userId);
+
+      return {
+        id: room.id,
+        title: room.title,
+        created_at: room.created_at,
+        is_protected: Boolean(room.password),
+        is_member: true,
+        my_role: myMembership?.role ?? null,
+        members_count: room._count.participants,
+        messages_count: room._count.messages,
+        participants: room.participants.map((p) => ({
+          user_id: p.user.id,
+          name: p.user.name,
+          email: p.user.email,
+          role: p.role,
+          joined_at: p.joined_at,
+        })),
+      };
+    });
   }
 
   /**
