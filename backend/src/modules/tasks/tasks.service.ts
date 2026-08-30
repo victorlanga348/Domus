@@ -162,4 +162,52 @@ export class TaskService {
       locked_at: null,
     });
   }
+
+  /**
+   * 4. deleteTask:
+   * Apenas o ADMIN (Arquiteto) ou o criador da tarefa pode excluí-la.
+   */
+  async deleteTask(taskId: string, userId: string, userRole?: string): Promise<void> {
+    const task = await this.getTaskById(taskId);
+
+    const isAdmin = userRole === 'ADMIN';
+    const isCreator = task.creator_id === userId;
+
+    if (!isAdmin && !isCreator) {
+      throw new AppError(
+        'Permissão negada: apenas o Arquiteto (ADMIN) ou o criador da tarefa pode excluí-la.',
+        403,
+        'UNAUTHORIZED_TASK_DELETION'
+      );
+    }
+
+    await prisma.task.delete({
+      where: { id: taskId },
+    });
+  }
+
+  /**
+   * 5. requestSwap:
+   * Solicita troca de turno para outros participantes do pool.
+   */
+  async requestSwap(taskId: string, userId: string, reason?: string) {
+    const task = await this.getTaskById(taskId);
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+
+    if (!user) {
+      throw new AppError('Usuário não encontrado.', 404, 'USER_NOT_FOUND');
+    }
+
+    return {
+      taskId: task.id,
+      taskTitle: task.title,
+      requesterId: user.id,
+      requesterName: user.name,
+      reason: reason || 'Solicitação de troca de escala',
+      participants: task.participants.map((p) => ({
+        id: p.user.id,
+        name: p.user.name,
+      })),
+    };
+  }
 }

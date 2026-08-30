@@ -129,4 +129,31 @@ export class AuthService {
 
     return true;
   }
+
+  async toggleVacation(userId: string) {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      throw new AppError('Usuário não encontrado.', 404, 'USER_NOT_FOUND');
+    }
+
+    const newVacationState = !user.vacation_mode;
+
+    const updatedUser = await prisma.user.update({
+      where: { id: userId },
+      data: { vacation_mode: newVacationState },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        vacation_mode: true,
+        house_id: true,
+      },
+    });
+
+    return updatedUser;
+  }
 }

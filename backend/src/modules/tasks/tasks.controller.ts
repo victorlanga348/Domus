@@ -76,4 +76,38 @@ export class TaskController {
       next(error);
     }
   };
+
+  deleteTask = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const id = String(req.params.id);
+      const userId = req.userId || (req.headers['x-user-id'] as string) || req.body.user_id;
+      const userRole = req.user?.role || (req.headers['x-user-role'] as string);
+
+      await this.taskService.deleteTask(id, userId, userRole);
+      res.status(200).json({ status: 'success', message: 'Tarefa excluída com sucesso.' });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  requestSwap = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const id = String(req.params.id);
+      const userId = req.userId || (req.headers['x-user-id'] as string) || req.body.user_id;
+      const { reason } = req.body;
+
+      const swapData = await this.taskService.requestSwap(id, userId, reason);
+      const houseId = req.houseId || (req.headers['x-house-id'] as string);
+
+      // Emite evento via WebSocket para a residência
+      if (houseId) {
+        const { emitToHouse } = await import('../../shared/socket/socketServer.js');
+        emitToHouse(houseId, 'task:swap_requested', swapData);
+      }
+
+      res.status(200).json({ status: 'success', data: swapData });
+    } catch (error) {
+      next(error);
+    }
+  };
 }

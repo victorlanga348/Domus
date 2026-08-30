@@ -1,6 +1,18 @@
+import { createServer } from 'http';
 import { app } from './app.js';
 import { env } from './config/env.js';
+import { initSocketServer } from './shared/socket/socketServer.js';
+import { startLockTimeoutJob } from './shared/jobs/lockTimeoutJob.js';
+import { logger } from './shared/logger/logger.js';
 
-app.listen(env.PORT, () => {
-  console.log(`[DOMUS Backend] Server running on http://localhost:${env.PORT} (${env.NODE_ENV})`);
+const httpServer = createServer(app);
+
+// Inicializar Socket.io em tempo real
+initSocketServer(httpServer);
+
+// Iniciar Job de timeout de locks (45 min)
+startLockTimeoutJob();
+
+httpServer.listen(env.PORT, () => {
+  logger.info(`[DOMUS Master Backend] Servidor HTTP & WebSocket rodando na porta ${env.PORT} (${env.NODE_ENV})`);
 });

@@ -31,4 +31,25 @@ export class AuthController {
       next(error);
     }
   };
+
+  toggleVacation = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const userId = req.userId || (req.headers['x-user-id'] as string) || req.body.user_id;
+      const updatedUser = await this.authService.toggleVacation(userId);
+
+      // Emite evento via WebSocket para a residência avisando sobre alteração no rodízio
+      if (updatedUser.house_id) {
+        const { emitToHouse } = await import('../../shared/socket/socketServer.js');
+        emitToHouse(updatedUser.house_id, 'member:vacation_changed', {
+          userId: updatedUser.id,
+          name: updatedUser.name,
+          vacation_mode: updatedUser.vacation_mode,
+        });
+      }
+
+      res.status(200).json({ status: 'success', data: updatedUser });
+    } catch (error) {
+      next(error);
+    }
+  };
 }

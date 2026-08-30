@@ -14,3 +14,5 @@ taskRoutes.post('/:id/block', controller.blockTask);
 taskRoutes.patch('/:id/block', controller.blockTask);
 taskRoutes.post('/:id/fail', controller.failTask);
 taskRoutes.patch('/:id/fail', controller.failTask);
+taskRoutes.post('/:id/request-swap', controller.requestSwap);
+taskRoutes.delete('/:id', controller.deleteTask);
