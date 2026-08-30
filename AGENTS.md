@@ -24,6 +24,7 @@ Para qualquer alteração no projeto:
 7. **Sincronização de Docs**: Atualizar todas as specs afetadas conforme a [docs/documentation-governance.md](file:///c:/Users/victo/OneDrive/Documentos/Github/Domus/docs/documentation-governance.md).
 8. **Relatório Final**: Finalizar respondendo obrigatoriamente:
    > *"Existe alguma alteração no projeto que não esteja refletida em /docs?"*
+9. Depois de cada sprint realize testes nela e se tudo estiver a correr bem faca o commit dela antes de avancar para a proxima sprint
 
 
 ---
