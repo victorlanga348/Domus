@@ -1,4 +1,4 @@
-export type TabType = 'dashboard' | 'tasks' | 'rooms' | 'reports' | 'statistics' | 'settings';
+export type TabType = 'dashboard' | 'tasks' | 'reports' | 'statistics' | 'settings';
 
 export interface TaskAuditItem {
   id: string;
