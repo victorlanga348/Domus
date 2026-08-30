@@ -1,64 +1,234 @@
-import React from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { statisticsApi, type HouseStatisticsData } from '../api/statisticsApi.js';
 import { FamilyMember } from '../../../types';
 
 interface StatisticsViewProps {
-  familyMembers: FamilyMember[];
+  currentHouseId?: string;
+  currentUserId?: string;
+  familyMembers?: FamilyMember[];
 }
 
-export const StatisticsView: React.FC<StatisticsViewProps> = ({ familyMembers }) => {
+export const StatisticsView: React.FC<StatisticsViewProps> = ({
+  currentHouseId = 'house-1',
+  currentUserId = 'user-1',
+  familyMembers = [],
+}) => {
+  const [stats, setStats] = useState<HouseStatisticsData | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  const fetchStats = useCallback(async () => {
+    try {
+      setLoading(true);
+      const data = await statisticsApi.getStatistics(currentHouseId, currentUserId);
+      if (data) {
+        setStats(data);
+      }
+    } catch (err) {
+      console.warn('Erro ao carregar estatísticas:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, [currentHouseId, currentUserId]);
+
+  useEffect(() => {
+    fetchStats();
+  }, [fetchStats]);
+
+  const monthNames = [
+    'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+    'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
+  ];
+
+  const currentMonthName = stats ? monthNames[stats.period.month - 1] : 'Mês Atual';
+
   return (
-    <div className="p-4 sm:p-8 max-w-7xl mx-auto w-full space-y-6 sm:space-y-8">
-      <div>
-        <h2 className="text-2xl font-bold text-[#16302e]">House Performance Statistics</h2>
-        <p className="text-xs text-[#727877] mt-1">Chore distribution and member activity scoreboards.</p>
+    <div className="p-4 sm:p-8 max-w-7xl mx-auto w-full space-y-6 sm:space-y-8 animate-in fade-in duration-300">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-6 rounded-3xl border border-[#d9e5e3] shadow-xs">
+        <div className="flex items-center gap-4">
+          <div className="w-12 h-12 rounded-2xl bg-[#ffca5e] text-[#755400] flex items-center justify-center shadow-xs shrink-0">
+            <span className="material-symbols-outlined text-2xl">monitoring</span>
+          </div>
+          <div>
+            <h1 className="text-xl sm:text-2xl font-black text-[#16302e]">
+              Estatísticas & Índice de Harmonia
+            </h1>
+            <p className="text-xs text-[#727877] mt-0.5">
+              Métricas de colaboração e divisão justa de tarefas • {currentMonthName} de {stats?.period.year || 2026}
+            </p>
+          </div>
+        </div>
+
+        <button
+          onClick={fetchStats}
+          className="self-start sm:self-auto px-4 py-2 bg-[#f0fcfa] hover:bg-[#e0f5f2] text-[#16302e] border border-[#c1c8c6] rounded-xl text-xs font-bold transition-all flex items-center gap-1.5"
+        >
+          <span className="material-symbols-outlined text-base">refresh</span>
+          <span>Atualizar</span>
+        </button>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <div className="bg-white p-6 rounded-2xl border border-[#d9e5e3] shadow-sm space-y-6">
-          <h3 className="text-lg font-bold text-[#16302e]">Task Completion Leaderboard</h3>
-          <div className="space-y-4">
-            {familyMembers.map((member, idx) => {
-              const score = [98, 88, 76, 50][idx] || 60;
-              return (
-                <div key={member.id} className="space-y-2">
-                  <div className="flex justify-between items-center text-sm font-semibold text-[#131e1d]">
-                    <div className="flex items-center gap-3">
-                      <img src={member.avatar} alt={member.name} className="w-8 h-8 rounded-full object-cover" />
-                      <span>{member.name}</span>
-                    </div>
-                    <span className="text-[#7b5800] font-bold">{score}% ({score / 2} tasks)</span>
-                  </div>
-                  <div className="w-full bg-[#e4f0ee] h-2.5 rounded-full overflow-hidden">
-                    <div
-                      className="bg-[#16302e] h-full rounded-full transition-all duration-500"
-                      style={{ width: `${score}%` }}
-                    />
-                  </div>
+      {loading ? (
+        <div className="p-12 text-center text-[#727877] bg-white rounded-3xl border border-[#d9e5e3]">
+          <span className="material-symbols-outlined text-3xl animate-spin mb-2">sync</span>
+          <p className="text-sm font-bold">Calculando métricas de harmonia...</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Card 1: Índice de Harmonia */}
+          <div className="bg-white p-6 rounded-3xl border border-[#d9e5e3] shadow-xs space-y-6 flex flex-col justify-between">
+            <div>
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-black uppercase tracking-wider text-[#727877]">
+                  Saúde da Convivência
+                </span>
+                <span
+                  className={`text-[11px] font-black px-3 py-1 rounded-full uppercase tracking-wider ${
+                    (stats?.harmony.score || 100) >= 80
+                      ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                      : (stats?.harmony.score || 100) >= 60
+                      ? 'bg-amber-100 text-amber-800 border border-amber-300'
+                      : 'bg-rose-100 text-rose-800 border border-rose-300'
+                  }`}
+                >
+                  {stats?.harmony.level_label || 'Excelente'}
+                </span>
+              </div>
+
+              <div className="mt-4 flex items-baseline gap-2">
+                <span className="text-5xl font-black text-[#16302e]">
+                  {stats?.harmony.score ?? 100}
+                </span>
+                <span className="text-sm font-bold text-[#727877]">/ 100 pts</span>
+              </div>
+
+              <p className="text-xs text-[#727877] mt-2 leading-relaxed">
+                Pontuação calculada com base na taxa de conclusão ({Math.round((stats?.harmony.completion_rate || 1) * 100)}%), sem bloqueios ou atrasos acumulados.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-3 gap-2 pt-4 border-t border-[#f0f4f3] text-center">
+              <div className="p-2.5 rounded-2xl bg-emerald-50 border border-emerald-200">
+                <p className="text-[10px] font-bold text-emerald-700 uppercase">Concluídas</p>
+                <p className="text-base font-black text-emerald-900 mt-0.5">
+                  {stats?.harmony.total_completed ?? 0}
+                </p>
+              </div>
+              <div className="p-2.5 rounded-2xl bg-amber-50 border border-amber-200">
+                <p className="text-[10px] font-bold text-amber-700 uppercase">Bloqueios</p>
+                <p className="text-base font-black text-amber-900 mt-0.5">
+                  {stats?.harmony.total_blocked ?? 0}
+                </p>
+              </div>
+              <div className="p-2.5 rounded-2xl bg-rose-50 border border-rose-200">
+                <p className="text-[10px] font-bold text-rose-700 uppercase">Falhas</p>
+                <p className="text-base font-black text-rose-900 mt-0.5">
+                  {stats?.harmony.total_failed ?? 0}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Card 2: Maior Contribuidor & Turnos */}
+          <div className="space-y-6">
+            {/* Destaque do Mês */}
+            <div className="bg-white p-6 rounded-3xl border border-[#d9e5e3] shadow-xs">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-[#fff8e6] border border-[#ffca5e] text-[#7b5800] flex items-center justify-center">
+                  <span className="material-symbols-outlined text-2xl">trophy</span>
                 </div>
-              );
-            })}
-          </div>
-        </div>
+                <div>
+                  <h3 className="text-xs font-bold text-[#727877] uppercase tracking-wider">
+                    Maior Contribuidor do Mês
+                  </h3>
+                  <p className="text-base font-black text-[#16302e] mt-0.5">
+                    {stats?.top_contributor?.name || 'Aguardando conclusões'}
+                  </p>
+                </div>
+              </div>
+              {stats?.top_contributor && (
+                <div className="mt-3 pt-3 border-t border-[#f0f4f3] flex items-center justify-between text-xs text-[#727877]">
+                  <span>Total de tarefas concluídas:</span>
+                  <span className="font-black text-[#7b5800]">
+                    {stats.top_contributor.completed_count} tarefas ({stats.top_contributor.percentage}%)
+                  </span>
+                </div>
+              )}
+            </div>
 
-        <div className="bg-white p-6 rounded-2xl border border-[#d9e5e3] shadow-sm space-y-6">
-          <h3 className="text-lg font-bold text-[#16302e]">Environmental Impact</h3>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="p-4 bg-[#eaf6f4] rounded-xl border border-[#d0dddb]">
-              <span className="material-symbols-outlined text-2xl text-emerald-700">eco</span>
-              <p className="text-xs font-bold text-[#727877] mt-2 uppercase">CO2 Reduction</p>
-              <p className="text-2xl font-black text-[#16302e] mt-1">18.4 kg</p>
-            </div>
-            <div className="p-4 bg-[#eaf6f4] rounded-xl border border-[#d0dddb]">
-              <span className="material-symbols-outlined text-2xl text-blue-700">water_drop</span>
-              <p className="text-xs font-bold text-[#727877] mt-2 uppercase">Water Saved</p>
-              <p className="text-2xl font-black text-[#16302e] mt-1">140 L</p>
+            {/* Distribuição por Turno */}
+            <div className="bg-white p-6 rounded-3xl border border-[#d9e5e3] shadow-xs space-y-3">
+              <h3 className="text-xs font-bold text-[#727877] uppercase tracking-wider">
+                Distribuição de Tarefas por Turno
+              </h3>
+              <div className="grid grid-cols-3 gap-2">
+                <div className="p-3 rounded-2xl bg-[#f0fcfa] border border-[#d0dddb] text-center">
+                  <span className="material-symbols-outlined text-amber-600 text-lg">light_mode</span>
+                  <p className="text-[10px] font-bold text-[#727877] mt-1">Manhã</p>
+                  <p className="text-sm font-black text-[#16302e]">{stats?.shift_distribution.MORNING ?? 0}</p>
+                </div>
+                <div className="p-3 rounded-2xl bg-[#f0fcfa] border border-[#d0dddb] text-center">
+                  <span className="material-symbols-outlined text-orange-600 text-lg">wb_sunny</span>
+                  <p className="text-[10px] font-bold text-[#727877] mt-1">Tarde</p>
+                  <p className="text-sm font-black text-[#16302e]">{stats?.shift_distribution.AFTERNOON ?? 0}</p>
+                </div>
+                <div className="p-3 rounded-2xl bg-[#f0fcfa] border border-[#d0dddb] text-center">
+                  <span className="material-symbols-outlined text-indigo-600 text-lg">bedtime</span>
+                  <p className="text-[10px] font-bold text-[#727877] mt-1">Noite</p>
+                  <p className="text-sm font-black text-[#16302e]">{stats?.shift_distribution.NIGHT ?? 0}</p>
+                </div>
+              </div>
             </div>
           </div>
-          <p className="text-xs text-[#414847] leading-relaxed pt-2">
-            Automated eco-mode thermostat adjustments and water heater suspensions during Vacation Mode saved an estimated $42 this billing cycle.
-          </p>
+
+          {/* Card 3: Ranking de Contribuição por Morador */}
+          <div className="bg-white p-6 rounded-3xl border border-[#d9e5e3] shadow-xs space-y-4">
+            <h3 className="text-sm font-black text-[#16302e]">
+              Quadro de Contribuição dos Moradores
+            </h3>
+
+            <div className="space-y-4 max-h-[320px] overflow-y-auto pr-1">
+              {(stats?.contributions || []).length === 0 ? (
+                <p className="text-xs text-[#727877] text-center py-6">
+                  Nenhum registro de tarefa concluída este mês.
+                </p>
+              ) : (
+                stats?.contributions.map((member, idx) => {
+                  const matchingAvatar = familyMembers.find((m) => m.name === member.name)?.avatar;
+
+                  return (
+                    <div key={member.user_id} className="space-y-1.5">
+                      <div className="flex justify-between items-center text-xs font-bold text-[#16302e]">
+                        <div className="flex items-center gap-2">
+                          <span className="w-5 text-[11px] font-black text-[#727877]">#{idx + 1}</span>
+                          {matchingAvatar ? (
+                            <img src={matchingAvatar} alt={member.name} className="w-6 h-6 rounded-full object-cover" />
+                          ) : (
+                            <div className="w-6 h-6 rounded-full bg-[#e4f0ee] text-[#16302e] flex items-center justify-center text-[10px] font-black">
+                              {member.name.charAt(0)}
+                            </div>
+                          )}
+                          <span>{member.name}</span>
+                        </div>
+                        <span className="text-[#7b5800]">
+                          {member.percentage}% ({member.completed_count} {member.completed_count === 1 ? 'tarefa' : 'tarefas'})
+                        </span>
+                      </div>
+
+                      <div className="w-full bg-[#e4f0ee] h-2 rounded-full overflow-hidden">
+                        <div
+                          className="bg-[#7b5800] h-full rounded-full transition-all duration-500"
+                          style={{ width: `${Math.max(member.percentage, 4)}%` }}
+                        />
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 };

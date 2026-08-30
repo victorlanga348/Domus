@@ -402,24 +402,14 @@ export default function App() {
         <div className="flex-1 pb-6 md:pb-12">
           {currentTab === 'dashboard' && (
             <DashboardView
+              currentUserId={currentUser?.id || 'user-1'}
+              currentHouseId="house-1"
               subTab={subTab}
-              tasks={tasks}
-              rotations={rotations}
-              onAddTask={handleAddTask}
-              onTaskStatusChange={handleTaskStatusChange}
-              onDeleteTask={handleDeleteTask}
-              onRotateNext={handleRotateNext}
-              activityLogs={activityLogs}
-              onAddActivityLog={handleAddActivityLog}
-              onLikeActivity={handleLikeActivity}
               vacationMode={vacationMode}
+              onShowToast={showToast}
               muralNotes={muralNotes}
-              memberStatuses={memberStatuses}
               onAddMuralNote={handleAddMuralNote}
               onDeleteMuralNote={handleDeleteMuralNote}
-              onToggleNoteItem={handleToggleNoteItem}
-              onTogglePinNote={handleTogglePinNote}
-              onUpdateMemberStatus={handleUpdateMemberStatus}
               familyMembers={familyMembers}
             />
           )}
@@ -439,7 +429,7 @@ export default function App() {
 
           {currentTab === 'rooms' && (
             <RoomsView
-              currentUserId={familyMembers.find((m) => m.isPrimary)?.id || 'user-1'}
+              currentUserId={currentUser?.id || 'user-1'}
               currentHouseId="house-1"
               onShowToast={showToast}
             />
@@ -468,7 +458,13 @@ export default function App() {
             />
           )}
 
-          {currentTab === 'statistics' && <StatisticsView familyMembers={familyMembers} />}
+          {currentTab === 'statistics' && (
+            <StatisticsView
+              currentHouseId="house-1"
+              currentUserId={currentUser?.id || 'user-1'}
+              familyMembers={familyMembers}
+            />
+          )}
         </div>
       </main>
 
