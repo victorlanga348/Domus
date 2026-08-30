@@ -26,7 +26,6 @@ Para qualquer alteração no projeto:
    > *"Existe alguma alteração no projeto que não esteja refletida em /docs?"*
 9. Depois de cada sprint realize testes nela e se tudo estiver a correr bem faca o commit dela antes de avancar para a proxima sprint
 
-
 ---
 
 ## 3. Diretrizes de Qualidade e Código
