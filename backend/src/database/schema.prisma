@@ -35,6 +35,11 @@ enum ActionType {
   ROTATED
 }
 
+enum Role {
+  MEMBER
+  ARCHITECT
+}
+
 model House {
   id          String   @id @default(uuid())
   name        String
@@ -46,6 +51,7 @@ model House {
   tasks          Task[]
   activity_logs  ActivityLog[]
   bulletin_posts BulletinBoard[]
+  rooms          Room[]
 
   @@map("houses")
 }
@@ -61,14 +67,60 @@ model User {
   created_at    DateTime @default(now())
   updated_at    DateTime @updatedAt
 
-  house              House             @relation(fields: [house_id], references: [id], onDelete: Cascade)
-  created_tasks      Task[]            @relation("TaskCreator")
-  locked_tasks       Task[]            @relation("TaskLockedBy")
+  house               House             @relation(fields: [house_id], references: [id], onDelete: Cascade)
+  created_tasks       Task[]            @relation("TaskCreator")
+  locked_tasks        Task[]            @relation("TaskLockedBy")
   task_participations TaskParticipant[]
-  activity_logs      ActivityLog[]
-  bulletin_posts     BulletinBoard[]
+  activity_logs       ActivityLog[]
+  bulletin_posts      BulletinBoard[]
+  room_memberships    Participant[]
+  messages            Message[]
 
   @@map("users")
+}
+
+model Room {
+  id         String   @id @default(uuid())
+  title      String
+  password   String   // Hash Bcrypt da senha da sala
+  house_id   String?
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  house        House?        @relation(fields: [house_id], references: [id], onDelete: Cascade)
+  participants Participant[]
+  messages     Message[]
+
+  @@map("rooms")
+}
+
+model Participant {
+  id        String   @id @default(uuid())
+  role      Role     @default(MEMBER)
+  joined_at DateTime @default(now())
+
+  user_id String
+  room_id String
+
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  room Room @relation(fields: [room_id], references: [id], onDelete: Cascade)
+
+  @@unique([user_id, room_id])
+  @@map("participants")
+}
+
+model Message {
+  id         String   @id @default(uuid())
+  text       String
+  created_at DateTime @default(now())
+
+  user_id String
+  room_id String
+
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  room Room @relation(fields: [room_id], references: [id], onDelete: Cascade)
+
+  @@map("messages")
 }
 
 model Task {

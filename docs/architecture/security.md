@@ -28,3 +28,13 @@ Para atender a dispositivos compartilhados (ex: tablet fixo na cozinha) e celula
 ## 3. Políticas de Senhas e Rate Limiting
 - **Rate Limit de PIN:** Máximo de 5 tentativas consecutivas incorretas por usuário em janela de 10 minutos.
 - **PINs Fracos Proibidos:** Validação contra sequências óbvias (`0000`, `1234`, `1111`).
+
+---
+
+## 4. Segurança de Salas & Papéis de Arquiteto (Room Security & RBAC)
+- **Hash de Senha de Salas:** A senha da sala (`Room.password`) NUNCA é armazenada em texto plano. É processada via hash unidirecional seguro (`bcryptjs` com custo `saltRounds = 10`).
+- **Verificação de Entrada:** A entrada na sala exige comparação criptográfica `bcrypt.compare(inputPassword, room.password)`.
+- **Privilégios de Arquiteto (`ARCHITECT`):**
+  - O criador da sala recebe automaticamente o cargo `ARCHITECT` na tabela `Participant`.
+  - Apenas usuários com role `ARCHITECT` na sala em questão possuem autorização para executar a rota de promoção (`PATCH /api/rooms/:id/members/:userId/role`) e gerenciar permissões internas da sala.
+  - O middleware `checkRole` intercepta e bloqueia requisições de membros comuns (`MEMBER`) com status `403 Forbidden`.

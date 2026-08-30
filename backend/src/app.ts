@@ -6,6 +6,7 @@ import { taskRoutes } from './modules/tasks/tasks.routes.js';
 import { userRoutes } from './modules/users/users.routes.js';
 import { houseRoutes } from './modules/houses/houses.routes.js';
 import { activityLogRoutes } from './modules/activity-logs/activity-logs.routes.js';
+import { roomRoutes } from './modules/rooms/rooms.routes.js';
 
 const app: Express = express();
 
@@ -25,6 +26,7 @@ app.use('/api/tasks', taskRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/houses', houseRoutes);
 app.use('/api/activity-logs', activityLogRoutes);
+app.use('/api/rooms', roomRoutes);
 
 // Error Handler Central
 app.use(errorHandler);
