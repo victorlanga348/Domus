@@ -45,11 +45,24 @@ export class RoomController {
   updateMemberRole = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const roomId = String(req.params.id);
-      const targetUserId = String(req.params.userId);
+      const targetUserId = String(req.params.userId || req.body.targetUserId);
       const requesterUserId = (req.headers['x-user-id'] as string) || req.body.requester_user_id;
       const role = req.body.role || 'ARCHITECT';
 
       const updated = await this.roomService.updateMemberRole(roomId, targetUserId, requesterUserId, role);
+      res.status(200).json({ status: 'success', data: updated });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  promoteMember = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const roomId = String(req.params.id);
+      const targetUserId = String(req.body.targetUserId || req.body.target_user_id);
+      const requesterUserId = (req.headers['x-user-id'] as string) || req.body.requester_user_id;
+
+      const updated = await this.roomService.updateMemberRole(roomId, targetUserId, requesterUserId, 'ARCHITECT');
       res.status(200).json({ status: 'success', data: updated });
     } catch (error) {
       next(error);

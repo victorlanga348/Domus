@@ -21,3 +21,7 @@ export interface UpdateMemberRoleDTO {
   role: Role;
   requester_user_id: string;
 }
+
+export interface PromoteMemberDTO {
+  targetUserId: string;
+}

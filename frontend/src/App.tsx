@@ -22,6 +22,7 @@ import { TasksRotationsView } from './features/tasks-rotation/index.js';
 import { SettingsView } from './features/settings/index.js';
 import { ReportsView } from './features/reports/index.js';
 import { StatisticsView } from './features/statistics/index.js';
+import { RoomsView } from './features/rooms/index.js';
 import {
   AddExpenseModal,
   RequestReimbursementModal,
@@ -433,6 +434,14 @@ export default function App() {
               onDeleteTask={handleDeleteTask}
               onRotateNext={handleRotateNext}
               onUpdateRotations={setRotations}
+            />
+          )}
+
+          {currentTab === 'rooms' && (
+            <RoomsView
+              currentUserId={familyMembers.find((m) => m.isPrimary)?.id || 'user-1'}
+              currentHouseId="house-1"
+              onShowToast={showToast}
             />
           )}
 
