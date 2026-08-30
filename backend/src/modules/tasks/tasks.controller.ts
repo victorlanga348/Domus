@@ -45,6 +45,16 @@ export class TaskController {
     }
   };
 
+  getNextAssignee = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const id = String(req.params.id);
+      const assignee = await this.taskService.getNextAssignee(id);
+      res.status(200).json({ status: 'success', data: assignee });
+    } catch (error) {
+      next(error);
+    }
+  };
+
   blockTask = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const id = String(req.params.id);

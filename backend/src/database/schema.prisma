@@ -7,6 +7,13 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// --- ENUMS ---
+
+enum UserRole {
+  ADMIN   // O "Arquiteto" que fundou a casa/sala
+  MEMBER  // Membro comum da família
+}
+
 enum Shift {
   MORNING
   AFTERNOON
@@ -40,12 +47,15 @@ enum Role {
   ARCHITECT
 }
 
+// --- MODELS ---
+
 model House {
-  id          String   @id @default(uuid())
-  name        String
-  invite_code String   @unique
-  created_at  DateTime @default(now())
-  updated_at  DateTime @updatedAt
+  id            String   @id @default(uuid())
+  name          String   // Nome da residência / sala principal
+  invite_code   String   @unique // Código ex: CASA-1234
+  password_hash String   @default("") // Hash Bcrypt da senha de entrada da casa
+  created_at    DateTime @default(now())
+  updated_at    DateTime @updatedAt
 
   users          User[]
   tasks          Task[]
@@ -57,17 +67,18 @@ model House {
 }
 
 model User {
-  id            String   @id @default(uuid())
+  id            String    @id @default(uuid())
   name          String
-  email         String   @unique
+  email         String    @unique
   password_hash String
-  pin_hash      String
-  vacation_mode Boolean  @default(false)
-  house_id      String
-  created_at    DateTime @default(now())
-  updated_at    DateTime @updatedAt
+  pin_hash      String    // PIN de 4-6 dígitos para ações rápidas
+  role          UserRole  @default(MEMBER)
+  vacation_mode Boolean   @default(false)
+  house_id      String?
+  created_at    DateTime  @default(now())
+  updated_at    DateTime  @updatedAt
 
-  house               House             @relation(fields: [house_id], references: [id], onDelete: Cascade)
+  house               House?            @relation(fields: [house_id], references: [id], onDelete: Cascade)
   created_tasks       Task[]            @relation("TaskCreator")
   locked_tasks        Task[]            @relation("TaskLockedBy")
   task_participations TaskParticipant[]
@@ -127,13 +138,13 @@ model Task {
   id                String     @id @default(uuid())
   title             String
   description       String?
-  shift             Shift
+  shift             Shift      @default(MORNING)
   frequency         Frequency  @default(DAILY)
   status            TaskStatus @default(OPEN)
   last_block_reason String?
   locked_at         DateTime?
   locked_by_id      String?
-  rotation_index    Int        @default(0)
+  rotation_index    Int        @default(0) // Índice do próximo participante no pool
   creator_id        String
   house_id          String
   created_at        DateTime   @default(now())

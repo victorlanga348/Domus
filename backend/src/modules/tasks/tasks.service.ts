@@ -1,9 +1,13 @@
 import { TaskRepository, type CreateTaskInput, type TaskWithDetails } from './tasks.repository.js';
+import { RotationService } from './tasks.rotation.service.js';
 import { AppError } from '../../shared/errors/AppError.js';
-import type { Task } from '@prisma/client';
+import type { Task, User } from '@prisma/client';
 
 export class TaskService {
-  constructor(private taskRepo = new TaskRepository()) {}
+  constructor(
+    private taskRepo = new TaskRepository(),
+    private rotationService = new RotationService()
+  ) {}
 
   async createTask(data: CreateTaskInput): Promise<TaskWithDetails> {
     if (!data.title || data.title.trim() === '') {
@@ -18,6 +22,11 @@ export class TaskService {
       throw new AppError('Tarefa não encontrada.', 404, 'TASK_NOT_FOUND');
     }
     return task;
+  }
+
+  async getNextAssignee(taskId: string): Promise<User> {
+    const result = await this.rotationService.getNextParticipant(taskId);
+    return result.assignee;
   }
 
   async getHouseTasks(houseId: string): Promise<TaskWithDetails[]> {
@@ -46,25 +55,15 @@ export class TaskService {
     });
   }
 
-  async completeTask(taskId: string, _userId: string): Promise<Task> {
+  async completeTask(taskId: string, _userId: string): Promise<{ task: Task; nextAssignee: User }> {
     const task = await this.getTaskById(taskId);
 
     if (task.status === 'COMPLETED') {
       throw new AppError('Tarefa já foi concluída.', 400, 'TASK_ALREADY_COMPLETED');
     }
 
-    // Avançar rodízio
-    const nextIndex = task.participants.length > 0
-      ? (task.rotation_index + 1) % task.participants.length
-      : 0;
-
-    await this.taskRepo.updateRotationIndex(taskId, nextIndex);
-
-    return this.taskRepo.updateStatus(taskId, 'COMPLETED', {
-      locked_by_id: null,
-      locked_at: null,
-      last_block_reason: null,
-    });
+    // Executa a rotação circular A-Z ignorando ausências
+    return this.rotationService.rotateTask(taskId);
   }
 
   async blockTask(taskId: string, _userId: string, reason: string): Promise<Task> {
