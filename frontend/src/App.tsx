@@ -32,8 +32,18 @@ import {
   AccessLogsModal,
   FamilyMembersDrawer,
 } from './components/index.js';
+import {
+  AuthScreen,
+  RegisterView,
+  LoginView,
+  HouseholdSelectionView,
+  CreateHouseholdView,
+  JoinHouseholdView,
+} from './features/auth/index.js';
 
 export default function App() {
+  const [authScreen, setAuthScreen] = useState<AuthScreen>('household-selection');
+  const [houseName, setHouseName] = useState<string>('Residência Alameda');
   const [currentTab, setCurrentTab] = useState<TabType>('dashboard');
   const [subTab, setSubTab] = useState<string>('bulletin');
   const [vacationMode, setVacationMode] = useState<boolean>(false);
@@ -364,6 +374,156 @@ export default function App() {
     showToast(`Convite enviado para ${member.name}!`);
   };
 
+  // Switcher flutuante para transição e testes de visualização
+  const devSwitcher = (
+    <div className="fixed bottom-4 left-4 z-50 bg-[#16302e]/95 backdrop-blur-md text-white text-xs py-2 px-3 rounded-2xl shadow-2xl border border-[#2d4644] flex items-center gap-1.5 overflow-x-auto max-w-[90vw]">
+      <span className="material-symbols-outlined text-sm text-[#ffca5e]">layers</span>
+      <span className="font-bold text-[10px] uppercase tracking-wider text-[#98b3b0] mr-1 hidden sm:inline">Telas:</span>
+      
+      <button
+        type="button"
+        onClick={() => setAuthScreen('register')}
+        className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all ${
+          authScreen === 'register' ? 'bg-[#ffca5e] text-[#16302e] font-bold shadow' : 'hover:bg-[#2d4644] text-white/90'
+        }`}
+      >
+        Cadastro
+      </button>
+
+      <button
+        type="button"
+        onClick={() => setAuthScreen('login')}
+        className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all ${
+          authScreen === 'login' ? 'bg-[#ffca5e] text-[#16302e] font-bold shadow' : 'hover:bg-[#2d4644] text-white/90'
+        }`}
+      >
+        Login
+      </button>
+
+      <button
+        type="button"
+        onClick={() => setAuthScreen('household-selection')}
+        className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all ${
+          authScreen === 'household-selection' ? 'bg-[#ffca5e] text-[#16302e] font-bold shadow' : 'hover:bg-[#2d4644] text-white/90'
+        }`}
+      >
+        Escolha
+      </button>
+
+      <button
+        type="button"
+        onClick={() => setAuthScreen('create-household')}
+        className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all ${
+          authScreen === 'create-household' ? 'bg-[#ffca5e] text-[#16302e] font-bold shadow' : 'hover:bg-[#2d4644] text-white/90'
+        }`}
+      >
+        Criar Sala/Residência
+      </button>
+
+      <button
+        type="button"
+        onClick={() => setAuthScreen('join-household')}
+        className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all ${
+          authScreen === 'join-household' ? 'bg-[#ffca5e] text-[#16302e] font-bold shadow' : 'hover:bg-[#2d4644] text-white/90'
+        }`}
+      >
+        Entrar em Sala/Residência
+      </button>
+
+      <button
+        type="button"
+        onClick={() => setAuthScreen('app')}
+        className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all ${
+          authScreen === 'app' ? 'bg-[#ffca5e] text-[#16302e] font-bold shadow' : 'hover:bg-[#2d4644] text-white/90'
+        }`}
+      >
+        Dashboard
+      </button>
+    </div>
+  );
+
+  // Renderização condicional das Telas de Autenticação / Onboarding
+  if (authScreen === 'register') {
+    return (
+      <>
+        <RegisterView
+          onRegister={(data) => {
+            showToast(`Conta criada com sucesso para ${data.fullName}!`);
+            setAuthScreen('household-selection');
+          }}
+          onNavigateLogin={() => setAuthScreen('login')}
+        />
+        {devSwitcher}
+      </>
+    );
+  }
+
+  if (authScreen === 'login') {
+    return (
+      <>
+        <LoginView
+          onLogin={(data) => {
+            showToast(`Bem-vindo de volta (${data.email})!`);
+            setAuthScreen('household-selection');
+          }}
+          onNavigateRegister={() => setAuthScreen('register')}
+          onNavigateSetupHome={() => setAuthScreen('household-selection')}
+        />
+        {devSwitcher}
+      </>
+    );
+  }
+
+  if (authScreen === 'household-selection') {
+    return (
+      <>
+        <HouseholdSelectionView
+          onSelectCreate={() => setAuthScreen('create-household')}
+          onSelectJoin={() => setAuthScreen('join-household')}
+          onLogout={() => {
+            showToast('Sessão finalizada.');
+            setAuthScreen('login');
+          }}
+        />
+        {devSwitcher}
+      </>
+    );
+  }
+
+  if (authScreen === 'create-household') {
+    return (
+      <>
+        <CreateHouseholdView
+          onSuccess={(data) => {
+            setHouseName(data.name);
+            showToast(`Residência "${data.name}" fundada com código ${data.code}!`);
+            setAuthScreen('app');
+          }}
+          onBack={() => setAuthScreen('household-selection')}
+          onNavigateLogin={() => setAuthScreen('login')}
+        />
+        {devSwitcher}
+      </>
+    );
+  }
+
+  if (authScreen === 'join-household') {
+    return (
+      <>
+        <JoinHouseholdView
+          onSuccess={(data) => {
+            setHouseName(data.name);
+            showToast(`Entrou na residência "${data.name}" (${data.code}) com sucesso!`);
+            setAuthScreen('app');
+          }}
+          onBack={() => setAuthScreen('household-selection')}
+          onNavigateCreate={() => setAuthScreen('create-household')}
+        />
+        {devSwitcher}
+      </>
+    );
+  }
+
   return (
     <div className="flex h-screen bg-[#e4f0ee] overflow-hidden text-[#131e1d]">
       {/* Sidebar Navigation */}
@@ -378,7 +538,10 @@ export default function App() {
         }}
         currentUser={currentUser}
         activeUsers={familyMembers}
-        onLogoutClick={() => showToast('Sessão encerrada com segurança.')}
+        onLogoutClick={() => {
+          showToast('Sessão encerrada com segurança.');
+          setAuthScreen('login');
+        }}
         isMobileOpen={isMobileMenuOpen}
         onCloseMobile={() => setIsMobileMenuOpen(false)}
       />
@@ -523,6 +686,8 @@ export default function App() {
         onUpdateMemberStatus={handleUpdateMemberStatus}
         onOpenAddMemberModal={() => setIsAddMemberOpen(true)}
       />
+
+      {devSwitcher}
     </div>
   );
 }

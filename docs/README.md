@@ -44,8 +44,10 @@ Bem-vindo ao centro oficial de especificações e governança técnica do **DOMU
 ---
 
 ### 6. Estrutura de Telas / Páginas (`/docs/pages`)
+- [pages/auth-onboarding.md](file:///c:/Users/victo/OneDrive/Documentos/Github/Domus/docs/pages/auth-onboarding.md) — Telas de Cadastro, Login, Seleção, Criação e Entrada em Residência/Sala.
 - [pages/dashboard.md](file:///c:/Users/victo/OneDrive/Documentos/Github/Domus/docs/pages/dashboard.md) — Visão geral da residência, resumo do turno e feed de atividades.
 - [pages/tasks-rotation.md](file:///c:/Users/victo/OneDrive/Documentos/Github/Domus/docs/pages/tasks-rotation.md) — Quadro de tarefas por turno, botões de ação e contadores.
+- [pages/rooms.md](file:///c:/Users/victo/OneDrive/Documentos/Github/Domus/docs/pages/rooms.md) — Saguão e salas temáticas privadas da residência.
 - [pages/wallet.md](file:///c:/Users/victo/OneDrive/Documentos/Github/Domus/docs/pages/wallet.md) — Painel financeiro, saldos líquidos e lista de despesas.
 - [pages/reports.md](file:///c:/Users/victo/OneDrive/Documentos/Github/Domus/docs/pages/reports.md) — Estatísticas de cumprimento e gráficos de rotinas.
 - [pages/settings.md](file:///c:/Users/victo/OneDrive/Documentos/Github/Domus/docs/pages/settings.md) — Gestão de moradores, modo férias e troca de PIN.
