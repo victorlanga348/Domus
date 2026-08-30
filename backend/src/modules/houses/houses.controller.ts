@@ -16,8 +16,25 @@ export class HouseController {
 
   createHouse = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const house = await this.houseService.createHouse(req.body);
-      res.status(201).json({ status: 'success', data: house });
+      const userId = (req.headers['x-user-id'] as string) || req.body.user_id || req.body.userId;
+      const houseName = req.body.houseName || req.body.name || req.body.house_name;
+      const housePassword = req.body.housePassword || req.body.password || req.body.house_password;
+
+      const result = await this.houseService.createHouse(userId, houseName, housePassword);
+      res.status(201).json({ status: 'success', data: result });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  joinHouse = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const userId = (req.headers['x-user-id'] as string) || req.body.user_id || req.body.userId;
+      const houseName = req.body.houseName || req.body.name || req.body.house_name;
+      const housePassword = req.body.housePassword || req.body.password || req.body.house_password;
+
+      const result = await this.houseService.joinHouse(userId, houseName, housePassword);
+      res.status(200).json({ status: 'success', data: result });
     } catch (error) {
       next(error);
     }

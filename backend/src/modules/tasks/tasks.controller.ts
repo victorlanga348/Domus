@@ -37,9 +37,9 @@ export class TaskController {
   completeTask = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const id = String(req.params.id);
-      const { user_id } = req.body;
-      const task = await this.taskService.completeTask(id, user_id);
-      res.status(200).json({ status: 'success', data: task });
+      const { user_id, pin } = req.body;
+      const result = await this.taskService.completeTask(id, user_id, pin);
+      res.status(200).json({ status: 'success', data: result });
     } catch (error) {
       next(error);
     }
@@ -60,6 +60,17 @@ export class TaskController {
       const id = String(req.params.id);
       const { user_id, reason } = req.body;
       const task = await this.taskService.blockTask(id, user_id, reason);
+      res.status(200).json({ status: 'success', data: task });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  failTask = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const id = String(req.params.id);
+      const { user_id, comment } = req.body;
+      const task = await this.taskService.failTask(id, user_id, comment);
       res.status(200).json({ status: 'success', data: task });
     } catch (error) {
       next(error);

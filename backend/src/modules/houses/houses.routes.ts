@@ -7,3 +7,5 @@ const controller = new HouseController();
 houseRoutes.get('/:id', controller.getHouse);
 houseRoutes.get('/lookup/:code', controller.lookupByCode);
 houseRoutes.post('/', controller.createHouse);
+houseRoutes.post('/create', controller.createHouse);
+houseRoutes.post('/join', controller.joinHouse);

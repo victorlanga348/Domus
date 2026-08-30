@@ -7,6 +7,7 @@ import { userRoutes } from './modules/users/users.routes.js';
 import { houseRoutes } from './modules/houses/houses.routes.js';
 import { activityLogRoutes } from './modules/activity-logs/activity-logs.routes.js';
 import { roomRoutes } from './modules/rooms/rooms.routes.js';
+import { authRoutes } from './modules/auth/auth.routes.js';
 
 const app: Express = express();
 
@@ -22,6 +23,7 @@ app.get('/api/health', (_req, res) => {
   });
 });
 
+app.use('/api/auth', authRoutes);
 app.use('/api/tasks', taskRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/houses', houseRoutes);

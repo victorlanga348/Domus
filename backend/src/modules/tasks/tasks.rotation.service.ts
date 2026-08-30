@@ -12,7 +12,17 @@ export interface NextParticipantResult {
 
 export class RotationService {
   /**
-   * Identifica o participante da vez (ordem alfabética A-Z), aplicando a regra de salto para moradores em férias.
+   * 1. getCurrentResponsible:
+   * Busca a tarefa e seus participantes, ordena por nome (A-Z) e retorna o participante no rotation_index atual.
+   * Regra Crítica: Se o participante estiver em vacation_mode: true, busca o próximo da lista até encontrar alguém ativo.
+   */
+  async getCurrentResponsible(taskId: string): Promise<User> {
+    const result = await this.getNextParticipant(taskId);
+    return result.assignee;
+  }
+
+  /**
+   * Identifica o participante da vez com ordenação A-Z e salto de férias.
    */
   async getNextParticipant(taskId: string): Promise<NextParticipantResult> {
     const task = await prisma.task.findUnique({
@@ -34,7 +44,7 @@ export class RotationService {
       throw new AppError('Nenhum participante vinculado a esta tarefa.', 400, 'NO_PARTICIPANTS');
     }
 
-    // 1 & 2. Ordenar participantes em ordem alfabética pelo nome (A-Z)
+    // 1 & 2. Ordenar participantes por nome (A-Z)
     const sortedUsers: User[] = task.participants
       .map((p) => p.user)
       .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR', { sensitivity: 'base' }));
@@ -46,7 +56,7 @@ export class RotationService {
     let chosenUser: User | null = null;
     let effectiveIndex = baseIndex;
 
-    // 3 & 4. Percorrer o pool circular a partir do rotation_index saltando férias
+    // 3 & 4. Busca pelo participante ativo (salto circular de férias)
     for (let step = 0; step < poolSize; step++) {
       const checkIndex = (baseIndex + step) % poolSize;
       const candidate = sortedUsers[checkIndex];
@@ -68,7 +78,6 @@ export class RotationService {
       );
     }
 
-    // 5. Retornar o usuário responsável e os metadados do rodízio
     return {
       assignee: chosenUser,
       effectiveIndex,
@@ -79,17 +88,16 @@ export class RotationService {
   }
 
   /**
-   * Conclui a tarefa e avança o rotation_index para o próximo membro elegível da lista alfabética.
+   * 2. advanceRotation:
+   * Calcula o próximo índice na fila circular (se for o último, volta para 0) e atualiza o rotation_index no banco.
    */
-  async rotateTask(taskId: string): Promise<{ task: Task; nextAssignee: User }> {
+  async advanceRotation(taskId: string): Promise<Task> {
     const nextResult = await this.getNextParticipant(taskId);
     const poolSize = nextResult.poolSize;
 
-    // Próximo índice na fila circular
     const nextRotationIndex = (nextResult.effectiveIndex + 1) % poolSize;
 
-    // Atualiza a tarefa no banco com o novo rotation_index e reseta o lock
-    const updatedTask = await prisma.task.update({
+    return prisma.task.update({
       where: { id: taskId },
       data: {
         rotation_index: nextRotationIndex,
@@ -99,8 +107,13 @@ export class RotationService {
         last_block_reason: null,
       },
     });
+  }
 
-    // Calcula quem será o próximo responsável após a rotação
+  /**
+   * Rotação completa da tarefa retornando o próximo responsável.
+   */
+  async rotateTask(taskId: string): Promise<{ task: Task; nextAssignee: User }> {
+    const updatedTask = await this.advanceRotation(taskId);
     const subsequentResult = await this.getNextParticipant(taskId);
 
     return {
