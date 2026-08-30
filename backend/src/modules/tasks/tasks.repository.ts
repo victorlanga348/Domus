@@ -94,6 +94,10 @@ export class TaskRepository {
     });
   }
 
+  async findByHouse(houseId: string): Promise<TaskWithDetails[]> {
+    return this.findByHouseId(houseId);
+  }
+
   async findActiveTasksByShift(houseId: string, shift: Shift): Promise<TaskWithDetails[]> {
     return prisma.task.findMany({
       where: {

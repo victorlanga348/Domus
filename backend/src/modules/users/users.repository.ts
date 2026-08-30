@@ -46,6 +46,10 @@ export class UserRepository {
     });
   }
 
+  async findByHouse(houseId: string): Promise<User[]> {
+    return this.findByHouseId(houseId);
+  }
+
   async updateVacationMode(id: string, vacation_mode: boolean): Promise<User> {
     return prisma.user.update({
       where: { id },
