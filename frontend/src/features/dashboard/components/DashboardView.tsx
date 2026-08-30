@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import confetti from 'canvas-confetti';
 import { dashboardApi, type DashboardData, type DashboardTaskItem } from '../api/dashboardApi.js';
 import { tasksApi } from '../../tasks-rotation/api/tasksApi.js';
 import { useHouseSocket } from '../../../shared/socket/useHouseSocket.js';
@@ -64,6 +65,22 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     fetchDashboard();
   }, [fetchDashboard]);
 
+  // Timer de virada de turno automático (a cada 60s)
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const currentHour = new Date().getHours();
+      let expectedShift: 'MORNING' | 'AFTERNOON' | 'NIGHT' = 'NIGHT';
+      if (currentHour >= 6 && currentHour < 12) expectedShift = 'MORNING';
+      else if (currentHour >= 12 && currentHour < 18) expectedShift = 'AFTERNOON';
+
+      if (dashboardData && dashboardData.shift_info.current_shift !== expectedShift) {
+        fetchDashboard();
+      }
+    }, 60000);
+
+    return () => clearInterval(interval);
+  }, [dashboardData, fetchDashboard]);
+
   // Sincronização em Tempo Real via WebSocket
   useHouseSocket(currentHouseId, {
     onTaskLocked: (data) => {
@@ -122,7 +139,20 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       setPinError(null);
 
       await tasksApi.completeTask(activePinTask.id, currentUserId, pinInput.trim() || undefined);
-      onShowToast?.(`Tarefa "${activePinTask.title}" concluída com sucesso! Rodízio avançado.`);
+
+      // Micro-interação de celebração com confetes
+      try {
+        confetti({
+          particleCount: 70,
+          spread: 60,
+          origin: { y: 0.7 },
+          colors: ['#7b5800', '#ffca5e', '#16302e', '#22c55e'],
+        });
+      } catch {
+        // Fallback silencioso caso canvas não esteja disponível
+      }
+
+      onShowToast?.(`🎉 Tarefa "${activePinTask.title}" concluída com sucesso! Rodízio avançado.`);
 
       setActivePinTask(null);
       setPinInput('');
