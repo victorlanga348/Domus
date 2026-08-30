@@ -3,8 +3,19 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { useState, useEffect } from 'react';
-import { TabType, FamilyMember, HouseTask, TaskRotation, ExpenseItem, HouseRule, ActivityLog, SystemPreferences, MuralNote, MemberStatus } from './types';
+import { useState, useEffect, useCallback } from 'react';
+import {
+  TabType,
+  FamilyMember,
+  HouseTask,
+  TaskRotation,
+  ExpenseItem,
+  HouseRule,
+  ActivityLog,
+  SystemPreferences,
+  MuralNote,
+  MemberStatus,
+} from './types';
 import {
   INITIAL_FAMILY_MEMBERS,
   INITIAL_TASKS,
@@ -15,7 +26,7 @@ import {
   INITIAL_PREFERENCES,
   INITIAL_MURAL_NOTES,
   INITIAL_MEMBER_STATUSES,
-} from './data';
+} from './data.js';
 import { Sidebar, Header } from './layouts/index.js';
 import { DashboardView } from './features/dashboard/index.js';
 import { TasksRotationsView } from './features/tasks-rotation/index.js';
@@ -32,24 +43,31 @@ import {
   AccessLogsModal,
   FamilyMembersDrawer,
 } from './components/index.js';
-import {
-  AuthScreen,
-  RegisterView,
-  LoginView,
-  HouseholdSelectionView,
-  CreateHouseholdView,
-  JoinHouseholdView,
-} from './features/auth/index.js';
+import { AuthView, HouseSelectionView, type AuthUser, type HouseResponse } from './features/auth/index.js';
 
 export default function App() {
-  const [authScreen, setAuthScreen] = useState<AuthScreen>('household-selection');
-  const [houseName, setHouseName] = useState<string>('Residência Alameda');
+  // Autenticação Real & Hierarquia de Acesso
+  const [authUser, setAuthUser] = useState<AuthUser | null>(() => {
+    const saved = localStorage.getItem('domus_auth_user');
+    return saved ? JSON.parse(saved) : null;
+  });
+
+  const [authToken, setAuthToken] = useState<string | null>(() => {
+    return localStorage.getItem('domus_auth_token');
+  });
+
+  const [currentHouse, setCurrentHouse] = useState<{ id: string; name: string; invite_code: string } | null>(() => {
+    const saved = localStorage.getItem('domus_auth_house');
+    return saved ? JSON.parse(saved) : null;
+  });
+
+  // App Navigation & View States
   const [currentTab, setCurrentTab] = useState<TabType>('dashboard');
   const [subTab, setSubTab] = useState<string>('bulletin');
-  const [vacationMode, setVacationMode] = useState<boolean>(false);
+  const [vacationMode, setVacationMode] = useState<boolean>(() => authUser?.vacation_mode || false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-  // Persistent / Reactive State
+  // Persistent Real Data State
   const [familyMembers, setFamilyMembers] = useState<FamilyMember[]>(() => {
     const saved = localStorage.getItem('domus_members');
     return saved ? JSON.parse(saved) : INITIAL_FAMILY_MEMBERS;
@@ -105,7 +123,22 @@ export default function App() {
   const [isMembersDrawerOpen, setIsMembersDrawerOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-  // Save changes to localStorage
+  // Sync to localStorage
+  useEffect(() => {
+    if (authUser) localStorage.setItem('domus_auth_user', JSON.stringify(authUser));
+    else localStorage.removeItem('domus_auth_user');
+  }, [authUser]);
+
+  useEffect(() => {
+    if (authToken) localStorage.setItem('domus_auth_token', authToken);
+    else localStorage.removeItem('domus_auth_token');
+  }, [authToken]);
+
+  useEffect(() => {
+    if (currentHouse) localStorage.setItem('domus_auth_house', JSON.stringify(currentHouse));
+    else localStorage.removeItem('domus_auth_house');
+  }, [currentHouse]);
+
   useEffect(() => {
     localStorage.setItem('domus_members', JSON.stringify(familyMembers));
   }, [familyMembers]);
@@ -142,64 +175,76 @@ export default function App() {
     localStorage.setItem('domus_statuses', JSON.stringify(memberStatuses));
   }, [memberStatuses]);
 
-  const handleAddMuralNote = (newNote: Omit<MuralNote, 'id' | 'dateStr'>) => {
-    const note: MuralNote = {
-      ...newNote,
-      id: 'n_' + Date.now(),
-      dateStr: 'Today, ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-    };
-    setMuralNotes((prev) => [note, ...prev]);
-    showToast('Nota adicionada ao Mural!');
-  };
+  // Se o usuário logado não estiver na lista de familyMembers, adicioná-lo
+  useEffect(() => {
+    if (authUser && !familyMembers.some((m) => m.id === authUser.id || m.email === authUser.email)) {
+      const newPrimaryMember: FamilyMember = {
+        id: authUser.id,
+        name: authUser.name,
+        email: authUser.email,
+        role: authUser.role === 'ADMIN' ? 'Admin' : 'Resident',
+        isPrimary: true,
+        avatar: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(authUser.name)}`,
+      };
+      setFamilyMembers((prev) => [newPrimaryMember, ...prev.filter((m) => m.id !== authUser.id)]);
+    }
+  }, [authUser, familyMembers]);
 
-  const handleDeleteMuralNote = (id: string) => {
-    setMuralNotes((prev) => prev.filter((n) => n.id !== id));
-    showToast('Nota removida!');
-  };
-
-  const handleToggleNoteItem = (noteId: string, itemId: string) => {
-    setMuralNotes((prev) =>
-      prev.map((n) => {
-        if (n.id !== noteId || !n.items) return n;
-        return {
-          ...n,
-          items: n.items.map((item) =>
-            item.id === itemId ? { ...item, done: !item.done } : item
-          ),
-        };
-      })
-    );
-  };
-
-  const handleTogglePinNote = (noteId: string) => {
-    setMuralNotes((prev) =>
-      prev.map((n) => (n.id === noteId ? { ...n, isPinned: !n.isPinned } : n))
-    );
-  };
-
-  const handleUpdateMemberStatus = (memberId: string, newLocation: string, newIcon?: string) => {
-    setMemberStatuses((prev) =>
-      prev.map((s) =>
-        s.id === memberId
-          ? { ...s, location: newLocation, icon: newIcon || s.icon }
-          : s
-      )
-    );
-    showToast('Status atualizado!');
-  };
-
-  const showToast = (msg: string) => {
+  const showToast = useCallback((msg: string) => {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(null), 3500);
+  }, []);
+
+  const handleAuthSuccess = (user: AuthUser, token: string) => {
+    setAuthUser(user);
+    setAuthToken(token);
+    setVacationMode(user.vacation_mode);
+
+    if (user.house_id && !currentHouse) {
+      setCurrentHouse({
+        id: user.house_id,
+        name: 'Minha Residência',
+        invite_code: 'CASA-DOMUS',
+      });
+    }
+  };
+
+  const handleHouseSelected = (houseData: HouseResponse) => {
+    setCurrentHouse(houseData.house);
+    setAuthUser(houseData.user);
+  };
+
+  const handleLogout = () => {
+    setAuthUser(null);
+    setAuthToken(null);
+    setCurrentHouse(null);
+    localStorage.clear();
+    showToast('Sessão encerrada.');
   };
 
   const handleToggleVacationMode = () => {
     const next = !vacationMode;
     setVacationMode(next);
-    showToast(next ? 'Modo Férias Ativado: Simulação de presença e economia iniciada.' : 'Modo Férias Desativado: Rotinas normais restauradas.');
+    if (authUser) {
+      setAuthUser({ ...authUser, vacation_mode: next });
+    }
+    showToast(next ? 'Modo Férias Ativado: Você foi temporariamente pausado do rodízio.' : 'Modo Férias Desativado: Retornando à escala normal.');
   };
 
-  const currentUser = familyMembers.find((m) => m.isPrimary) || familyMembers[0];
+  const handleAddMuralNote = (newNote: Omit<MuralNote, 'id' | 'dateStr'>) => {
+    const note: MuralNote = {
+      ...newNote,
+      id: 'n_' + Date.now(),
+      dateStr: 'Hoje, ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    };
+    setMuralNotes((prev) => [note, ...prev]);
+    showToast('Recado fixado no mural!');
+  };
+
+  const handleDeleteMuralNote = (id: string) => {
+    setMuralNotes((prev) => prev.filter((n) => n.id !== id));
+    showToast('Recado removido!');
+  };
 
   const handleAddTask = (newTask: Omit<HouseTask, 'id' | 'status'>) => {
     const taskObj: HouseTask = {
@@ -208,41 +253,14 @@ export default function App() {
       status: 'pending',
     };
     setTasks((prev) => [taskObj, ...prev]);
-
-    // If advanceNotice is set, create a system activity log alert
-    if (newTask.advanceNotice && newTask.advanceNotice !== 'Sem aviso') {
-      setActivityLogs((prev) => [
-        {
-          id: `a_rem_${Date.now()}`,
-          title: `⏰ Lembrete: "${taskObj.title}" (Aviso: ${newTask.advanceNotice} para ${taskObj.nextMember})`,
-          timeAgo: 'Agendado',
-          author: 'Sistema',
-          type: 'task',
-        },
-        ...prev,
-      ]);
-    }
-
-    showToast(`Nova tarefa "${taskObj.title}" (${taskObj.frequency || 'Agendada'}) criada com sucesso!`);
+    showToast(`Tarefa "${taskObj.title}" criada com sucesso!`);
   };
 
-  /* Handlers for Task status & Deletion */
   const handleDeleteTask = (taskId: string) => {
     const taskObj = tasks.find((t) => t.id === taskId);
     setTasks((prev) => prev.filter((t) => t.id !== taskId));
     if (taskObj) {
-      const logText = `Tarefa "${taskObj.title}" foi excluída`;
-      setActivityLogs((prev) => [
-        {
-          id: `a_${Date.now()}`,
-          title: logText,
-          timeAgo: 'Agora mesmo',
-          author: currentUser.name,
-          type: 'task',
-        },
-        ...prev,
-      ]);
-      showToast(logText);
+      showToast(`Tarefa "${taskObj.title}" excluída.`);
     }
   };
 
@@ -250,32 +268,8 @@ export default function App() {
     setTasks((prev) =>
       prev.map((t) => (t.id === taskId ? { ...t, status: newStatus } : t))
     );
-    const taskObj = tasks.find((t) => t.id === taskId);
-    if (taskObj) {
-      const logText =
-        newStatus === 'completed'
-          ? `Tarefa "${taskObj.title}" concluída por ${currentUser.name}`
-          : newStatus === 'skipped'
-          ? `Vez pulada na tarefa "${taskObj.title}"`
-          : newStatus === 'cancelled'
-          ? `Tarefa "${taskObj.title}" cancelada`
-          : `Tarefa "${taskObj.title}" revertida para pendente`;
-
-      setActivityLogs((prev) => [
-        {
-          id: `a_${Date.now()}`,
-          title: logText,
-          timeAgo: 'Agora mesmo',
-          author: currentUser.name,
-          type: 'task',
-        },
-        ...prev,
-      ]);
-      showToast(logText);
-    }
   };
 
-  /* Handlers for Rotations */
   const handleRotateNext = (rotationId: string) => {
     setRotations((prev) =>
       prev.map((rot) => {
@@ -297,63 +291,19 @@ export default function App() {
         return rot;
       })
     );
-    showToast('Fila de rotação girada para o próximo membro!');
-  };
-
-  /* Handlers for Expenses */
-  const handleSettleExpense = (id: string) => {
-    setExpenses((prev) =>
-      prev.map((e) => (e.id === id ? { ...e, status: 'Settled' } : e))
-    );
-    showToast('Despesa marcada como liquidada com sucesso!');
+    showToast('Rodízio avançado.');
   };
 
   const handleAddExpense = (expense: Omit<ExpenseItem, 'id'>) => {
-    const newExp: ExpenseItem = {
-      ...expense,
-      id: `exp_${Date.now()}`,
-    };
+    const newExp: ExpenseItem = { ...expense, id: `exp_${Date.now()}` };
     setExpenses((prev) => [newExp, ...prev]);
-
-    setActivityLogs((prev) => [
-      {
-        id: `a_${Date.now()}`,
-        title: `Nova despesa: ${expense.title} ($${expense.amount.toFixed(2)})`,
-        timeAgo: 'Agora mesmo',
-        author: expense.paidBy,
-        type: 'system',
-      },
-      ...prev,
-    ]);
-
-    showToast(`Despesa "$${expense.title}" adicionada!`);
+    showToast(`Despesa adicionada.`);
   };
 
   const handleReimbursement = (amount: number, reason: string) => {
-    showToast(`Solicitação de reembolso de $${amount.toFixed(2)} enviada!`);
+    showToast(`Solicitação de reembolso de ${amount.toFixed(2)} enviada: "${reason}".`);
   };
 
-  /* Handlers for Activity logs */
-  const handleAddActivityLog = (text: string) => {
-    setActivityLogs((prev) => [
-      {
-        id: `a_${Date.now()}`,
-        title: text,
-        timeAgo: 'Agora mesmo',
-        author: currentUser.name,
-        likes: 1,
-      },
-      ...prev,
-    ]);
-  };
-
-  const handleLikeActivity = (id: string) => {
-    setActivityLogs((prev) =>
-      prev.map((l) => (l.id === id ? { ...l, likes: (l.likes || 1) + 1 } : l))
-    );
-  };
-
-  /* Handlers for House Rules */
   const handleAddHouseRule = (rule: Omit<HouseRule, 'id' | 'number'>) => {
     const newRule: HouseRule = {
       ...rule,
@@ -361,169 +311,70 @@ export default function App() {
       number: houseRules.length + 1,
     };
     setHouseRules((prev) => [...prev, newRule]);
-    showToast('Nova regra da casa adicionada!');
+    showToast('Regra da casa adicionada!');
   };
 
-  /* Handlers for Family Members */
   const handleAddFamilyMember = (member: Omit<FamilyMember, 'id'>) => {
-    const newMember: FamilyMember = {
-      ...member,
-      id: `m_${Date.now()}`,
-    };
+    const newMember: FamilyMember = { ...member, id: `m_${Date.now()}` };
     setFamilyMembers((prev) => [...prev, newMember]);
-    showToast(`Convite enviado para ${member.name}!`);
+    showToast(`Membro ${member.name} adicionado!`);
   };
 
-  // Switcher flutuante para transição e testes de visualização
-  const devSwitcher = (
-    <div className="fixed bottom-4 left-4 z-50 bg-[#16302e]/95 backdrop-blur-md text-white text-xs py-2 px-3 rounded-2xl shadow-2xl border border-[#2d4644] flex items-center gap-1.5 overflow-x-auto max-w-[90vw]">
-      <span className="material-symbols-outlined text-sm text-[#ffca5e]">layers</span>
-      <span className="font-bold text-[10px] uppercase tracking-wider text-[#98b3b0] mr-1 hidden sm:inline">Telas:</span>
-      
-      <button
-        type="button"
-        onClick={() => setAuthScreen('register')}
-        className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all ${
-          authScreen === 'register' ? 'bg-[#ffca5e] text-[#16302e] font-bold shadow' : 'hover:bg-[#2d4644] text-white/90'
-        }`}
-      >
-        Cadastro
-      </button>
+  const handleUpdateMemberStatus = (memberId: string, newLocation: string, newIcon?: string) => {
+    setMemberStatuses((prev) =>
+      prev.map((s) => (s.id === memberId ? { ...s, location: newLocation, icon: newIcon || s.icon } : s))
+    );
+    showToast('Status atualizado!');
+  };
 
-      <button
-        type="button"
-        onClick={() => setAuthScreen('login')}
-        className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all ${
-          authScreen === 'login' ? 'bg-[#ffca5e] text-[#16302e] font-bold shadow' : 'hover:bg-[#2d4644] text-white/90'
-        }`}
-      >
-        Login
-      </button>
+  const currentUser: FamilyMember = familyMembers.find((m) => m.isPrimary) || {
+    id: authUser?.id || 'user-1',
+    name: authUser?.name || 'Morador',
+    email: authUser?.email || 'morador@domus.local',
+    role: authUser?.role === 'ADMIN' ? 'Admin' : 'Resident',
+    isPrimary: true,
+    avatar: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(authUser?.name || 'Morador')}`,
+  };
 
-      <button
-        type="button"
-        onClick={() => setAuthScreen('household-selection')}
-        className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all ${
-          authScreen === 'household-selection' ? 'bg-[#ffca5e] text-[#16302e] font-bold shadow' : 'hover:bg-[#2d4644] text-white/90'
-        }`}
-      >
-        Escolha
-      </button>
+  // --- HIERARQUIA DE ACESSO ---
 
-      <button
-        type="button"
-        onClick={() => setAuthScreen('create-household')}
-        className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all ${
-          authScreen === 'create-household' ? 'bg-[#ffca5e] text-[#16302e] font-bold shadow' : 'hover:bg-[#2d4644] text-white/90'
-        }`}
-      >
-        Criar Sala/Residência
-      </button>
-
-      <button
-        type="button"
-        onClick={() => setAuthScreen('join-household')}
-        className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all ${
-          authScreen === 'join-household' ? 'bg-[#ffca5e] text-[#16302e] font-bold shadow' : 'hover:bg-[#2d4644] text-white/90'
-        }`}
-      >
-        Entrar em Sala/Residência
-      </button>
-
-      <button
-        type="button"
-        onClick={() => setAuthScreen('app')}
-        className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all ${
-          authScreen === 'app' ? 'bg-[#ffca5e] text-[#16302e] font-bold shadow' : 'hover:bg-[#2d4644] text-white/90'
-        }`}
-      >
-        Dashboard
-      </button>
-    </div>
-  );
-
-  // Renderização condicional das Telas de Autenticação / Onboarding
-  if (authScreen === 'register') {
+  // Nível 1: Não autenticado ➔ Tela de Login / Cadastro
+  if (!authUser || !authToken) {
     return (
       <>
-        <RegisterView
-          onRegister={(data) => {
-            showToast(`Conta criada com sucesso para ${data.fullName}!`);
-            setAuthScreen('household-selection');
-          }}
-          onNavigateLogin={() => setAuthScreen('login')}
-        />
-        {devSwitcher}
+        <AuthView onAuthSuccess={handleAuthSuccess} onShowToast={showToast} />
+        {toastMessage && (
+          <div className="fixed bottom-6 right-6 z-50 bg-[#16302e] text-white px-5 py-3 rounded-2xl shadow-2xl border border-[#ffca5e] text-xs font-bold flex items-center gap-3 animate-bounce">
+            <span className="material-symbols-outlined text-[#ffca5e] text-base">info</span>
+            <span>{toastMessage}</span>
+          </div>
+        )}
       </>
     );
   }
 
-  if (authScreen === 'login') {
+  // Nível 2: Autenticado, mas sem casa vinculada ➔ Tela de Escolha de Residência
+  if (!authUser.house_id || !currentHouse) {
     return (
       <>
-        <LoginView
-          onLogin={(data) => {
-            showToast(`Bem-vindo de volta (${data.email})!`);
-            setAuthScreen('household-selection');
-          }}
-          onNavigateRegister={() => setAuthScreen('register')}
-          onNavigateSetupHome={() => setAuthScreen('household-selection')}
+        <HouseSelectionView
+          currentUser={authUser}
+          token={authToken}
+          onHouseSelected={handleHouseSelected}
+          onLogout={handleLogout}
+          onShowToast={showToast}
         />
-        {devSwitcher}
+        {toastMessage && (
+          <div className="fixed bottom-6 right-6 z-50 bg-[#16302e] text-white px-5 py-3 rounded-2xl shadow-2xl border border-[#ffca5e] text-xs font-bold flex items-center gap-3 animate-bounce">
+            <span className="material-symbols-outlined text-[#ffca5e] text-base">info</span>
+            <span>{toastMessage}</span>
+          </div>
+        )}
       </>
     );
   }
 
-  if (authScreen === 'household-selection') {
-    return (
-      <>
-        <HouseholdSelectionView
-          onSelectCreate={() => setAuthScreen('create-household')}
-          onSelectJoin={() => setAuthScreen('join-household')}
-          onLogout={() => {
-            showToast('Sessão finalizada.');
-            setAuthScreen('login');
-          }}
-        />
-        {devSwitcher}
-      </>
-    );
-  }
-
-  if (authScreen === 'create-household') {
-    return (
-      <>
-        <CreateHouseholdView
-          onSuccess={(data) => {
-            setHouseName(data.name);
-            showToast(`Residência "${data.name}" fundada com código ${data.code}!`);
-            setAuthScreen('app');
-          }}
-          onBack={() => setAuthScreen('household-selection')}
-          onNavigateLogin={() => setAuthScreen('login')}
-        />
-        {devSwitcher}
-      </>
-    );
-  }
-
-  if (authScreen === 'join-household') {
-    return (
-      <>
-        <JoinHouseholdView
-          onSuccess={(data) => {
-            setHouseName(data.name);
-            showToast(`Entrou na residência "${data.name}" (${data.code}) com sucesso!`);
-            setAuthScreen('app');
-          }}
-          onBack={() => setAuthScreen('household-selection')}
-          onNavigateCreate={() => setAuthScreen('create-household')}
-        />
-        {devSwitcher}
-      </>
-    );
-  }
-
+  // Nível 3: Autenticado e com Residência ➔ Aplicação Principal DOMUS
   return (
     <div className="flex h-screen bg-[#e4f0ee] overflow-hidden text-[#131e1d]">
       {/* Sidebar Navigation */}
@@ -538,10 +389,7 @@ export default function App() {
         }}
         currentUser={currentUser}
         activeUsers={familyMembers}
-        onLogoutClick={() => {
-          showToast('Sessão encerrada com segurança.');
-          setAuthScreen('login');
-        }}
+        onLogoutClick={handleLogout}
         isMobileOpen={isMobileMenuOpen}
         onCloseMobile={() => setIsMobileMenuOpen(false)}
       />
@@ -565,8 +413,8 @@ export default function App() {
         <div className="flex-1 pb-6 md:pb-12">
           {currentTab === 'dashboard' && (
             <DashboardView
-              currentUserId={currentUser?.id || 'user-1'}
-              currentHouseId="house-1"
+              currentUserId={authUser.id}
+              currentHouseId={currentHouse.id}
               subTab={subTab}
               vacationMode={vacationMode}
               onShowToast={showToast}
@@ -592,8 +440,8 @@ export default function App() {
 
           {currentTab === 'rooms' && (
             <RoomsView
-              currentUserId={currentUser?.id || 'user-1'}
-              currentHouseId="house-1"
+              currentUserId={authUser.id}
+              currentHouseId={currentHouse.id}
               onShowToast={showToast}
             />
           )}
@@ -623,15 +471,15 @@ export default function App() {
 
           {currentTab === 'statistics' && (
             <StatisticsView
-              currentHouseId="house-1"
-              currentUserId={currentUser?.id || 'user-1'}
+              currentHouseId={currentHouse.id}
+              currentUserId={authUser.id}
               familyMembers={familyMembers}
             />
           )}
         </div>
       </main>
 
-      {/* Toast Banner Notification */}
+      {/* Toast Notification Banner */}
       {toastMessage && (
         <div className="fixed bottom-6 right-6 z-50 bg-[#16302e] text-white px-5 py-3 rounded-2xl shadow-2xl border border-[#ffca5e] text-xs font-bold flex items-center gap-3 animate-bounce">
           <span className="material-symbols-outlined text-[#ffca5e] text-base">info</span>
@@ -639,7 +487,7 @@ export default function App() {
         </div>
       )}
 
-      {/* Interactive Modals & Drawers */}
+      {/* Modals & Drawers */}
       <AddExpenseModal
         isOpen={isAddExpenseOpen}
         onClose={() => setIsAddExpenseOpen(false)}
@@ -686,8 +534,6 @@ export default function App() {
         onUpdateMemberStatus={handleUpdateMemberStatus}
         onOpenAddMemberModal={() => setIsAddMemberOpen(true)}
       />
-
-      {devSwitcher}
     </div>
   );
 }
