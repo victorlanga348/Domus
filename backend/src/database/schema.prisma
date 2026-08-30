@@ -1,0 +1,140 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+enum Shift {
+  MORNING
+  AFTERNOON
+  NIGHT
+}
+
+enum Frequency {
+  DAILY
+  WEEKLY
+  MONTHLY
+  ONCE
+}
+
+enum TaskStatus {
+  OPEN
+  LOCKED
+  BLOCKED
+  COMPLETED
+}
+
+enum ActionType {
+  COMPLETED
+  FAILED
+  BLOCKED
+  LOCKED
+  ROTATED
+}
+
+model House {
+  id          String   @id @default(uuid())
+  name        String
+  invite_code String   @unique
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+
+  users          User[]
+  tasks          Task[]
+  activity_logs  ActivityLog[]
+  bulletin_posts BulletinBoard[]
+
+  @@map("houses")
+}
+
+model User {
+  id            String   @id @default(uuid())
+  name          String
+  email         String   @unique
+  password_hash String
+  pin_hash      String
+  vacation_mode Boolean  @default(false)
+  house_id      String
+  created_at    DateTime @default(now())
+  updated_at    DateTime @updatedAt
+
+  house              House             @relation(fields: [house_id], references: [id], onDelete: Cascade)
+  created_tasks      Task[]            @relation("TaskCreator")
+  locked_tasks       Task[]            @relation("TaskLockedBy")
+  task_participations TaskParticipant[]
+  activity_logs      ActivityLog[]
+  bulletin_posts     BulletinBoard[]
+
+  @@map("users")
+}
+
+model Task {
+  id                String     @id @default(uuid())
+  title             String
+  description       String?
+  shift             Shift
+  frequency         Frequency  @default(DAILY)
+  status            TaskStatus @default(OPEN)
+  last_block_reason String?
+  locked_at         DateTime?
+  locked_by_id      String?
+  rotation_index    Int        @default(0)
+  creator_id        String
+  house_id          String
+  created_at        DateTime   @default(now())
+  updated_at        DateTime   @updatedAt
+
+  house         House             @relation(fields: [house_id], references: [id], onDelete: Cascade)
+  creator       User              @relation("TaskCreator", fields: [creator_id], references: [id], onDelete: Restrict)
+  locked_by     User?             @relation("TaskLockedBy", fields: [locked_by_id], references: [id], onDelete: SetNull)
+  participants  TaskParticipant[]
+  activity_logs ActivityLog[]
+
+  @@map("tasks")
+}
+
+model TaskParticipant {
+  id         String   @id @default(uuid())
+  task_id    String
+  user_id    String
+  created_at DateTime @default(now())
+
+  task Task @relation(fields: [task_id], references: [id], onDelete: Cascade)
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@unique([task_id, user_id])
+  @@map("task_participants")
+}
+
+model ActivityLog {
+  id          String     @id @default(uuid())
+  task_id     String?
+  user_id     String
+  house_id    String
+  action_type ActionType
+  comment     String?
+  created_at  DateTime   @default(now())
+
+  task  Task? @relation(fields: [task_id], references: [id], onDelete: SetNull)
+  user  User  @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  house House @relation(fields: [house_id], references: [id], onDelete: Cascade)
+
+  @@map("activity_logs")
+}
+
+model BulletinBoard {
+  id         String   @id @default(uuid())
+  content    String
+  author_id  String
+  house_id   String
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  author User  @relation(fields: [author_id], references: [id], onDelete: Cascade)
+  house  House @relation(fields: [house_id], references: [id], onDelete: Cascade)
+
+  @@map("bulletin_board")
+}
