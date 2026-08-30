@@ -16,17 +16,7 @@ import {
   MuralNote,
   MemberStatus,
 } from './types';
-import {
-  INITIAL_FAMILY_MEMBERS,
-  INITIAL_TASKS,
-  INITIAL_ROTATIONS,
-  INITIAL_EXPENSES,
-  INITIAL_HOUSE_RULES,
-  INITIAL_ACTIVITY_LOGS,
-  INITIAL_PREFERENCES,
-  INITIAL_MURAL_NOTES,
-  INITIAL_MEMBER_STATUSES,
-} from './data.js';
+import { INITIAL_PREFERENCES } from './data.js';
 import { Sidebar, Header } from './layouts/index.js';
 import { DashboardView } from './features/dashboard/index.js';
 import { TasksRotationsView } from './features/tasks-rotation/index.js';
@@ -46,7 +36,22 @@ import {
 import { AuthView, HouseSelectionView, type AuthUser, type HouseResponse } from './features/auth/index.js';
 
 export default function App() {
-  // Autenticação Real & Hierarquia de Acesso
+  // 1. Limpeza proativa de chaves antigas de mock / un-scoped
+  useEffect(() => {
+    const legacyKeys = [
+      'domus_members',
+      'domus_tasks',
+      'domus_rotations',
+      'domus_expenses',
+      'domus_rules',
+      'domus_logs',
+      'domus_notes',
+      'domus_statuses',
+    ];
+    legacyKeys.forEach((k) => localStorage.removeItem(k));
+  }, []);
+
+  // 2. Autenticação Real & Hierarquia de Acesso
   const [authUser, setAuthUser] = useState<AuthUser | null>(() => {
     const saved = localStorage.getItem('domus_auth_user');
     return saved ? JSON.parse(saved) : null;
@@ -61,56 +66,79 @@ export default function App() {
     return saved ? JSON.parse(saved) : null;
   });
 
-  // App Navigation & View States
+  // 3. Navegação & Abas
   const [currentTab, setCurrentTab] = useState<TabType>('dashboard');
   const [subTab, setSubTab] = useState<string>('bulletin');
   const [vacationMode, setVacationMode] = useState<boolean>(() => authUser?.vacation_mode || false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-  // Persistent Real Data State
+  // 4. Estados Reais por Residência (Iniciam 100% vazios para casas novas)
+  const houseKey = currentHouse ? `domus_house_${currentHouse.id}` : null;
+
   const [familyMembers, setFamilyMembers] = useState<FamilyMember[]>(() => {
-    const saved = localStorage.getItem('domus_members');
-    return saved ? JSON.parse(saved) : INITIAL_FAMILY_MEMBERS;
+    if (!currentHouse || !authUser) return [];
+    const saved = houseKey ? localStorage.getItem(`${houseKey}_members`) : null;
+    if (saved) return JSON.parse(saved);
+
+    // Membro inicial é estritamente o usuário cadastrado
+    return [
+      {
+        id: authUser.id,
+        name: authUser.name,
+        email: authUser.email,
+        role: authUser.role === 'ADMIN' ? 'Admin' : 'Resident',
+        isPrimary: true,
+        avatar: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(authUser.name)}`,
+      },
+    ];
   });
 
   const [tasks, setTasks] = useState<HouseTask[]>(() => {
-    const saved = localStorage.getItem('domus_tasks');
-    return saved ? JSON.parse(saved) : INITIAL_TASKS;
+    if (!houseKey) return [];
+    const saved = localStorage.getItem(`${houseKey}_tasks`);
+    return saved ? JSON.parse(saved) : [];
   });
 
   const [rotations, setRotations] = useState<TaskRotation[]>(() => {
-    const saved = localStorage.getItem('domus_rotations');
-    return saved ? JSON.parse(saved) : INITIAL_ROTATIONS;
+    if (!houseKey) return [];
+    const saved = localStorage.getItem(`${houseKey}_rotations`);
+    return saved ? JSON.parse(saved) : [];
   });
 
   const [expenses, setExpenses] = useState<ExpenseItem[]>(() => {
-    const saved = localStorage.getItem('domus_expenses');
-    return saved ? JSON.parse(saved) : INITIAL_EXPENSES;
+    if (!houseKey) return [];
+    const saved = localStorage.getItem(`${houseKey}_expenses`);
+    return saved ? JSON.parse(saved) : [];
   });
 
   const [houseRules, setHouseRules] = useState<HouseRule[]>(() => {
-    const saved = localStorage.getItem('domus_rules');
-    return saved ? JSON.parse(saved) : INITIAL_HOUSE_RULES;
+    if (!houseKey) return [];
+    const saved = localStorage.getItem(`${houseKey}_rules`);
+    return saved ? JSON.parse(saved) : [];
   });
 
   const [activityLogs, setActivityLogs] = useState<ActivityLog[]>(() => {
-    const saved = localStorage.getItem('domus_logs');
-    return saved ? JSON.parse(saved) : INITIAL_ACTIVITY_LOGS;
+    if (!houseKey) return [];
+    const saved = localStorage.getItem(`${houseKey}_logs`);
+    return saved ? JSON.parse(saved) : [];
   });
 
   const [preferences, setPreferences] = useState<SystemPreferences>(() => {
-    const saved = localStorage.getItem('domus_prefs');
+    if (!houseKey) return INITIAL_PREFERENCES;
+    const saved = localStorage.getItem(`${houseKey}_prefs`);
     return saved ? JSON.parse(saved) : INITIAL_PREFERENCES;
   });
 
   const [muralNotes, setMuralNotes] = useState<MuralNote[]>(() => {
-    const saved = localStorage.getItem('domus_notes');
-    return saved ? JSON.parse(saved) : INITIAL_MURAL_NOTES;
+    if (!houseKey) return [];
+    const saved = localStorage.getItem(`${houseKey}_notes`);
+    return saved ? JSON.parse(saved) : [];
   });
 
   const [memberStatuses, setMemberStatuses] = useState<MemberStatus[]>(() => {
-    const saved = localStorage.getItem('domus_statuses');
-    return saved ? JSON.parse(saved) : INITIAL_MEMBER_STATUSES;
+    if (!houseKey) return [];
+    const saved = localStorage.getItem(`${houseKey}_statuses`);
+    return saved ? JSON.parse(saved) : [];
   });
 
   // Modal Visibility States
@@ -123,7 +151,7 @@ export default function App() {
   const [isMembersDrawerOpen, setIsMembersDrawerOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-  // Sync to localStorage
+  // Sync Auth State
   useEffect(() => {
     if (authUser) localStorage.setItem('domus_auth_user', JSON.stringify(authUser));
     else localStorage.removeItem('domus_auth_user');
@@ -139,56 +167,31 @@ export default function App() {
     else localStorage.removeItem('domus_auth_house');
   }, [currentHouse]);
 
+  // Sync House Data State
   useEffect(() => {
-    localStorage.setItem('domus_members', JSON.stringify(familyMembers));
-  }, [familyMembers]);
-
-  useEffect(() => {
-    localStorage.setItem('domus_tasks', JSON.stringify(tasks));
-  }, [tasks]);
-
-  useEffect(() => {
-    localStorage.setItem('domus_rotations', JSON.stringify(rotations));
-  }, [rotations]);
-
-  useEffect(() => {
-    localStorage.setItem('domus_expenses', JSON.stringify(expenses));
-  }, [expenses]);
-
-  useEffect(() => {
-    localStorage.setItem('domus_rules', JSON.stringify(houseRules));
-  }, [houseRules]);
-
-  useEffect(() => {
-    localStorage.setItem('domus_logs', JSON.stringify(activityLogs));
-  }, [activityLogs]);
-
-  useEffect(() => {
-    localStorage.setItem('domus_prefs', JSON.stringify(preferences));
-  }, [preferences]);
-
-  useEffect(() => {
-    localStorage.setItem('domus_notes', JSON.stringify(muralNotes));
-  }, [muralNotes]);
-
-  useEffect(() => {
-    localStorage.setItem('domus_statuses', JSON.stringify(memberStatuses));
-  }, [memberStatuses]);
-
-  // Se o usuário logado não estiver na lista de familyMembers, adicioná-lo
-  useEffect(() => {
-    if (authUser && !familyMembers.some((m) => m.id === authUser.id || m.email === authUser.email)) {
-      const newPrimaryMember: FamilyMember = {
-        id: authUser.id,
-        name: authUser.name,
-        email: authUser.email,
-        role: authUser.role === 'ADMIN' ? 'Admin' : 'Resident',
-        isPrimary: true,
-        avatar: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(authUser.name)}`,
-      };
-      setFamilyMembers((prev) => [newPrimaryMember, ...prev.filter((m) => m.id !== authUser.id)]);
+    if (houseKey) {
+      localStorage.setItem(`${houseKey}_members`, JSON.stringify(familyMembers));
+      localStorage.setItem(`${houseKey}_tasks`, JSON.stringify(tasks));
+      localStorage.setItem(`${houseKey}_rotations`, JSON.stringify(rotations));
+      localStorage.setItem(`${houseKey}_expenses`, JSON.stringify(expenses));
+      localStorage.setItem(`${houseKey}_rules`, JSON.stringify(houseRules));
+      localStorage.setItem(`${houseKey}_logs`, JSON.stringify(activityLogs));
+      localStorage.setItem(`${houseKey}_prefs`, JSON.stringify(preferences));
+      localStorage.setItem(`${houseKey}_notes`, JSON.stringify(muralNotes));
+      localStorage.setItem(`${houseKey}_statuses`, JSON.stringify(memberStatuses));
     }
-  }, [authUser, familyMembers]);
+  }, [
+    houseKey,
+    familyMembers,
+    tasks,
+    rotations,
+    expenses,
+    houseRules,
+    activityLogs,
+    preferences,
+    muralNotes,
+    memberStatuses,
+  ]);
 
   const showToast = useCallback((msg: string) => {
     setToastMessage(msg);
@@ -212,6 +215,33 @@ export default function App() {
   const handleHouseSelected = (houseData: HouseResponse) => {
     setCurrentHouse(houseData.house);
     setAuthUser(houseData.user);
+
+    // Inicializar membro como estritamente o usuário logado
+    const primary: FamilyMember = {
+      id: houseData.user.id,
+      name: houseData.user.name,
+      email: houseData.user.email,
+      role: houseData.user.role === 'ADMIN' ? 'Admin' : 'Resident',
+      isPrimary: true,
+      avatar: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(houseData.user.name)}`,
+    };
+
+    setFamilyMembers([primary]);
+    setTasks([]);
+    setRotations([]);
+    setExpenses([]);
+    setHouseRules([]);
+    setMuralNotes([]);
+    setMemberStatuses([]);
+    setActivityLogs([
+      {
+        id: `log_${Date.now()}`,
+        title: `Residência "${houseData.house.name}" fundada por ${houseData.user.name}`,
+        timeAgo: 'Agora mesmo',
+        author: houseData.user.name,
+        type: 'system',
+      },
+    ]);
   };
 
   const handleLogout = () => {
@@ -219,6 +249,14 @@ export default function App() {
     setAuthToken(null);
     setCurrentHouse(null);
     localStorage.clear();
+    setFamilyMembers([]);
+    setTasks([]);
+    setRotations([]);
+    setExpenses([]);
+    setHouseRules([]);
+    setActivityLogs([]);
+    setMuralNotes([]);
+    setMemberStatuses([]);
     showToast('Sessão encerrada.');
   };
 

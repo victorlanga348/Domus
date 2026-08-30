@@ -10,7 +10,7 @@ export const AddExpenseModal: React.FC<{
 }> = ({ isOpen, onClose, familyMembers, onAddExpense }) => {
   const [title, setTitle] = useState('');
   const [amount, setAmount] = useState('');
-  const [paidBy, setPaidBy] = useState(familyMembers[0]?.name || 'Alex');
+  const [paidBy, setPaidBy] = useState(familyMembers[0]?.name || 'Morador');
   const [icon, setIcon] = useState('shopping_cart');
 
   if (!isOpen) return null;

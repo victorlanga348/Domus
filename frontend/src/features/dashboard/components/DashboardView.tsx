@@ -45,7 +45,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   const [noteTitle, setNoteTitle] = useState('');
   const [noteContent, setNoteContent] = useState('');
   const [noteColor, setNoteColor] = useState<MuralNote['color']>('amber');
-  const [selectedAuthor, setSelectedAuthor] = useState('Alex Johnson');
+  const [selectedAuthor, setSelectedAuthor] = useState(familyMembers[0]?.name || 'Morador');
 
   const fetchDashboard = useCallback(async () => {
     try {
