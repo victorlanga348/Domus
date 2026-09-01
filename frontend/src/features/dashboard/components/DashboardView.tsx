@@ -15,6 +15,7 @@ interface DashboardViewProps {
   onAddMuralNote?: (note: Omit<MuralNote, 'id' | 'dateStr'>) => void;
   onDeleteMuralNote?: (id: string) => void;
   familyMembers?: FamilyMember[];
+  onSyncMembers?: (members: any[]) => void;
 }
 
 export const DashboardView: React.FC<DashboardViewProps> = ({
@@ -26,6 +27,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   onAddMuralNote,
   onDeleteMuralNote,
   familyMembers = [],
+  onSyncMembers,
 }) => {
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -53,13 +55,16 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       const data = await dashboardApi.getDashboardData(currentHouseId, currentUserId);
       if (data) {
         setDashboardData(data);
+        if (data.members && data.members.length > 0) {
+          onSyncMembers?.(data.members);
+        }
       }
     } catch (err) {
       console.warn('Erro ao buscar dados do dashboard:', err);
     } finally {
       setLoading(false);
     }
-  }, [currentHouseId, currentUserId]);
+  }, [currentHouseId, currentUserId, onSyncMembers]);
 
   useEffect(() => {
     fetchDashboard();

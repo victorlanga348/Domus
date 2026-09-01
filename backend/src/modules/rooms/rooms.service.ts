@@ -1,6 +1,7 @@
 import bcrypt from 'bcryptjs';
 import { RoomRepository, type RoomWithParticipants } from './rooms.repository.js';
 import { AppError } from '../../shared/errors/AppError.js';
+import { emitToRoom } from '../../shared/socket/socketServer.js';
 import type { Role, Participant, Message } from '@prisma/client';
 import type {
   CreateRoomDTO,
@@ -208,7 +209,9 @@ export class RoomService {
       throw new AppError('O conteúdo da mensagem não pode ser vazio.', 400, 'MESSAGE_TEXT_REQUIRED');
     }
 
-    return this.roomRepo.createMessage(roomId, data.user_id, data.text.trim());
+    const message = await this.roomRepo.createMessage(roomId, data.user_id, data.text.trim());
+    emitToRoom(roomId, 'room:new_message', message);
+    return message;
   }
 
   /**

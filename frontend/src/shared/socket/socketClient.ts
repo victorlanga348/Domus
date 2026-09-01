@@ -29,17 +29,31 @@ export function getSocket(): Socket {
   return socket;
 }
 
-export function joinHouseRoom(houseId: string): void {
+export function joinHouseRoom(houseId: string, user?: { id: string; name?: string; avatar?: string }): void {
   const s = getSocket();
   if (houseId) {
-    s.emit('house:join', houseId);
+    s.emit('house:join', { houseId, user });
   }
 }
 
 export function leaveHouseRoom(houseId: string): void {
   const s = getSocket();
   if (houseId) {
-    s.emit('house:leave', houseId);
+    s.emit('house:leave', { houseId });
+  }
+}
+
+export function joinPrivateRoom(roomId: string, user?: { id: string; name?: string }): void {
+  const s = getSocket();
+  if (roomId) {
+    s.emit('room:join', { roomId, user });
+  }
+}
+
+export function leavePrivateRoom(roomId: string): void {
+  const s = getSocket();
+  if (roomId) {
+    s.emit('room:leave', { roomId });
   }
 }
 

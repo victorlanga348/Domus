@@ -6,6 +6,46 @@ import { prisma } from '../../database/prisma.js';
 
 let io: SocketIOServer | null = null;
 
+interface ConnectedUser {
+  socketId: string;
+  userId: string;
+  name?: string;
+  avatar?: string;
+}
+
+// Map: houseId -> Map<socketId, ConnectedUser>
+const housePresence = new Map<string, Map<string, ConnectedUser>>();
+// Map: roomId -> Map<socketId, ConnectedUser>
+const roomPresence = new Map<string, Map<string, ConnectedUser>>();
+
+function broadcastHousePresence(houseId: string) {
+  if (!io || !houseId) return;
+  const houseMap = housePresence.get(houseId);
+  const users = houseMap ? Array.from(houseMap.values()) : [];
+  const uniqueUserIds = Array.from(new Set(users.map((u) => u.userId)));
+
+  io.to(`house:${houseId}`).emit('house:presence', {
+    houseId,
+    onlineCount: uniqueUserIds.length,
+    onlineUserIds: uniqueUserIds,
+    users,
+  });
+}
+
+function broadcastRoomPresence(roomId: string) {
+  if (!io || !roomId) return;
+  const roomMap = roomPresence.get(roomId);
+  const users = roomMap ? Array.from(roomMap.values()) : [];
+  const uniqueUserIds = Array.from(new Set(users.map((u) => u.userId)));
+
+  io.to(`room:${roomId}`).emit('room:presence', {
+    roomId,
+    onlineCount: uniqueUserIds.length,
+    onlineUserIds: uniqueUserIds,
+    users,
+  });
+}
+
 export function initSocketServer(httpServer: HttpServer): SocketIOServer {
   io = new SocketIOServer(httpServer, {
     cors: {
@@ -18,19 +58,77 @@ export function initSocketServer(httpServer: HttpServer): SocketIOServer {
   io.on('connection', (socket: Socket) => {
     logger.info(`[WebSocket] Cliente conectado: ${socket.id}`);
 
-    // Morador entra na sala da sua residência
-    socket.on('house:join', (houseId: string) => {
+    // Morador entra na residência com dados do usuário
+    socket.on('house:join', (data: string | { houseId: string; user?: { id: string; name?: string; avatar?: string } }) => {
+      const houseId = typeof data === 'string' ? data : data?.houseId;
+      const user = typeof data === 'object' ? data?.user : undefined;
+
       if (houseId) {
         socket.join(`house:${houseId}`);
         logger.info(`[WebSocket] Socket ${socket.id} ingressou na sala house:${houseId}`);
+
+        if (!housePresence.has(houseId)) {
+          housePresence.set(houseId, new Map());
+        }
+        const houseMap = housePresence.get(houseId)!;
+        if (user?.id) {
+          houseMap.set(socket.id, {
+            socketId: socket.id,
+            userId: user.id,
+            name: user.name,
+            avatar: user.avatar,
+          });
+        }
+
+        broadcastHousePresence(houseId);
       }
     });
 
-    // Morador sai da sala
-    socket.on('house:leave', (houseId: string) => {
+    // Morador sai da residência
+    socket.on('house:leave', (data: string | { houseId: string }) => {
+      const houseId = typeof data === 'string' ? data : data?.houseId;
       if (houseId) {
         socket.leave(`house:${houseId}`);
+        const houseMap = housePresence.get(houseId);
+        if (houseMap) {
+          houseMap.delete(socket.id);
+          if (houseMap.size === 0) housePresence.delete(houseId);
+        }
+        broadcastHousePresence(houseId);
         logger.info(`[WebSocket] Socket ${socket.id} saiu da sala house:${houseId}`);
+      }
+    });
+
+    // Salas Privadas: Entrada na sala
+    socket.on('room:join', (data: { roomId: string; user?: { id: string; name?: string } }) => {
+      if (data?.roomId) {
+        socket.join(`room:${data.roomId}`);
+        logger.info(`[WebSocket] Socket ${socket.id} entrou na sala privada room:${data.roomId}`);
+
+        if (!roomPresence.has(data.roomId)) {
+          roomPresence.set(data.roomId, new Map());
+        }
+        if (data.user?.id) {
+          roomPresence.get(data.roomId)!.set(socket.id, {
+            socketId: socket.id,
+            userId: data.user.id,
+            name: data.user.name,
+          });
+        }
+        broadcastRoomPresence(data.roomId);
+      }
+    });
+
+    // Salas Privadas: Saída da sala
+    socket.on('room:leave', (data: { roomId: string }) => {
+      if (data?.roomId) {
+        socket.leave(`room:${data.roomId}`);
+        const roomMap = roomPresence.get(data.roomId);
+        if (roomMap) {
+          roomMap.delete(socket.id);
+          if (roomMap.size === 0) roomPresence.delete(data.roomId);
+        }
+        broadcastRoomPresence(data.roomId);
       }
     });
 
@@ -116,6 +214,24 @@ export function initSocketServer(httpServer: HttpServer): SocketIOServer {
 
     socket.on('disconnect', () => {
       logger.info(`[WebSocket] Cliente desconectado: ${socket.id}`);
+
+      // Remover de todas as residências
+      for (const [hId, houseMap] of housePresence.entries()) {
+        if (houseMap.has(socket.id)) {
+          houseMap.delete(socket.id);
+          broadcastHousePresence(hId);
+          if (houseMap.size === 0) housePresence.delete(hId);
+        }
+      }
+
+      // Remover de todas as salas privadas
+      for (const [rId, roomMap] of roomPresence.entries()) {
+        if (roomMap.has(socket.id)) {
+          roomMap.delete(socket.id);
+          broadcastRoomPresence(rId);
+          if (roomMap.size === 0) roomPresence.delete(rId);
+        }
+      }
     });
   });
 
@@ -129,5 +245,11 @@ export function getSocketIO(): SocketIOServer | null {
 export function emitToHouse(houseId: string, event: string, payload: any): void {
   if (io && houseId) {
     io.to(`house:${houseId}`).emit(event, payload);
+  }
+}
+
+export function emitToRoom(roomId: string, event: string, payload: any): void {
+  if (io && roomId) {
+    io.to(`room:${roomId}`).emit(event, payload);
   }
 }

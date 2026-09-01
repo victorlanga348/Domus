@@ -106,3 +106,32 @@
 - **Payload:** `{ "text": "Reunião de compras às 18h!" }`
 - **Headers:** `x-user-id`
 - **Resposta (201):** Mensagem criada.
+
+---
+
+## 5. Endpoints de Gestão de Residências (`/api/houses` / `/api/house`)
+
+### `GET /api/houses/my-houses`
+- Lista as residências salvas e vinculadas ao usuário autenticado.
+- **Headers:** `x-user-id`, `Authorization: Bearer <jwt>`
+- **Resposta (200):** Array de residências com contadores de membros e papel do morador.
+
+### `POST /api/houses/switch`
+- Alterna a residência ativa do usuário sem destruir a sessão de autenticação.
+- **Payload:** `{ "targetHouseId": "uuid-house" }`
+- **Headers:** `x-user-id`
+- **Resposta (200):** `{ "house": {...}, "user": {...} }`
+
+### `POST /api/houses/leave`
+- Desvincula o morador da residência atual mantendo o login ativo.
+- **Payload:** `{ "userId": "uuid-user" }`
+- **Resposta (200):** `{ "user": {...} }`
+
+---
+
+## 6. Eventos em Tempo Real (Socket.io)
+- **`house:join`:** Entrada na sala da residência com payload `{ houseId, user: { id, name, avatar } }`.
+- **`house:leave`:** Saída da sala da residência com `{ houseId }`.
+- **`house:presence`:** Broadcast emitido para todos os dispositivos conectados à residência contendo `onlineCount`, `onlineUserIds` e lista de usuários.
+- **`task:locked` / `task:unlocked`:** Sincronização em tempo real de travas de tarefas entre aparelhos.
+- **`room:join` / `room:leave` / `room:presence` / `room:new_message`:** Sincronização em tempo real de mensagens e presenças em salas privadas.

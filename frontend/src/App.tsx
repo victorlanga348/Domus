@@ -243,6 +243,31 @@ export default function App() {
     ]);
   };
 
+  const handleSwitchHouse = () => {
+    setCurrentHouse(null);
+    localStorage.removeItem('domus_auth_house');
+    showToast('Alternando de residência. Escolha uma residência salva ou funde uma nova.');
+  };
+
+  const handleSyncMembers = useCallback((backendMembers: any[]) => {
+    if (!backendMembers || backendMembers.length === 0) return;
+    setFamilyMembers((prev) => {
+      const merged: FamilyMember[] = backendMembers.map((bm) => {
+        const existing = prev.find((p) => p.id === bm.id);
+        const isPrimary = authUser ? bm.id === authUser.id : false;
+        return {
+          id: bm.id,
+          name: bm.name,
+          email: bm.email,
+          role: bm.role === 'ADMIN' ? 'Admin' : 'Resident',
+          isPrimary,
+          avatar: existing?.avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(bm.name)}`,
+        };
+      });
+      return merged;
+    });
+  }, [authUser]);
+
   const handleLogout = () => {
     setAuthUser(null);
     setAuthToken(null);
@@ -427,6 +452,7 @@ export default function App() {
         currentUser={currentUser}
         activeUsers={familyMembers}
         onLogoutClick={handleLogout}
+        onSwitchHouseClick={handleSwitchHouse}
         isMobileOpen={isMobileMenuOpen}
         onCloseMobile={() => setIsMobileMenuOpen(false)}
       />
@@ -443,6 +469,7 @@ export default function App() {
           unreadNotificationCount={activityLogs.length}
           onOpenNotifications={() => setIsNotificationsOpen(true)}
           onOpenMembersDrawer={() => setIsMembersDrawerOpen(true)}
+          onSwitchHouse={handleSwitchHouse}
           onToggleMobileMenu={() => setIsMobileMenuOpen((prev) => !prev)}
         />
 
@@ -459,6 +486,7 @@ export default function App() {
               onAddMuralNote={handleAddMuralNote}
               onDeleteMuralNote={handleDeleteMuralNote}
               familyMembers={familyMembers}
+              onSyncMembers={handleSyncMembers}
             />
           )}
 
@@ -485,6 +513,7 @@ export default function App() {
               onOpenAddMemberModal={() => setIsAddMemberOpen(true)}
               onOpenAccessLogsModal={() => setIsAccessLogsOpen(true)}
               onOpenAddRuleModal={() => setIsAddRuleOpen(true)}
+              onSwitchHouse={handleSwitchHouse}
             />
           )}
 

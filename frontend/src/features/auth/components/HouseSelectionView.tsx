@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { authApi, type AuthUser, type HouseResponse } from '../api/authApi.js';
 
 interface HouseSelectionViewProps {
@@ -16,6 +16,11 @@ export const HouseSelectionView: React.FC<HouseSelectionViewProps> = ({
   onLogout,
   onShowToast,
 }) => {
+  // My Houses State
+  const [myHouses, setMyHouses] = useState<any[]>([]);
+  const [loadingMyHouses, setLoadingMyHouses] = useState(true);
+  const [selectingHouseId, setSelectingHouseId] = useState<string | null>(null);
+
   // Create State
   const [createName, setCreateName] = useState('');
   const [createPassword, setCreatePassword] = useState('');
@@ -27,6 +32,41 @@ export const HouseSelectionView: React.FC<HouseSelectionViewProps> = ({
   const [joinPassword, setJoinPassword] = useState('');
   const [joinLoading, setJoinLoading] = useState(false);
   const [joinError, setJoinError] = useState<string | null>(null);
+
+  // Carregar residências salvas do usuário
+  useEffect(() => {
+    let isMounted = true;
+    async function loadMyHouses() {
+      try {
+        setLoadingMyHouses(true);
+        const list = await authApi.listMyHouses(currentUser.id, token);
+        if (isMounted) {
+          setMyHouses(list);
+        }
+      } catch (err) {
+        console.warn('Erro ao carregar minhas casas:', err);
+      } finally {
+        if (isMounted) setLoadingMyHouses(false);
+      }
+    }
+    loadMyHouses();
+    return () => {
+      isMounted = false;
+    };
+  }, [currentUser.id, token]);
+
+  const handleSelectExistingHouse = async (houseItem: any) => {
+    try {
+      setSelectingHouseId(houseItem.id);
+      const result = await authApi.switchHouse(currentUser.id, houseItem.id, token);
+      onShowToast?.(`Acessando residência "${result.house.name}"...`);
+      onHouseSelected(result);
+    } catch (err: any) {
+      onShowToast?.(err.message || 'Erro ao alternar para residência.');
+    } finally {
+      setSelectingHouseId(null);
+    }
+  };
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -101,20 +141,71 @@ export const HouseSelectionView: React.FC<HouseSelectionViewProps> = ({
           className="px-3.5 py-1.5 bg-[#f0fcfa] hover:bg-rose-50 text-rose-700 border border-[#c1c8c6] rounded-xl text-xs font-bold transition-all flex items-center gap-1"
         >
           <span className="material-symbols-outlined text-sm">logout</span>
-          <span>Sair</span>
+          <span>Sair da Conta</span>
         </button>
       </div>
 
       {/* Main Container */}
-      <div className="max-w-4xl mx-auto w-full my-auto space-y-6">
+      <div className="max-w-4xl mx-auto w-full my-auto space-y-6 py-6">
         <div className="text-center space-y-1">
           <h1 className="text-2xl sm:text-3xl font-black text-[#16302e]">
-            Escolha uma Residência
+            Escolha uma Residência / Sala
           </h1>
           <p className="text-xs sm:text-sm text-[#727877] max-w-lg mx-auto">
-            Para acessar o Dashboard, rotinas e o rodízio A-Z, funde a sua própria casa ou ingresse em uma existente.
+            Acesse uma casa onde você já é membro ou crie uma nova residência para gerenciar tarefas e escalas.
           </p>
         </div>
+
+        {/* Seção de Minhas Residências Salvas */}
+        {myHouses.length > 0 && (
+          <div className="bg-white rounded-3xl p-6 sm:p-7 border border-[#d9e5e3] shadow-xs space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <span className="material-symbols-outlined text-xl text-[#7b5800]">apartment</span>
+                <h2 className="text-sm sm:text-base font-black text-[#16302e]">
+                  Minhas Residências Salvas ({myHouses.length})
+                </h2>
+              </div>
+              <span className="text-xs text-[#727877]">Entrada direta em 1 clique</span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {myHouses.map((houseItem) => {
+                const isSelecting = selectingHouseId === houseItem.id;
+                return (
+                  <div
+                    key={houseItem.id}
+                    className="p-4 rounded-2xl border border-[#d9e5e3] bg-[#f0fcfa] hover:border-[#7b5800] transition-all flex flex-col justify-between space-y-3"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <h3 className="text-sm font-black text-[#16302e]">{houseItem.name}</h3>
+                        <span className="text-[11px] font-bold text-[#7b5800] bg-[#fff8e6] px-2 py-0.5 rounded-md border border-[#ffca5e] inline-block mt-1">
+                          {houseItem.invite_code}
+                        </span>
+                      </div>
+                      <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-[#16302e] text-white">
+                        {houseItem.my_role === 'ADMIN' ? 'Arquiteto' : 'Morador'}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center justify-between pt-2 border-t border-[#d0dddb] text-xs text-[#727877]">
+                      <span>{houseItem.members_count || 1} membro(s)</span>
+                      <button
+                        onClick={() => handleSelectExistingHouse(houseItem)}
+                        disabled={isSelecting}
+                        className="px-3.5 py-1.5 bg-[#7b5800] hover:bg-[#5d4200] text-white rounded-xl font-bold transition-all shadow-xs flex items-center gap-1.5 disabled:opacity-50"
+                      >
+                        <span className="material-symbols-outlined text-sm">login</span>
+                        <span>{isSelecting ? 'Entrando...' : 'Entrar na Casa'}</span>
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* Card 1: Fundar Nova Casa */}

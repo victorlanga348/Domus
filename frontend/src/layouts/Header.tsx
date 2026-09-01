@@ -10,6 +10,7 @@ interface HeaderProps {
   unreadNotificationCount: number;
   onOpenNotifications: () => void;
   onOpenMembersDrawer: () => void;
+  onSwitchHouse?: () => void;
   onToggleMobileMenu?: () => void;
 }
 
@@ -19,6 +20,7 @@ export const Header: React.FC<HeaderProps> = ({
   unreadNotificationCount,
   onOpenNotifications,
   onOpenMembersDrawer,
+  onSwitchHouse,
   onToggleMobileMenu,
 }) => {
   return (
@@ -72,10 +74,20 @@ export const Header: React.FC<HeaderProps> = ({
           <button
             onClick={onOpenMembersDrawer}
             className="text-[#16302e] p-1.5 sm:p-2 rounded-full hover:bg-[#e4f0ee] transition-colors"
-            title="Family Members"
+            title="Membros da Residência"
           >
             <span className="material-symbols-outlined text-xl sm:text-2xl">group</span>
           </button>
+
+          {onSwitchHouse && (
+            <button
+              onClick={onSwitchHouse}
+              className="text-[#16302e] p-1.5 sm:p-2 rounded-full hover:bg-[#e4f0ee] transition-colors"
+              title="Trocar de Residência"
+            >
+              <span className="material-symbols-outlined text-xl sm:text-2xl text-[#7b5800]">apartment</span>
+            </button>
+          )}
         </div>
       </div>
     </header>

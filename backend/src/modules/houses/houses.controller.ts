@@ -49,4 +49,35 @@ export class HouseController {
       next(error);
     }
   };
+
+  listMyHouses = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const userId = (req.query.userId as string) || (req.headers['x-user-id'] as string);
+      const houses = await this.houseService.listMyHouses(userId);
+      res.status(200).json({ status: 'success', data: houses });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  switchHouse = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const userId = (req.headers['x-user-id'] as string) || req.body.userId || req.body.user_id;
+      const targetHouseId = req.body.targetHouseId || req.body.houseId || req.body.house_id;
+      const result = await this.houseService.switchHouse(userId, targetHouseId);
+      res.status(200).json({ status: 'success', data: result });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  leaveHouse = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const userId = (req.headers['x-user-id'] as string) || req.body.userId || req.body.user_id;
+      const result = await this.houseService.leaveHouse(userId);
+      res.status(200).json({ status: 'success', data: result });
+    } catch (error) {
+      next(error);
+    }
+  };
 }

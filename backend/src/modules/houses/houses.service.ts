@@ -144,4 +144,69 @@ export class HouseService {
     }
     return house;
   }
+
+  /**
+   * 3. listMyHouses:
+   * Lista as residências associadas ao usuário autenticado.
+   */
+  async listMyHouses(userId: string) {
+    if (!userId) {
+      return [];
+    }
+    return this.houseRepo.listMyHouses(userId);
+  }
+
+  /**
+   * 4. switchHouse:
+   * Alterna a residência ativa do usuário sem necessitar de novo login.
+   */
+  async switchHouse(userId: string, targetHouseId: string) {
+    const house = await this.houseRepo.findById(targetHouseId);
+    if (!house) {
+      throw new AppError('Residência não encontrada.', 404, 'HOUSE_NOT_FOUND');
+    }
+
+    const updatedUser = await prisma.user.update({
+      where: { id: userId },
+      data: {
+        house_id: targetHouseId,
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        house_id: true,
+      },
+    });
+
+    return {
+      house,
+      user: updatedUser,
+    };
+  }
+
+  /**
+   * 5. leaveHouse:
+   * Remove o vínculo da residência atual mantendo o morador autenticado.
+   */
+  async leaveHouse(userId: string) {
+    const updatedUser = await prisma.user.update({
+      where: { id: userId },
+      data: {
+        house_id: null,
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        house_id: true,
+      },
+    });
+
+    return {
+      user: updatedUser,
+    };
+  }
 }

@@ -117,4 +117,59 @@ export const authApi = {
 
     return json.data;
   },
+
+  async listMyHouses(userId: string, token?: string): Promise<any[]> {
+    try {
+      const response = await fetch(`${APP_CONFIG.API_BASE_URL}/house/my-houses?userId=${userId}`, {
+        headers: {
+          'x-user-id': userId,
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      });
+      if (!response.ok) return [];
+      const json = await response.json();
+      return json.data || [];
+    } catch {
+      return [];
+    }
+  },
+
+  async switchHouse(userId: string, targetHouseId: string, token?: string): Promise<HouseResponse> {
+    const response = await fetch(`${APP_CONFIG.API_BASE_URL}/house/switch`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-user-id': userId,
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify({
+        userId,
+        targetHouseId,
+      }),
+    });
+
+    const json = await response.json();
+    if (!response.ok) {
+      throw new Error(json.message || 'Erro ao trocar de residência');
+    }
+
+    return json.data;
+  },
+
+  async leaveHouse(userId: string, token?: string): Promise<void> {
+    const response = await fetch(`${APP_CONFIG.API_BASE_URL}/house/leave`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-user-id': userId,
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify({ userId }),
+    });
+
+    if (!response.ok) {
+      const json = await response.json();
+      throw new Error(json.message || 'Erro ao sair da residência');
+    }
+  },
 };

@@ -10,6 +10,7 @@ interface SettingsViewProps {
   onOpenAddMemberModal: () => void;
   onOpenAccessLogsModal: () => void;
   onOpenAddRuleModal: () => void;
+  onSwitchHouse?: () => void;
 }
 
 export const SettingsView: React.FC<SettingsViewProps> = ({
@@ -21,6 +22,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   onOpenAddMemberModal,
   onOpenAccessLogsModal,
   onOpenAddRuleModal,
+  onSwitchHouse,
 }) => {
   const [nightMode, setNightMode] = useState(preferences.nightMode);
   const [vacationTriggers, setVacationTriggers] = useState(preferences.vacationTriggers);
@@ -275,14 +277,25 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         </div>
 
         {/* Footer */}
-        <div className="relative z-10 pt-4 border-t border-[#2d4644] flex justify-between items-center text-xs font-semibold text-[#b0ccc9]">
-          <span>Total Members: {familyMembers.length}</span>
-          <button
-            onClick={onOpenAccessLogsModal}
-            className="text-[#ffca5e] hover:underline font-bold"
-          >
-            View Access Logs
-          </button>
+        <div className="relative z-10 pt-4 border-t border-[#2d4644] flex flex-col sm:flex-row justify-between items-center text-xs font-semibold text-[#b0ccc9] gap-2">
+          <span>Total de Moradores: {familyMembers.length}</span>
+          <div className="flex items-center gap-3">
+            {onSwitchHouse && (
+              <button
+                onClick={onSwitchHouse}
+                className="text-[#ffca5e] hover:underline font-bold flex items-center gap-1"
+              >
+                <span className="material-symbols-outlined text-sm">apartment</span>
+                <span>Trocar Residência</span>
+              </button>
+            )}
+            <button
+              onClick={onOpenAccessLogsModal}
+              className="text-[#98b3b0] hover:text-white hover:underline font-medium"
+            >
+              Logs de Acesso
+            </button>
+          </div>
         </div>
       </div>
     </div>

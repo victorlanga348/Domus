@@ -7,6 +7,7 @@ interface SidebarProps {
   currentUser: FamilyMember;
   activeUsers: FamilyMember[];
   onLogoutClick: () => void;
+  onSwitchHouseClick?: () => void;
   isMobileOpen?: boolean;
   onCloseMobile?: () => void;
 }
@@ -17,6 +18,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   currentUser,
   activeUsers,
   onLogoutClick,
+  onSwitchHouseClick,
   isMobileOpen = false,
   onCloseMobile,
 }) => {
@@ -127,17 +129,31 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 ))}
               </div>
 
-              {/* Logout Button */}
-              <button
-                onClick={() => {
-                  onLogoutClick();
-                  onCloseMobile?.();
-                }}
-                className="text-[#98b3b0] hover:text-rose-300 flex items-center gap-2.5 px-2 py-2 text-xs font-semibold w-full transition-colors"
-              >
-                <span className="material-symbols-outlined text-base">logout</span>
-                <span>Sair da Conta</span>
-              </button>
+              {/* Switch House & Logout Buttons */}
+              <div className="space-y-1">
+                {onSwitchHouseClick && (
+                  <button
+                    onClick={() => {
+                      onSwitchHouseClick();
+                      onCloseMobile?.();
+                    }}
+                    className="text-[#98b3b0] hover:text-[#ffca5e] flex items-center gap-2.5 px-2 py-2 text-xs font-semibold w-full transition-colors rounded-xl hover:bg-[#2d4644]/40"
+                  >
+                    <span className="material-symbols-outlined text-base text-[#ffca5e]">apartment</span>
+                    <span>Trocar Residência</span>
+                  </button>
+                )}
+                <button
+                  onClick={() => {
+                    onLogoutClick();
+                    onCloseMobile?.();
+                  }}
+                  className="text-[#98b3b0] hover:text-rose-300 flex items-center gap-2.5 px-2 py-2 text-xs font-semibold w-full transition-colors rounded-xl hover:bg-[#2d4644]/40"
+                >
+                  <span className="material-symbols-outlined text-base">logout</span>
+                  <span>Sair da Conta</span>
+                </button>
+              </div>
             </div>
           </aside>
         </div>
@@ -223,14 +239,23 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </div>
         </div>
 
-        {/* Logout (bottom) */}
-        <div className="px-5 border-t border-[#2d4644] pt-2 lg:pt-3 shrink-0">
+        {/* Actions (bottom: Switch House & Logout) */}
+        <div className="px-5 border-t border-[#2d4644] pt-2 lg:pt-3 shrink-0 space-y-1">
+          {onSwitchHouseClick && (
+            <button
+              onClick={onSwitchHouseClick}
+              className="text-[#98b3b0] opacity-75 hover:opacity-100 hover:text-[#ffca5e] flex items-center gap-2.5 transition-all duration-200 text-xs font-semibold w-full py-1"
+            >
+              <span className="material-symbols-outlined text-base text-[#ffca5e]">apartment</span>
+              <span>Trocar Residência</span>
+            </button>
+          )}
           <button
             onClick={onLogoutClick}
-            className="text-[#98b3b0] opacity-75 hover:opacity-100 hover:text-rose-300 flex items-center gap-2.5 transition-all duration-200 text-xs font-semibold w-full"
+            className="text-[#98b3b0] opacity-75 hover:opacity-100 hover:text-rose-300 flex items-center gap-2.5 transition-all duration-200 text-xs font-semibold w-full py-1"
           >
             <span className="material-symbols-outlined text-base">logout</span>
-            <span>Logout</span>
+            <span>Sair da Conta</span>
           </button>
         </div>
       </aside>

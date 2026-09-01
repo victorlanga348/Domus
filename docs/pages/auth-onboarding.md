@@ -24,8 +24,12 @@ Permitir que novos e recorrentes moradores criem suas contas, acessem o sistema 
   - Alternador "Remember me"
 - **Ações:** Entrar ("Sign In ->"), link para criação ("New to DOMUS? Set up your home").
 
-### 2.3 Escolha de Residência / Boas-vindas (`HouseholdSelectionView`)
-- **Layout:** Moldura institucional DOMUS com 2 cards interativos.
+### 2.3 Escolha de Residência / Boas-vindas (`HouseholdSelectionView` / `HouseSelectionView`)
+- **Layout:** Moldura institucional DOMUS com cards interativos de seleção e formulários.
+- **Seção Superior - Minhas Residências Salvas:**
+  - Exibida dinamicamente quando o usuário já possui residências criadas ou vinculadas.
+  - Exibe cards com nome, código de convite, cargo (`ADMIN`/`MEMBER`) e contagem de moradores.
+  - Ação: "Entrar na Casa ->" (entrada em 1 clique sem redigitação de senha).
 - **Card 1 - Criar Residência:**
   - Ícone de casa em círculo suave.
   - Título: "Criar Residência".
