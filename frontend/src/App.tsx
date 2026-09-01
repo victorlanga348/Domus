@@ -120,7 +120,20 @@ export default function App() {
   const [activityLogs, setActivityLogs] = useState<ActivityLog[]>(() => {
     if (!houseKey) return [];
     const saved = localStorage.getItem(`${houseKey}_logs`);
-    return saved ? JSON.parse(saved) : [];
+    if (saved) {
+      try {
+        const parsed: ActivityLog[] = JSON.parse(saved);
+        return parsed.filter(
+          (log) =>
+            !log.title?.toLowerCase().includes('fundada por') &&
+            !log.title?.toLowerCase().includes('fundou a residência') &&
+            !log.title?.toLowerCase().includes('criada por')
+        );
+      } catch {
+        return [];
+      }
+    }
+    return [];
   });
 
   const [preferences, setPreferences] = useState<SystemPreferences>(() => {
