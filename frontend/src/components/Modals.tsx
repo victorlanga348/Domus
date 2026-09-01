@@ -813,7 +813,9 @@ export const FamilyMembersDrawer: React.FC<{
           {/* Member Status List */}
           <div className="space-y-4 max-h-[65vh] overflow-y-auto pr-1">
             {familyMembers.map((member) => {
-              const matchedStatus = memberStatuses.find((s) => s.name === member.name);
+              const matchedStatus = memberStatuses.find(
+                (s) => s.id === member.id || s.name === member.name
+              );
               const isEditing = editingMemberId === member.id;
               const isTargetGeneralAdmin = member.role === 'Admin Geral';
               const isTargetAdmin = member.role === 'Admin';

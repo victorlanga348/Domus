@@ -107,6 +107,65 @@ export function initSocketServer(httpServer: HttpServer): SocketIOServer {
       }
     });
 
+    // Tarefas em tempo real
+    socket.on('house:task_created', (data: { houseId: string; task: any }) => {
+      if (data?.houseId && data?.task) {
+        io?.to(`house:${data.houseId}`).emit('house:task_created', data.task);
+      }
+    });
+
+    socket.on('house:task_deleted', (data: { houseId: string; taskId: string }) => {
+      if (data?.houseId && data?.taskId) {
+        io?.to(`house:${data.houseId}`).emit('house:task_deleted', { taskId: data.taskId });
+      }
+    });
+
+    socket.on('house:task_status_changed', (data: { houseId: string; taskId: string; status: string }) => {
+      if (data?.houseId && data?.taskId) {
+        io?.to(`house:${data.houseId}`).emit('house:task_status_changed', { taskId: data.taskId, status: data.status });
+      }
+    });
+
+    // Mural de Recados em tempo real
+    socket.on('house:note_created', (data: { houseId: string; note: any }) => {
+      if (data?.houseId && data?.note) {
+        io?.to(`house:${data.houseId}`).emit('house:note_created', data.note);
+      }
+    });
+
+    socket.on('house:note_deleted', (data: { houseId: string; noteId: string }) => {
+      if (data?.houseId && data?.noteId) {
+        io?.to(`house:${data.houseId}`).emit('house:note_deleted', { noteId: data.noteId });
+      }
+    });
+
+    // Status e Localização de Membros em tempo real
+    socket.on('house:status_changed', (data: { houseId: string; status: any }) => {
+      if (data?.houseId && data?.status) {
+        io?.to(`house:${data.houseId}`).emit('house:status_changed', data.status);
+      }
+    });
+
+    // Regras da Casa em tempo real
+    socket.on('house:rule_created', (data: { houseId: string; rule: any }) => {
+      if (data?.houseId && data?.rule) {
+        io?.to(`house:${data.houseId}`).emit('house:rule_created', data.rule);
+      }
+    });
+
+    socket.on('house:rule_deleted', (data: { houseId: string; ruleId: string }) => {
+      if (data?.houseId && data?.ruleId) {
+        io?.to(`house:${data.houseId}`).emit('house:rule_deleted', { ruleId: data.ruleId });
+      }
+    });
+
+    // Avanço de Rodízio em tempo real
+    socket.on('house:rotation_advanced', (data: { houseId: string; rotationId: string }) => {
+      if (data?.houseId && data?.rotationId) {
+        io?.to(`house:${data.houseId}`).emit('house:rotation_advanced', { rotationId: data.rotationId });
+      }
+    });
+
     // Salas Privadas: Entrada na sala
     socket.on('room:join', (data: { roomId: string; user?: { id: string; name?: string } }) => {
       if (data?.roomId) {

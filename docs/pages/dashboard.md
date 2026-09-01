@@ -21,6 +21,8 @@ Oferecer ao morador um espaço acolhedor, interativo e centralizado para recados
 ### 2.3 Modal de Fixação de Recado
 - Campo de título do recado.
 - Área de texto para a mensagem.
-- Seletor de autor e seletor de cor do cartão.
-- Sincronização em tempo real de novos recados com a residência.
+- **Autoria Imutável e Verificada:** O autor é preenchido e travado automaticamente como o usuário autenticado (`authUser.name`), prevenindo fraudes ou impersonações.
+- Seletor de cor do cartão (Amarelo, Menta, Rosa, Lavanda, Cinza).
+- Sincronização em tempo real via WebSocket de novos recados e exclusões com todos os dispositivos na mesma residência.
+
 

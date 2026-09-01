@@ -73,3 +73,48 @@ export function emitHouseLog(houseId: string, log: any): void {
     s.emit('house:log', { houseId, log });
   }
 }
+
+export function emitTaskCreated(houseId: string, task: any): void {
+  const s = getSocket();
+  if (houseId && task) s.emit('house:task_created', { houseId, task });
+}
+
+export function emitTaskDeleted(houseId: string, taskId: string): void {
+  const s = getSocket();
+  if (houseId && taskId) s.emit('house:task_deleted', { houseId, taskId });
+}
+
+export function emitTaskStatusChanged(houseId: string, taskId: string, status: string): void {
+  const s = getSocket();
+  if (houseId && taskId) s.emit('house:task_status_changed', { houseId, taskId, status });
+}
+
+export function emitNoteCreated(houseId: string, note: any): void {
+  const s = getSocket();
+  if (houseId && note) s.emit('house:note_created', { houseId, note });
+}
+
+export function emitNoteDeleted(houseId: string, noteId: string): void {
+  const s = getSocket();
+  if (houseId && noteId) s.emit('house:note_deleted', { houseId, noteId });
+}
+
+export function emitStatusChanged(houseId: string, status: any): void {
+  const s = getSocket();
+  if (houseId && status) s.emit('house:status_changed', { houseId, status });
+}
+
+export function emitRuleCreated(houseId: string, rule: any): void {
+  const s = getSocket();
+  if (houseId && rule) s.emit('house:rule_created', { houseId, rule });
+}
+
+export function emitRuleDeleted(houseId: string, ruleId: string): void {
+  const s = getSocket();
+  if (houseId && ruleId) s.emit('house:rule_deleted', { houseId, ruleId });
+}
+
+export function emitRotationAdvanced(houseId: string, rotationId: string): void {
+  const s = getSocket();
+  if (houseId && rotationId) s.emit('house:rotation_advanced', { houseId, rotationId });
+}

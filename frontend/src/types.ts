@@ -109,7 +109,7 @@ export interface MuralNote {
 export interface MemberStatus {
   id: string;
   name: string;
-  avatar: string;
+  avatar?: string;
   location: string; // e.g. "In Home Office", "At Work", "Gym"
   icon: string; // e.g. "laptop_mac", "directions_car", "fitness_center"
 }

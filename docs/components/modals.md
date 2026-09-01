@@ -28,8 +28,9 @@
 
 ### 1.7 Gaveta de Membros da Família (`FamilyMembersDrawer`)
 - **Exibição:** Lista em tempo real de status, localização e papéis com layout anti-sobreposição.
-- **Privacidade de Status:** Apenas o próprio usuário autenticado visualiza o botão de editar seu status e localização ("Meu Status"). Para os demais, o status é somente leitura.
+- **Privacidade & Salvamento Resiliente de Status:** Apenas o próprio usuário autenticado visualiza o botão de editar seu status e localização ("Meu Status"). A gravação opera via `upsert` com suporte a `id` e `name`, transmitindo imediatamente via WebSocket (`house:status_changed`) para todos os dispositivos na mesma residência.
 - **Ações Administrativas & Remoção:**
   - Admin Geral: Pode promover residentes a Admin, destituir Admins para Residentes, transferir liderança geral e remover moradores/admins da residência.
   - Admin Normal: Pode remover apenas moradores regulares (`Resident`/`Guest`).
+
 

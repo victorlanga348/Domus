@@ -33,7 +33,19 @@ import {
   LeadershipTransferModal,
 } from './components/index.js';
 import { AuthView, HouseSelectionView, type AuthUser, type HouseResponse } from './features/auth/index.js';
-import { useHouseSocket, emitHouseLog } from './shared/socket/index.js';
+import {
+  useHouseSocket,
+  emitHouseLog,
+  emitTaskCreated,
+  emitTaskDeleted,
+  emitTaskStatusChanged,
+  emitNoteCreated,
+  emitNoteDeleted,
+  emitStatusChanged,
+  emitRuleCreated,
+  emitRuleDeleted,
+  emitRotationAdvanced,
+} from './shared/socket/index.js';
 
 export default function App() {
   // 1. Limpeza proativa de chaves antigas de mock / un-scoped
@@ -236,6 +248,71 @@ export default function App() {
         return [incomingLog, ...prev];
       });
     },
+    onTaskCreated: (incomingTask: HouseTask) => {
+      setTasks((prev) => {
+        if (prev.some((t) => t.id === incomingTask.id)) return prev;
+        return [incomingTask, ...prev];
+      });
+    },
+    onTaskDeleted: ({ taskId }: { taskId: string }) => {
+      setTasks((prev) => prev.filter((t) => t.id !== taskId));
+    },
+    onTaskStatusChanged: ({ taskId, status }: { taskId: string; status: HouseTask['status'] }) => {
+      setTasks((prev) =>
+        prev.map((t) => (t.id === taskId ? { ...t, status } : t))
+      );
+    },
+    onNoteCreated: (incomingNote: MuralNote) => {
+      setMuralNotes((prev) => {
+        if (prev.some((n) => n.id === incomingNote.id)) return prev;
+        return [incomingNote, ...prev];
+      });
+    },
+    onNoteDeleted: ({ noteId }: { noteId: string }) => {
+      setMuralNotes((prev) => prev.filter((n) => n.id !== noteId));
+    },
+    onStatusChanged: (statusData: MemberStatus) => {
+      setMemberStatuses((prev) => {
+        const exists = prev.some((s) => s.id === statusData.id || s.name === statusData.name);
+        if (exists) {
+          return prev.map((s) =>
+            s.id === statusData.id || s.name === statusData.name ? statusData : s
+          );
+        }
+        return [...prev, statusData];
+      });
+    },
+    onRuleCreated: (incomingRule: HouseRule) => {
+      setHouseRules((prev) => {
+        if (prev.some((r) => r.id === incomingRule.id)) return prev;
+        return [...prev, incomingRule];
+      });
+    },
+    onRuleDeleted: ({ ruleId }: { ruleId: string }) => {
+      setHouseRules((prev) => prev.filter((r) => r.id !== ruleId));
+    },
+    onRotationAdvanced: ({ rotationId }: { rotationId: string }) => {
+      setRotations((prev) =>
+        prev.map((rot) => {
+          if (rot.id === rotationId) {
+            const queue = [...rot.queue];
+            if (queue.length > 0) {
+              const first = queue.shift()!;
+              first.isNext = false;
+              queue.push(first);
+              queue[0].isNext = true;
+              return {
+                ...rot,
+                nextMember: queue[0].name,
+                nextMemberAvatar: queue[0].avatar,
+                queue,
+              };
+            }
+          }
+          return rot;
+        })
+      );
+    },
   });
 
   const handleAuthSuccess = (user: AuthUser, token: string) => {
@@ -344,12 +421,18 @@ export default function App() {
       dateStr: 'Hoje, ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     };
     setMuralNotes((prev) => [note, ...prev]);
+    if (currentHouse?.id) {
+      emitNoteCreated(currentHouse.id, note);
+    }
     recordHouseActivity(`Novo recado no mural fixado por ${newNote.author}`);
     showToast('Recado fixado no mural!');
   };
 
   const handleDeleteMuralNote = (id: string) => {
     setMuralNotes((prev) => prev.filter((n) => n.id !== id));
+    if (currentHouse?.id) {
+      emitNoteDeleted(currentHouse.id, id);
+    }
     showToast('Recado removido!');
   };
 
@@ -360,6 +443,9 @@ export default function App() {
       status: 'pending',
     };
     setTasks((prev) => [taskObj, ...prev]);
+    if (currentHouse?.id) {
+      emitTaskCreated(currentHouse.id, taskObj);
+    }
     recordHouseActivity(`Nova tarefa "${taskObj.title}" criada.`);
     showToast(`Tarefa "${taskObj.title}" criada com sucesso!`);
   };
@@ -367,6 +453,9 @@ export default function App() {
   const handleDeleteTask = (taskId: string) => {
     const taskObj = tasks.find((t) => t.id === taskId);
     setTasks((prev) => prev.filter((t) => t.id !== taskId));
+    if (currentHouse?.id) {
+      emitTaskDeleted(currentHouse.id, taskId);
+    }
     if (taskObj) {
       recordHouseActivity(`Tarefa "${taskObj.title}" foi excluída.`);
       showToast(`Tarefa "${taskObj.title}" excluída.`);
@@ -385,6 +474,9 @@ export default function App() {
         return t;
       })
     );
+    if (currentHouse?.id) {
+      emitTaskStatusChanged(currentHouse.id, taskId, newStatus);
+    }
   };
 
   const handleRotateNext = (rotationId: string) => {
@@ -408,6 +500,9 @@ export default function App() {
         return rot;
       })
     );
+    if (currentHouse?.id) {
+      emitRotationAdvanced(currentHouse.id, rotationId);
+    }
     showToast('Rodízio avançado.');
   };
 
@@ -430,6 +525,9 @@ export default function App() {
       number: houseRules.length + 1,
     };
     setHouseRules((prev) => [...prev, newRule]);
+    if (currentHouse?.id) {
+      emitRuleCreated(currentHouse.id, newRule);
+    }
     recordHouseActivity(`Nova regra adicionada: "${rule.title}"`);
     showToast('Regra da casa adicionada!');
   };
@@ -531,10 +629,34 @@ export default function App() {
   };
 
   const handleUpdateMemberStatus = (memberId: string, newLocation: string, newIcon?: string) => {
-    setMemberStatuses((prev) =>
-      prev.map((s) => (s.id === memberId ? { ...s, location: newLocation, icon: newIcon || s.icon } : s))
-    );
-    showToast('Status atualizado!');
+    const member = familyMembers.find((m) => m.id === memberId);
+    const memberName = member?.name || authUser?.name || 'Morador';
+    const iconToUse = newIcon || 'home';
+
+    const updatedStatusObj: MemberStatus = {
+      id: memberId,
+      name: memberName,
+      avatar: member?.avatar,
+      location: newLocation,
+      icon: iconToUse,
+    };
+
+    setMemberStatuses((prev) => {
+      const exists = prev.some((s) => s.id === memberId || s.name === memberName);
+      if (exists) {
+        return prev.map((s) =>
+          s.id === memberId || s.name === memberName ? updatedStatusObj : s
+        );
+      }
+      return [...prev, updatedStatusObj];
+    });
+
+    if (currentHouse?.id) {
+      emitStatusChanged(currentHouse.id, updatedStatusObj);
+    }
+
+    recordHouseActivity(`${memberName} atualizou seu status para: "${newLocation}"`);
+    showToast('Status atualizado com sucesso!');
   };
 
   const currentLoggedInMember = familyMembers.find((m) => m.id === authUser?.id);
@@ -625,6 +747,7 @@ export default function App() {
           {currentTab === 'dashboard' && (
             <DashboardView
               currentUserId={authUser.id}
+              currentUserName={authUser.name}
               currentHouseId={currentHouse.id}
               subTab={subTab}
               vacationMode={vacationMode}

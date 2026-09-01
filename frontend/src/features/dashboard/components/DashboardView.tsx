@@ -5,6 +5,7 @@ import { MuralNote, FamilyMember } from '../../../types';
 
 interface DashboardViewProps {
   currentUserId?: string;
+  currentUserName?: string;
   currentHouseId?: string;
   subTab?: string;
   vacationMode?: boolean;
@@ -18,6 +19,7 @@ interface DashboardViewProps {
 
 export const DashboardView: React.FC<DashboardViewProps> = ({
   currentUserId = 'user-1',
+  currentUserName,
   currentHouseId = 'house-1',
   vacationMode = false,
   onShowToast,
@@ -35,7 +37,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   const [noteTitle, setNoteTitle] = useState('');
   const [noteContent, setNoteContent] = useState('');
   const [noteColor, setNoteColor] = useState<MuralNote['color']>('amber');
-  const [selectedAuthor, setSelectedAuthor] = useState(familyMembers[0]?.name || 'Morador');
+
+  const loggedMember = familyMembers.find((m) => m.id === currentUserId);
+  const authorNameToUse = currentUserName || loggedMember?.name || 'Morador';
 
   const fetchDashboard = useCallback(async () => {
     try {
@@ -76,7 +80,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       title: noteTitle.trim() || undefined,
       content: noteContent.trim(),
       color: noteColor,
-      author: selectedAuthor,
+      author: authorNameToUse,
     });
 
     setNoteTitle('');
@@ -272,17 +276,15 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 <label className="block text-xs font-bold text-[#16302e] mb-1">
                   Autor da Mensagem
                 </label>
-                <select
-                  value={selectedAuthor}
-                  onChange={(e) => setSelectedAuthor(e.target.value)}
-                  className="w-full p-2.5 rounded-xl text-xs border border-[#c1c8c6] bg-white text-[#131e1d] font-bold"
-                >
-                  {familyMembers.map((m) => (
-                    <option key={m.id} value={m.name}>
-                      {m.name} ({m.role})
-                    </option>
-                  ))}
-                </select>
+                <div className="w-full p-2.5 rounded-xl text-xs border border-[#c1c8c6] bg-[#f0fcfa] text-[#131e1d] font-bold flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="material-symbols-outlined text-base text-[#7b5800]">person</span>
+                    <span>{authorNameToUse}</span>
+                  </div>
+                  <span className="text-[10px] font-black uppercase text-[#7b5800] bg-[#fff8e6] px-2 py-0.5 rounded-md border border-[#ffca5e]">
+                    Identidade Verificada
+                  </span>
+                </div>
               </div>
 
               <div>
