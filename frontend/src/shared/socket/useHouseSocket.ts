@@ -8,6 +8,7 @@ interface SocketCallbacks {
   onSwapRequested?: (data: { taskId: string; taskTitle: string; requesterName: string; reason: string }) => void;
   onPresence?: (data: { houseId: string; onlineCount: number; onlineUserIds: string[]; users: any[] }) => void;
   onMembersUpdated?: () => void;
+  onActivityLog?: (log: any) => void;
 }
 
 export function useHouseSocket(
@@ -45,12 +46,17 @@ export function useHouseSocket(
       callbacks?.onMembersUpdated?.();
     };
 
+    const handleActivityLog = (log: any) => {
+      callbacks?.onActivityLog?.(log);
+    };
+
     socket.on('task:locked', handleTaskLocked);
     socket.on('task:unlocked', handleTaskUnlocked);
     socket.on('member:vacation_changed', handleVacationChanged);
     socket.on('task:swap_requested', handleSwapRequested);
     socket.on('house:presence', handlePresence);
     socket.on('house:members_updated', handleMembersUpdated);
+    socket.on('house:activity_log', handleActivityLog);
 
     return () => {
       socket.off('task:locked', handleTaskLocked);
@@ -59,6 +65,7 @@ export function useHouseSocket(
       socket.off('task:swap_requested', handleSwapRequested);
       socket.off('house:presence', handlePresence);
       socket.off('house:members_updated', handleMembersUpdated);
+      socket.off('house:activity_log', handleActivityLog);
       leaveHouseRoom(houseId);
     };
   }, [houseId, callbacks, user?.id, user?.name, user?.avatar]);

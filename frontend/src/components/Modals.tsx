@@ -23,7 +23,7 @@ export const AddExpenseModal: React.FC<{
     onAddExpense({
       title,
       amount: num,
-      dateStr: 'Just now',
+      dateStr: 'Agora mesmo',
       paidBy,
       categoryIcon: icon,
       status: 'Unsettled',
@@ -44,7 +44,10 @@ export const AddExpenseModal: React.FC<{
         className="bg-white rounded-3xl max-w-md w-full p-5 sm:p-6 shadow-2xl border border-[#d9e5e3] max-h-[90vh] overflow-y-auto"
       >
         <div className="flex justify-between items-center mb-6">
-          <h3 className="text-xl font-bold text-[#16302e]">Add New Expense</h3>
+          <div className="flex items-center gap-2 text-[#16302e]">
+            <span className="material-symbols-outlined text-xl text-[#7b5800]">receipt_long</span>
+            <h3 className="text-xl font-bold">Registrar Despesa</h3>
+          </div>
           <button onClick={onClose} className="text-[#727877] hover:text-[#16302e]">
             <span className="material-symbols-outlined">close</span>
           </button>
@@ -53,21 +56,21 @@ export const AddExpenseModal: React.FC<{
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-xs font-bold uppercase text-[#727877] mb-1">
-              Description / Title
+              Descrição / Título da Despesa
             </label>
             <input
               type="text"
               required
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="e.g. Supermarket Groceries"
+              placeholder="ex: Compras do Supermercado, Luz, Gás"
               className="w-full p-3 rounded-xl border border-[#c1c8c6] text-sm text-[#131e1d] focus:border-[#7b5800]"
             />
           </div>
 
           <div>
             <label className="block text-xs font-bold uppercase text-[#727877] mb-1">
-              Amount ($)
+              Valor (R$ / €)
             </label>
             <input
               type="number"
@@ -83,36 +86,36 @@ export const AddExpenseModal: React.FC<{
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-bold uppercase text-[#727877] mb-1">
-                Paid By
+                Pago Por
               </label>
               <select
                 value={paidBy}
                 onChange={(e) => setPaidBy(e.target.value)}
-                className="w-full p-3 rounded-xl border border-[#c1c8c6] text-sm text-[#131e1d] bg-white"
+                className="w-full p-3 rounded-xl border border-[#c1c8c6] text-sm text-[#131e1d] bg-white font-bold"
               >
                 {familyMembers.map((m) => (
                   <option key={m.id} value={m.name}>
                     {m.name}
                   </option>
                 ))}
-                <option value="Home Fund">Home Fund</option>
+                <option value="Fundo da Casa">Fundo da Casa</option>
               </select>
             </div>
 
             <div>
               <label className="block text-xs font-bold uppercase text-[#727877] mb-1">
-                Category Icon
+                Categoria
               </label>
               <select
                 value={icon}
                 onChange={(e) => setIcon(e.target.value)}
-                className="w-full p-3 rounded-xl border border-[#c1c8c6] text-sm text-[#131e1d] bg-white"
+                className="w-full p-3 rounded-xl border border-[#c1c8c6] text-sm text-[#131e1d] bg-white font-bold"
               >
-                <option value="shopping_cart">🛒 Shopping</option>
-                <option value="plumbing">🔧 Repair</option>
-                <option value="bolt">⚡ Utility</option>
-                <option value="wifi">🌐 Internet</option>
-                <option value="restaurant">🍕 Dining</option>
+                <option value="shopping_cart">🛒 Mercado / Compras</option>
+                <option value="plumbing">🔧 Manutenção</option>
+                <option value="bolt">⚡ Energia / Água</option>
+                <option value="wifi">🌐 Internet / TV</option>
+                <option value="restaurant">🍕 Alimentação</option>
               </select>
             </div>
           </div>
@@ -123,13 +126,13 @@ export const AddExpenseModal: React.FC<{
               onClick={onClose}
               className="px-4 py-2.5 rounded-xl text-xs font-bold text-[#414847] hover:bg-[#e4f0ee]"
             >
-              Cancel
+              Cancelar
             </button>
             <button
               type="submit"
               className="px-6 py-2.5 rounded-xl bg-[#7b5800] text-white text-xs font-extrabold uppercase hover:bg-[#5d4200]"
             >
-              Add Expense
+              Salvar Despesa
             </button>
           </div>
         </form>
@@ -169,7 +172,10 @@ export const RequestReimbursementModal: React.FC<{
         className="bg-white rounded-3xl max-w-md w-full p-5 sm:p-6 shadow-2xl border border-[#d9e5e3] max-h-[90vh] overflow-y-auto"
       >
         <div className="flex justify-between items-center mb-6">
-          <h3 className="text-xl font-bold text-[#16302e]">Request Reimbursement</h3>
+          <div className="flex items-center gap-2 text-[#16302e]">
+            <span className="material-symbols-outlined text-xl text-[#7b5800]">currency_exchange</span>
+            <h3 className="text-xl font-bold">Solicitar Reembolso</h3>
+          </div>
           <button onClick={onClose} className="text-[#727877] hover:text-[#16302e]">
             <span className="material-symbols-outlined">close</span>
           </button>
@@ -178,7 +184,7 @@ export const RequestReimbursementModal: React.FC<{
         <form onSubmit={handleForm} className="space-y-4">
           <div>
             <label className="block text-xs font-bold uppercase text-[#727877] mb-1">
-              Amount ($)
+              Valor (R$ / €)
             </label>
             <input
               type="number"
@@ -193,13 +199,13 @@ export const RequestReimbursementModal: React.FC<{
 
           <div>
             <label className="block text-xs font-bold uppercase text-[#727877] mb-1">
-              Reason / Receipt Note
+              Motivo / Descrição do Comprovante
             </label>
             <textarea
               required
               value={reason}
               onChange={(e) => setReason(e.target.value)}
-              placeholder="e.g. Paid for HVAC air filter replacements out of pocket"
+              placeholder="ex: Paguei produtos de limpeza e lâmpadas da área comum"
               className="w-full p-3 rounded-xl border border-[#c1c8c6] text-sm text-[#131e1d] focus:border-[#7b5800]"
               rows={3}
             />
@@ -211,13 +217,13 @@ export const RequestReimbursementModal: React.FC<{
               onClick={onClose}
               className="px-4 py-2.5 rounded-xl text-xs font-bold text-[#414847] hover:bg-[#e4f0ee]"
             >
-              Cancel
+              Cancelar
             </button>
             <button
               type="submit"
               className="px-6 py-2.5 rounded-xl bg-[#16302e] text-white text-xs font-extrabold uppercase hover:bg-[#2d4644]"
             >
-              Submit Request
+              Enviar Solicitação
             </button>
           </div>
         </form>
@@ -256,7 +262,10 @@ export const AddHouseRuleModal: React.FC<{
         className="bg-white rounded-3xl max-w-md w-full p-5 sm:p-6 shadow-2xl border border-[#d9e5e3] max-h-[90vh] overflow-y-auto"
       >
         <div className="flex justify-between items-center mb-6">
-          <h3 className="text-xl font-bold text-[#16302e]">Add House Rule</h3>
+          <div className="flex items-center gap-2 text-[#16302e]">
+            <span className="material-symbols-outlined text-xl text-[#7b5800]">gavel</span>
+            <h3 className="text-xl font-bold">Adicionar Regra da Casa</h3>
+          </div>
           <button onClick={onClose} className="text-[#727877] hover:text-[#16302e]">
             <span className="material-symbols-outlined">close</span>
           </button>
@@ -265,27 +274,27 @@ export const AddHouseRuleModal: React.FC<{
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-xs font-bold uppercase text-[#727877] mb-1">
-              Rule Title
+              Título da Regra
             </label>
             <input
               type="text"
               required
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="e.g. Shoe-Free Zone"
+              placeholder="ex: Silêncio após às 22h, Sapatos na sapateira"
               className="w-full p-3 rounded-xl border border-[#c1c8c6] text-sm text-[#131e1d] focus:border-[#7b5800]"
             />
           </div>
 
           <div>
             <label className="block text-xs font-bold uppercase text-[#727877] mb-1">
-              Description
+              Descrição / Detalhes
             </label>
             <textarea
               required
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Outdoor shoes must be kept on the entryway rack upon arrival."
+              placeholder="Descreva o propósito da regra e como os moradores devem cumpri-la."
               className="w-full p-3 rounded-xl border border-[#c1c8c6] text-sm text-[#131e1d] focus:border-[#7b5800]"
               rows={3}
             />
@@ -297,13 +306,13 @@ export const AddHouseRuleModal: React.FC<{
               onClick={onClose}
               className="px-4 py-2.5 rounded-xl text-xs font-bold text-[#414847] hover:bg-[#e4f0ee]"
             >
-              Cancel
+              Cancelar
             </button>
             <button
               type="submit"
               className="px-6 py-2.5 rounded-xl bg-[#7b5800] text-white text-xs font-extrabold uppercase hover:bg-[#5d4200]"
             >
-              Save Rule
+              Salvar Regra
             </button>
           </div>
         </form>
@@ -719,9 +728,11 @@ export const FamilyMembersDrawer: React.FC<{
   onUpdateMemberStatus?: (memberId: string, newLocation: string, newIcon?: string) => void;
   onOpenAddMemberModal?: () => void;
   currentUserRole?: FamilyMember['role'];
+  currentUserId?: string;
   onPromoteToAdmin?: (memberId: string) => void;
   onDemoteToResident?: (memberId: string) => void;
   onTransferGeneralAdmin?: (member: FamilyMember) => void;
+  onRemoveMember?: (memberId: string, memberName: string) => void;
 }> = ({
   isOpen,
   onClose,
@@ -730,9 +741,11 @@ export const FamilyMembersDrawer: React.FC<{
   onUpdateMemberStatus,
   onOpenAddMemberModal,
   currentUserRole = 'Admin Geral',
+  currentUserId,
   onPromoteToAdmin,
   onDemoteToResident,
   onTransferGeneralAdmin,
+  onRemoveMember,
 }) => {
   const [editingMemberId, setEditingMemberId] = useState<string | null>(null);
   const [locationInput, setLocationInput] = useState('');
@@ -741,7 +754,8 @@ export const FamilyMembersDrawer: React.FC<{
   if (!isOpen) return null;
 
   const isGeneralAdmin = currentUserRole === 'Admin Geral';
-  const canAddMember = currentUserRole === 'Admin Geral' || currentUserRole === 'Admin';
+  const isAdmin = currentUserRole === 'Admin';
+  const canAddMember = isGeneralAdmin || isAdmin;
 
   const handleStartEdit = (member: { id: string; location: string; icon: string }) => {
     setEditingMemberId(member.id);
@@ -804,67 +818,84 @@ export const FamilyMembersDrawer: React.FC<{
               const isTargetGeneralAdmin = member.role === 'Admin Geral';
               const isTargetAdmin = member.role === 'Admin';
               const isTargetResident = member.role === 'Resident';
+              const isSelf = member.id === currentUserId;
+
+              const canRemoveThisMember =
+                !isSelf &&
+                ((isGeneralAdmin && !isTargetGeneralAdmin) ||
+                  (isAdmin && !isTargetGeneralAdmin && !isTargetAdmin));
 
               return (
                 <div
                   key={member.id}
                   className="p-4 rounded-2xl bg-[#f0fcfa] border border-[#e4f0ee] shadow-xs flex flex-col gap-3 transition-all hover:border-[#98b3b0]"
                 >
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex items-center gap-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-center gap-3 min-w-0 flex-1">
                       <img
                         src={member.avatar}
                         alt={member.name}
                         className="w-11 h-11 rounded-full object-cover border-2 border-[#16302e]/20 shrink-0"
                       />
-                      <div>
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <h4 className="text-sm font-bold text-[#16302e]">{member.name}</h4>
-                          <span
-                            className={`text-[10px] px-2 py-0.5 rounded-full font-extrabold uppercase tracking-wider ${
-                              isTargetGeneralAdmin
-                                ? 'bg-[#ffca5e] text-[#755400] border border-[#d99b00]'
-                                : isTargetAdmin
-                                ? 'bg-[#16302e] text-white'
-                                : 'bg-[#e4f0ee] text-[#16302e]'
-                            }`}
-                          >
-                            {isTargetGeneralAdmin ? '👑 Admin Geral' : isTargetAdmin ? 'Admin' : 'Morador'}
-                          </span>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <h4 className="text-sm font-bold text-[#16302e] truncate">{member.name}</h4>
+                          {isSelf && (
+                            <span className="text-[9px] bg-[#16302e] text-white px-1.5 py-0.5 rounded font-black uppercase">
+                              Você
+                            </span>
+                          )}
                         </div>
-                        <div className="flex items-center gap-1.5 mt-0.5 text-xs text-[#7b5800] font-semibold">
-                          <span className="material-symbols-outlined text-sm">
+                        <div className="flex items-center gap-1.5 mt-0.5 text-xs text-[#7b5800] font-semibold truncate">
+                          <span className="material-symbols-outlined text-sm shrink-0">
                             {matchedStatus?.icon || 'home'}
                           </span>
-                          <span>{matchedStatus?.location || 'Em Casa'}</span>
+                          <span className="truncate">{matchedStatus?.location || 'Em Casa'}</span>
                         </div>
                       </div>
                     </div>
 
-                    <button
-                      onClick={() =>
-                        isEditing
-                          ? setEditingMemberId(null)
-                          : handleStartEdit({
-                              id: member.id,
-                              location: matchedStatus?.location || 'Em Casa',
-                              icon: matchedStatus?.icon || 'home',
-                            })
-                      }
-                      className="text-xs text-[#7b5800] hover:text-[#5f4400] font-bold px-2.5 py-1 rounded-xl bg-white border border-[#c1c8c6] shadow-2xs hover:border-[#7b5800]"
-                    >
-                      {isEditing ? 'Cancelar' : 'Status'}
-                    </button>
+                    <div className="flex flex-col items-end gap-1.5 shrink-0">
+                      <span
+                        className={`text-[10px] px-2 py-0.5 rounded-full font-extrabold uppercase tracking-wider ${
+                          isTargetGeneralAdmin
+                            ? 'bg-[#ffca5e] text-[#755400] border border-[#d99b00]'
+                            : isTargetAdmin
+                            ? 'bg-[#16302e] text-white'
+                            : 'bg-[#e4f0ee] text-[#16302e]'
+                        }`}
+                      >
+                        {isTargetGeneralAdmin ? '👑 Admin Geral' : isTargetAdmin ? 'Admin' : 'Morador'}
+                      </span>
+
+                      {/* Botão de alterar status exclusivamente para o próprio usuário */}
+                      {isSelf && (
+                        <button
+                          onClick={() =>
+                            isEditing
+                              ? setEditingMemberId(null)
+                              : handleStartEdit({
+                                  id: member.id,
+                                  location: matchedStatus?.location || 'Em Casa',
+                                  icon: matchedStatus?.icon || 'home',
+                                })
+                          }
+                          className="text-[11px] text-[#7b5800] hover:text-[#5f4400] font-bold px-2 py-0.5 rounded-lg bg-white border border-[#c1c8c6] shadow-2xs hover:border-[#7b5800] transition-all"
+                        >
+                          {isEditing ? 'Cancelar' : 'Meu Status'}
+                        </button>
+                      )}
+                    </div>
                   </div>
 
-                  {/* Ações Administrativas Exclusivas do Admin Geral */}
-                  {isGeneralAdmin && !isTargetGeneralAdmin && (
+                  {/* Ações Administrativas de Governança e Remoção */}
+                  {(isGeneralAdmin || canRemoveThisMember) && !isSelf && (
                     <div className="pt-2 border-t border-[#d0dddb] flex items-center justify-end gap-2 flex-wrap">
-                      {isTargetResident && onPromoteToAdmin && (
+                      {isGeneralAdmin && isTargetResident && onPromoteToAdmin && (
                         <button
                           type="button"
                           onClick={() => onPromoteToAdmin(member.id)}
-                          className="px-2.5 py-1 bg-[#16302e] hover:bg-[#2d4644] text-white rounded-lg text-[10px] font-bold flex items-center gap-1 transition-all"
+                          className="px-2 py-1 bg-[#16302e] hover:bg-[#2d4644] text-white rounded-lg text-[10px] font-bold flex items-center gap-1 transition-all"
                           title="Promover a Administrador Normal"
                         >
                           <span className="material-symbols-outlined text-xs">shield_person</span>
@@ -872,41 +903,53 @@ export const FamilyMembersDrawer: React.FC<{
                         </button>
                       )}
 
-                      {isTargetAdmin && onDemoteToResident && (
+                      {isGeneralAdmin && isTargetAdmin && onDemoteToResident && (
                         <button
                           type="button"
                           onClick={() => onDemoteToResident(member.id)}
-                          className="px-2.5 py-1 bg-white hover:bg-rose-50 text-rose-700 border border-rose-300 rounded-lg text-[10px] font-bold flex items-center gap-1 transition-all"
-                          title="Destituir para Residente"
+                          className="px-2 py-1 bg-white hover:bg-amber-50 text-[#7b5800] border border-[#ffca5e] rounded-lg text-[10px] font-bold flex items-center gap-1 transition-all"
+                          title="Destituir para Morador"
                         >
-                          <span className="material-symbols-outlined text-xs">person_remove</span>
-                          <span>Destituir p/ Morador</span>
+                          <span className="material-symbols-outlined text-xs">arrow_downward</span>
+                          <span>Despromover</span>
                         </button>
                       )}
 
-                      {onTransferGeneralAdmin && (
+                      {isGeneralAdmin && onTransferGeneralAdmin && (
                         <button
                           type="button"
                           onClick={() => onTransferGeneralAdmin(member)}
-                          className="px-2.5 py-1 bg-[#fff8e6] hover:bg-[#ffeec2] text-[#7b5800] border border-[#ffca5e] rounded-lg text-[10px] font-black flex items-center gap-1 transition-all"
+                          className="px-2 py-1 bg-[#fff8e6] hover:bg-[#ffeec2] text-[#7b5800] border border-[#ffca5e] rounded-lg text-[10px] font-black flex items-center gap-1 transition-all"
                           title="Transferir Liderança da Residência"
                         >
                           <span className="material-symbols-outlined text-xs">crown</span>
                           <span>Passar Admin Geral</span>
                         </button>
                       )}
+
+                      {canRemoveThisMember && onRemoveMember && (
+                        <button
+                          type="button"
+                          onClick={() => onRemoveMember(member.id, member.name)}
+                          className="px-2 py-1 bg-white hover:bg-rose-50 text-rose-700 border border-rose-300 rounded-lg text-[10px] font-bold flex items-center gap-1 transition-all"
+                          title="Remover Morador da Residência"
+                        >
+                          <span className="material-symbols-outlined text-xs">person_remove</span>
+                          <span>Remover</span>
+                        </button>
+                      )}
                     </div>
                   )}
 
-                  {/* Inline Status Edit Form */}
-                  {isEditing && (
+                  {/* Formulário Inline de Edição de Status (Apenas para o próprio morador) */}
+                  {isEditing && isSelf && (
                     <form
                       onSubmit={(e) => handleSaveStatus(e, member.id)}
                       className="mt-2 pt-3 border-t border-[#d0dddb] space-y-3 bg-white p-3 rounded-xl border"
                     >
                       <div>
                         <label className="block text-[11px] font-bold text-[#414847] mb-1">
-                          Nova Localização / Status
+                          Meu Novo Status / Localização
                         </label>
                         <input
                           type="text"
@@ -954,7 +997,7 @@ export const FamilyMembersDrawer: React.FC<{
                           type="submit"
                           className="px-4 py-1.5 rounded-xl bg-[#7b5800] text-white text-xs font-bold hover:bg-[#5f4400]"
                         >
-                          Salvar Status
+                          Salvar Meu Status
                         </button>
                       </div>
                     </form>
@@ -985,61 +1028,6 @@ export const FamilyMembersDrawer: React.FC<{
             className="w-full py-2.5 bg-[#16302e] hover:bg-[#2d4644] text-white text-xs font-bold rounded-xl transition-colors"
           >
             Fechar
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-/* --- View Access Logs Modal --- */
-export const AccessLogsModal: React.FC<{
-  isOpen: boolean;
-  onClose: () => void;
-}> = ({ isOpen, onClose }) => {
-  if (!isOpen) return null;
-
-  const logs = [
-    { time: 'Today 02:14 AM', event: 'Front Door Unlocked via Smart Lock', user: 'Alex Johnson' },
-    { time: 'Yesterday 10:00 PM', event: 'Night Mode Activated (Auto Schedule)', user: 'DOMUS System' },
-    { time: 'Yesterday 04:30 PM', event: 'Guest Pass Generated for Cleaner', user: 'Sarah Johnson' },
-    { time: '28 Jul 09:15 AM', event: 'HVAC Eco-Mode Triggered', user: 'DOMUS System' },
-  ];
-
-  return (
-    <div
-      onClick={onClose}
-      className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4"
-    >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        className="bg-white rounded-3xl max-w-lg w-full p-5 sm:p-6 shadow-2xl border border-[#d9e5e3] max-h-[90vh] overflow-y-auto"
-      >
-        <div className="flex justify-between items-center mb-6">
-          <h3 className="text-xl font-bold text-[#16302e]">House Access Logs</h3>
-          <button onClick={onClose} className="text-[#727877] hover:text-[#16302e]">
-            <span className="material-symbols-outlined">close</span>
-          </button>
-        </div>
-
-        <div className="space-y-3 max-h-[60vh] overflow-y-auto mb-6">
-          {logs.map((item, idx) => (
-            <div key={idx} className="p-3.5 bg-[#f0fcfa] rounded-xl border border-[#d0dddb]">
-              <div className="flex justify-between text-xs font-bold text-[#16302e]">
-                <span>{item.event}</span>
-                <span className="text-[#727877] font-normal">{item.time}</span>
-              </div>
-              <p className="text-[11px] text-[#7b5800] mt-1 font-semibold">User: {item.user}</p>
-            </div>
-          ))}
-        </div>
-
-        <div className="flex justify-end">
-          <button
-            onClick={onClose}
-            className="px-6 py-2.5 bg-[#16302e] text-white rounded-xl text-xs font-bold uppercase"
-          >
-            Close Logs
           </button>
         </div>
       </div>

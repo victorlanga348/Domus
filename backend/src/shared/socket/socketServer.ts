@@ -99,6 +99,14 @@ export function initSocketServer(httpServer: HttpServer): SocketIOServer {
       }
     });
 
+    // Notificações e Atividades em tempo real para todos na residência
+    socket.on('house:log', (data: { houseId: string; log: any }) => {
+      if (data?.houseId && data?.log) {
+        io?.to(`house:${data.houseId}`).emit('house:activity_log', data.log);
+        logger.info(`[WebSocket] Notificação transmitida para residência house:${data.houseId}`);
+      }
+    });
+
     // Salas Privadas: Entrada na sala
     socket.on('room:join', (data: { roomId: string; user?: { id: string; name?: string } }) => {
       if (data?.roomId) {

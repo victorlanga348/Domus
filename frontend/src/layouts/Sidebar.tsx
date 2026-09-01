@@ -23,9 +23,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onCloseMobile,
 }) => {
   const navItems: { id: TabType; label: string; icon: string }[] = [
-    { id: 'dashboard', label: 'Dashboard', icon: 'dashboard' },
-    { id: 'tasks', label: 'Tarefas', icon: 'assignment' },
-    { id: 'reports', label: 'Histórico de Tarefas', icon: 'history' },
+    { id: 'dashboard', label: 'Mural de Recados', icon: 'push_pin' },
+    { id: 'tasks', label: 'Tarefas & Rodízio', icon: 'assignment' },
+    { id: 'reports', label: 'Histórico & Relatórios', icon: 'history' },
     { id: 'statistics', label: 'Estatísticas', icon: 'bar_chart' },
     { id: 'settings', label: 'Configurações', icon: 'settings' },
   ];

@@ -29,11 +29,11 @@ import {
   AddHouseRuleModal,
   AddMemberModal,
   NotificationsDrawer,
-  AccessLogsModal,
   FamilyMembersDrawer,
   LeadershipTransferModal,
 } from './components/index.js';
 import { AuthView, HouseSelectionView, type AuthUser, type HouseResponse } from './features/auth/index.js';
+import { useHouseSocket, emitHouseLog } from './shared/socket/index.js';
 
 export default function App() {
   // 1. Limpeza proativa de chaves antigas de mock / un-scoped
@@ -72,7 +72,7 @@ export default function App() {
   const [vacationMode, setVacationMode] = useState<boolean>(() => authUser?.vacation_mode || false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-  // 4. Estados Reais por Residência (Iniciam 100% vazios para casas novas)
+  // 4. Estados Reais por Residência
   const houseKey = currentHouse ? `domus_house_${currentHouse.id}` : null;
 
   const [familyMembers, setFamilyMembers] = useState<FamilyMember[]>(() => {
@@ -80,14 +80,14 @@ export default function App() {
     const saved = houseKey ? localStorage.getItem(`${houseKey}_members`) : null;
     if (saved) return JSON.parse(saved);
 
-    // Membro inicial é estritamente o usuário cadastrado (Admin Geral quando criador)
+    const isPrimary = authUser.role === 'ADMIN';
     return [
       {
         id: authUser.id,
         name: authUser.name,
         email: authUser.email,
-        role: authUser.role === 'ADMIN' ? 'Admin Geral' : 'Resident',
-        isPrimary: true,
+        role: isPrimary ? 'Admin Geral' : 'Resident',
+        isPrimary,
         avatar: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(authUser.name)}`,
       },
     ];
@@ -147,7 +147,6 @@ export default function App() {
   const [isAddRuleOpen, setIsAddRuleOpen] = useState(false);
   const [isAddMemberOpen, setIsAddMemberOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
-  const [isAccessLogsOpen, setIsAccessLogsOpen] = useState(false);
   const [isMembersDrawerOpen, setIsMembersDrawerOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
@@ -198,6 +197,34 @@ export default function App() {
     setTimeout(() => setToastMessage(null), 3500);
   }, []);
 
+  // Helper de registro e sincronização de notificações em tempo real
+  const recordHouseActivity = useCallback(
+    (title: string, author?: string) => {
+      const newLog: ActivityLog = {
+        id: `log_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+        title,
+        timeAgo: 'Agora mesmo',
+        author: author || authUser?.name || 'Morador',
+        type: 'system',
+      };
+      setActivityLogs((prev) => [newLog, ...prev]);
+      if (currentHouse?.id) {
+        emitHouseLog(currentHouse.id, newLog);
+      }
+    },
+    [authUser?.name, currentHouse?.id]
+  );
+
+  // Escuta Notificações e Atividades em tempo real de outros dispositivos
+  useHouseSocket(currentHouse?.id || '', {
+    onActivityLog: (incomingLog: ActivityLog) => {
+      setActivityLogs((prev) => {
+        if (prev.some((l) => l.id === incomingLog.id)) return prev;
+        return [incomingLog, ...prev];
+      });
+    },
+  });
+
   const handleAuthSuccess = (user: AuthUser, token: string) => {
     setAuthUser(user);
     setAuthToken(token);
@@ -216,32 +243,53 @@ export default function App() {
     setCurrentHouse(houseData.house);
     setAuthUser(houseData.user);
 
-    // Inicializar membro como estritamente o usuário logado
-    const primary: FamilyMember = {
-      id: houseData.user.id,
-      name: houseData.user.name,
-      email: houseData.user.email,
-      role: houseData.user.role === 'ADMIN' ? 'Admin Geral' : 'Resident',
-      isPrimary: true,
-      avatar: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(houseData.user.name)}`,
-    };
+    const key = `domus_house_${houseData.house.id}`;
+    const cachedMembersRaw = localStorage.getItem(`${key}_members`);
+    let membersList: FamilyMember[] = [];
 
-    setFamilyMembers([primary]);
-    setTasks([]);
-    setRotations([]);
-    setExpenses([]);
-    setHouseRules([]);
-    setMuralNotes([]);
-    setMemberStatuses([]);
-    setActivityLogs([
-      {
-        id: `log_${Date.now()}`,
-        title: `Residência "${houseData.house.name}" fundada por ${houseData.user.name}`,
-        timeAgo: 'Agora mesmo',
-        author: houseData.user.name,
-        type: 'system',
-      },
-    ]);
+    try {
+      if (cachedMembersRaw) {
+        membersList = JSON.parse(cachedMembersRaw);
+      }
+    } catch {}
+
+    if (membersList.length > 0) {
+      // Verifica se o usuário atual já está na lista
+      const userIndex = membersList.findIndex(
+        (m) => m.id === houseData.user.id || m.email === houseData.user.email
+      );
+      if (userIndex === -1) {
+        const hasGeneralAdmin = membersList.some((m) => m.role === 'Admin Geral');
+        const role: FamilyMember['role'] =
+          houseData.user.role === 'ADMIN'
+            ? hasGeneralAdmin
+              ? 'Admin'
+              : 'Admin Geral'
+            : 'Resident';
+
+        membersList.push({
+          id: houseData.user.id,
+          name: houseData.user.name,
+          email: houseData.user.email,
+          role,
+          isPrimary: role === 'Admin Geral',
+          avatar: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(houseData.user.name)}`,
+        });
+      }
+      setFamilyMembers(membersList);
+    } else {
+      // Primeira inicialização local da residência
+      const isPrimary = houseData.user.role === 'ADMIN';
+      const initialMember: FamilyMember = {
+        id: houseData.user.id,
+        name: houseData.user.name,
+        email: houseData.user.email,
+        role: isPrimary ? 'Admin Geral' : 'Resident',
+        isPrimary,
+        avatar: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(houseData.user.name)}`,
+      };
+      setFamilyMembers([initialMember]);
+    }
   };
 
   const handleSwitchHouse = () => {
@@ -249,26 +297,6 @@ export default function App() {
     localStorage.removeItem('domus_auth_house');
     showToast('Alternando de residência. Escolha uma residência salva ou funde uma nova.');
   };
-
-  const handleSyncMembers = useCallback((backendMembers: any[]) => {
-    if (!backendMembers || backendMembers.length === 0) return;
-    setFamilyMembers((prev) => {
-      const merged: FamilyMember[] = backendMembers.map((bm, index) => {
-        const existing = prev.find((p) => p.id === bm.id);
-        const isPrimary = existing ? existing.isPrimary : (index === 0 && bm.role === 'ADMIN');
-        const role = existing?.role || (bm.role === 'ADMIN' ? (isPrimary ? 'Admin Geral' : 'Admin') : 'Resident');
-        return {
-          id: bm.id,
-          name: bm.name,
-          email: bm.email,
-          role,
-          isPrimary: role === 'Admin Geral',
-          avatar: existing?.avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(bm.name)}`,
-        };
-      });
-      return merged;
-    });
-  }, []);
 
   const handleLogout = () => {
     setAuthUser(null);
@@ -292,6 +320,7 @@ export default function App() {
     if (authUser) {
       setAuthUser({ ...authUser, vacation_mode: next });
     }
+    recordHouseActivity(`${authUser?.name || 'Morador'} ${next ? 'ativou' : 'desativou'} o modo férias.`);
     showToast(next ? 'Modo Férias Ativado: Você foi temporariamente pausado do rodízio.' : 'Modo Férias Desativado: Retornando à escala normal.');
   };
 
@@ -302,6 +331,7 @@ export default function App() {
       dateStr: 'Hoje, ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     };
     setMuralNotes((prev) => [note, ...prev]);
+    recordHouseActivity(`Novo recado no mural fixado por ${newNote.author}`);
     showToast('Recado fixado no mural!');
   };
 
@@ -317,6 +347,7 @@ export default function App() {
       status: 'pending',
     };
     setTasks((prev) => [taskObj, ...prev]);
+    recordHouseActivity(`Nova tarefa "${taskObj.title}" criada.`);
     showToast(`Tarefa "${taskObj.title}" criada com sucesso!`);
   };
 
@@ -324,13 +355,22 @@ export default function App() {
     const taskObj = tasks.find((t) => t.id === taskId);
     setTasks((prev) => prev.filter((t) => t.id !== taskId));
     if (taskObj) {
+      recordHouseActivity(`Tarefa "${taskObj.title}" foi excluída.`);
       showToast(`Tarefa "${taskObj.title}" excluída.`);
     }
   };
 
   const handleTaskStatusChange = (taskId: string, newStatus: HouseTask['status']) => {
     setTasks((prev) =>
-      prev.map((t) => (t.id === taskId ? { ...t, status: newStatus } : t))
+      prev.map((t) => {
+        if (t.id === taskId) {
+          if (newStatus === 'completed') {
+            recordHouseActivity(`Tarefa "${t.title}" foi concluída por ${authUser?.name || 'Morador'}.`);
+          }
+          return { ...t, status: newStatus };
+        }
+        return t;
+      })
     );
   };
 
@@ -361,10 +401,12 @@ export default function App() {
   const handleAddExpense = (expense: Omit<ExpenseItem, 'id'>) => {
     const newExp: ExpenseItem = { ...expense, id: `exp_${Date.now()}` };
     setExpenses((prev) => [newExp, ...prev]);
+    recordHouseActivity(`Nova despesa registrada: ${expense.title} (R$ ${expense.amount.toFixed(2)})`);
     showToast(`Despesa adicionada.`);
   };
 
   const handleReimbursement = (amount: number, reason: string) => {
+    recordHouseActivity(`Solicitação de reembolso de R$ ${amount.toFixed(2)} por ${authUser?.name}`);
     showToast(`Solicitação de reembolso de ${amount.toFixed(2)} enviada: "${reason}".`);
   };
 
@@ -375,6 +417,7 @@ export default function App() {
       number: houseRules.length + 1,
     };
     setHouseRules((prev) => [...prev, newRule]);
+    recordHouseActivity(`Nova regra adicionada: "${rule.title}"`);
     showToast('Regra da casa adicionada!');
   };
 
@@ -388,20 +431,40 @@ export default function App() {
   const handleAddFamilyMember = (member: Omit<FamilyMember, 'id'>) => {
     const newMember: FamilyMember = { ...member, id: `m_${Date.now()}` };
     setFamilyMembers((prev) => [...prev, newMember]);
+    recordHouseActivity(`Novo membro adicionado: ${member.name} (${member.role})`);
     showToast(`Membro ${member.name} adicionado com sucesso!`);
   };
 
+  const handleRemoveMember = (memberId: string, memberName: string) => {
+    if (memberId === authUser?.id) {
+      showToast('Você não pode se auto-remover pelas configurações. Use a opção Trocar ou Sair da Residência.');
+      return;
+    }
+    setFamilyMembers((prev) => prev.filter((m) => m.id !== memberId));
+    setMemberStatuses((prev) => prev.filter((s) => s.id !== memberId));
+    recordHouseActivity(`${memberName} foi removido da residência por ${authUser?.name || 'Administrador'}`);
+    showToast(`Membro ${memberName} removido da residência.`);
+  };
+
   const handlePromoteToAdmin = (memberId: string) => {
+    const member = familyMembers.find((m) => m.id === memberId);
     setFamilyMembers((prev) =>
       prev.map((m) => (m.id === memberId ? { ...m, role: 'Admin' } : m))
     );
+    if (member) {
+      recordHouseActivity(`${member.name} foi promovido a Administrador Normal por ${authUser?.name}`);
+    }
     showToast('Membro promovido a Administrador Normal.');
   };
 
   const handleDemoteToResident = (memberId: string) => {
+    const member = familyMembers.find((m) => m.id === memberId);
     setFamilyMembers((prev) =>
       prev.map((m) => (m.id === memberId ? { ...m, role: 'Resident' } : m))
     );
+    if (member) {
+      recordHouseActivity(`${member.name} foi destituído para Morador regular por ${authUser?.name}`);
+    }
     showToast('Administrador destituído para Morador regular.');
   };
 
@@ -431,6 +494,7 @@ export default function App() {
           return m;
         })
       );
+      recordHouseActivity(`Liderança da residência transferida para ${transferTarget.member.name}`);
       showToast(`Liderança transferida para ${transferTarget.member.name}! Você agora é Admin Normal.`);
     } else if (transferTarget.newMemberData) {
       const newCreatedMember: FamilyMember = {
@@ -445,6 +509,7 @@ export default function App() {
         ),
         newCreatedMember,
       ]);
+      recordHouseActivity(`Novo Admin Geral nomeado: ${transferTarget.newMemberData.name}`);
       showToast(`Novo Admin Geral ${transferTarget.newMemberData.name} cadastrado! Você agora é Admin Normal.`);
     }
 
@@ -459,23 +524,23 @@ export default function App() {
     showToast('Status atualizado!');
   };
 
-  const currentUser: FamilyMember = familyMembers.find((m) => m.id === authUser?.id) ||
-    familyMembers.find((m) => m.isPrimary) || {
-      id: authUser?.id || 'user-1',
-      name: authUser?.name || 'Morador',
-      email: authUser?.email || 'morador@domus.local',
-      role: authUser?.role === 'ADMIN' ? 'Admin Geral' : 'Resident',
-      isPrimary: authUser?.role === 'ADMIN',
-      avatar: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(authUser?.name || 'Morador')}`,
-    };
+  const currentLoggedInMember = familyMembers.find((m) => m.id === authUser?.id);
+  const currentUser: FamilyMember = currentLoggedInMember || {
+    id: authUser?.id || 'guest',
+    name: authUser?.name || 'Morador Conectado',
+    email: authUser?.email || 'morador@domus.local',
+    role: authUser?.role === 'ADMIN' ? 'Admin Geral' : 'Resident',
+    isPrimary: authUser?.role === 'ADMIN',
+    avatar: authUser?.name
+      ? `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(authUser.name)}`
+      : 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80',
+  };
 
-  // --- HIERARQUIA DE ACESSO ---
-
-  // Nível 1: Não autenticado ➔ Tela de Login / Cadastro
-  if (!authUser || !authToken) {
+  // Nível 1: Não Autenticado ➔ Tela de Login / Cadastro
+  if (!authUser) {
     return (
       <>
-        <AuthView onAuthSuccess={handleAuthSuccess} onShowToast={showToast} />
+        <AuthView onAuthSuccess={handleAuthSuccess} />
         {toastMessage && (
           <div className="fixed bottom-6 right-6 z-50 bg-[#16302e] text-white px-5 py-3 rounded-2xl shadow-2xl border border-[#ffca5e] text-xs font-bold flex items-center gap-3 animate-bounce">
             <span className="material-symbols-outlined text-[#ffca5e] text-base">info</span>
@@ -486,16 +551,14 @@ export default function App() {
     );
   }
 
-  // Nível 2: Autenticado, mas sem casa vinculada ➔ Tela de Escolha de Residência
-  if (!authUser.house_id || !currentHouse) {
+  // Nível 2: Autenticado mas sem Residência Ativa ➔ Seletor / Criação de Residência
+  if (!currentHouse) {
     return (
       <>
         <HouseSelectionView
           currentUser={authUser}
-          token={authToken}
           onHouseSelected={handleHouseSelected}
           onLogout={handleLogout}
-          onShowToast={showToast}
         />
         {toastMessage && (
           <div className="fixed bottom-6 right-6 z-50 bg-[#16302e] text-white px-5 py-3 rounded-2xl shadow-2xl border border-[#ffca5e] text-xs font-bold flex items-center gap-3 animate-bounce">
@@ -557,7 +620,6 @@ export default function App() {
               onAddMuralNote={handleAddMuralNote}
               onDeleteMuralNote={handleDeleteMuralNote}
               familyMembers={familyMembers}
-              onSyncMembers={handleSyncMembers}
             />
           )}
 
@@ -582,13 +644,14 @@ export default function App() {
               onUpdateHouseRules={setHouseRules}
               familyMembers={familyMembers}
               onOpenAddMemberModal={() => setIsAddMemberOpen(true)}
-              onOpenAccessLogsModal={() => setIsAccessLogsOpen(true)}
               onOpenAddRuleModal={() => setIsAddRuleOpen(true)}
               onSwitchHouse={handleSwitchHouse}
               currentUserRole={currentUser.role}
+              currentUserId={authUser.id}
               onPromoteToAdmin={handlePromoteToAdmin}
               onDemoteToResident={handleDemoteToResident}
               onTransferGeneralAdmin={handleInitiateTransferGeneralAdmin}
+              onRemoveMember={handleRemoveMember}
             />
           )}
 
@@ -666,11 +729,6 @@ export default function App() {
         onTaskStatusChange={handleTaskStatusChange}
       />
 
-      <AccessLogsModal
-        isOpen={isAccessLogsOpen}
-        onClose={() => setIsAccessLogsOpen(false)}
-      />
-
       <FamilyMembersDrawer
         isOpen={isMembersDrawerOpen}
         onClose={() => setIsMembersDrawerOpen(false)}
@@ -679,9 +737,11 @@ export default function App() {
         onUpdateMemberStatus={handleUpdateMemberStatus}
         onOpenAddMemberModal={() => setIsAddMemberOpen(true)}
         currentUserRole={currentUser.role}
+        currentUserId={authUser.id}
         onPromoteToAdmin={handlePromoteToAdmin}
         onDemoteToResident={handleDemoteToResident}
         onTransferGeneralAdmin={handleInitiateTransferGeneralAdmin}
+        onRemoveMember={handleRemoveMember}
       />
     </div>
   );

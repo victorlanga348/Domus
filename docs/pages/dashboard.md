@@ -1,24 +1,26 @@
-# Tela: Dashboard Principal
+# Tela: Dashboard Principal (Mural de Recados)
 
 ## 1. Objetivo da Tela
-Oferecer ao morador um panorama instantâneo e sereno do estado atual da casa ao acordar ou retornar à residência.
+Oferecer ao morador um espaço acolhedor, interativo e centralizado para recados, avisos familiares, notas adesivas (post-its) e comunicação interna da residência, eliminando duplicações com a área de tarefas e rotinas.
 
 ---
 
 ## 2. Estrutura e Seções do Layout
 
-### 2.1 Cabeçalho de Boas-Vindas & Status da Casa
-- Saudação dinâmica baseada no turno do dia (Bom dia, Boa tarde, Boa noite).
-- Status geral da residência (ex: "3 tarefas pendentes para o turno da manhã").
-- Indicador do clima/turno atual.
+### 2.1 Cabeçalho & Visão Geral da Residência
+- Identificação da residência e código de convite da casa (`invite_code`).
+- Total de moradores ativos na residência.
+- Botão de ação rápida: `Fixar Novo Recado`.
 
-### 2.2 Painel de Turno Atual (Tarefas Imediatas)
-- Lista de cartões das tarefas do turno corrente.
-- Destaque para o responsável da vez e botões de ação rápida (`Lock`, `Concluir`).
+### 2.2 Mural de Recados & Avisos Interativo
+- Grade responsiva de cartões post-it coloridos (Amarelo, Menta, Rosa, Lavanda, Cinza).
+- Título opcional, conteúdo completo e quebra de linhas respeitada.
+- Identificação do autor do recado, papel e timestamp de criação.
+- Ação de exclusão rápida de recados concluídos ou obsoletos.
 
-### 2.3 Resumo Rápido da Carteira
-- Saldo líquido do usuário logado (A Receber / A Pagar).
-- Botão de atalho para registrar despesa rápida.
+### 2.3 Modal de Fixação de Recado
+- Campo de título do recado.
+- Área de texto para a mensagem.
+- Seletor de autor e seletor de cor do cartão.
+- Sincronização em tempo real de novos recados com a residência.
 
-### 2.4 Feed de Atividades Recentes
-- Linha do tempo dos últimos eventos executados pelos moradores (com avatares e timestamps relativos).

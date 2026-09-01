@@ -66,3 +66,10 @@ export function emitTaskUnlocking(taskId: string, userId: string, houseId: strin
   const s = getSocket();
   s.emit('task:unlocking', { taskId, userId, houseId });
 }
+
+export function emitHouseLog(houseId: string, log: any): void {
+  const s = getSocket();
+  if (houseId && log) {
+    s.emit('house:log', { houseId, log });
+  }
+}

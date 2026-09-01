@@ -8,13 +8,14 @@ interface SettingsViewProps {
   onUpdateHouseRules: (rules: HouseRule[]) => void;
   familyMembers: FamilyMember[];
   onOpenAddMemberModal: () => void;
-  onOpenAccessLogsModal: () => void;
   onOpenAddRuleModal: () => void;
   onSwitchHouse?: () => void;
   currentUserRole?: FamilyMember['role'];
+  currentUserId?: string;
   onPromoteToAdmin?: (memberId: string) => void;
   onDemoteToResident?: (memberId: string) => void;
   onTransferGeneralAdmin?: (member: FamilyMember) => void;
+  onRemoveMember?: (memberId: string, memberName: string) => void;
 }
 
 export const SettingsView: React.FC<SettingsViewProps> = ({
@@ -24,13 +25,14 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   onUpdateHouseRules,
   familyMembers,
   onOpenAddMemberModal,
-  onOpenAccessLogsModal,
   onOpenAddRuleModal,
   onSwitchHouse,
   currentUserRole = 'Admin Geral',
+  currentUserId,
   onPromoteToAdmin,
   onDemoteToResident,
   onTransferGeneralAdmin,
+  onRemoveMember,
 }) => {
   const [nightMode, setNightMode] = useState(preferences.nightMode);
   const [vacationTriggers, setVacationTriggers] = useState(preferences.vacationTriggers);
@@ -64,21 +66,25 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     onUpdateHouseRules(updated);
   };
 
+  const isGeneralAdmin = currentUserRole === 'Admin Geral';
+  const isAdmin = currentUserRole === 'Admin';
+  const canAddMember = isGeneralAdmin || isAdmin;
+
   return (
     <div className="p-4 sm:p-8 max-w-7xl mx-auto w-full grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-8">
-      {/* Left Column: System Preferences & House Rules */}
+      {/* Coluna Esquerda: Preferências do Sistema & Regras da Casa */}
       <div className="lg:col-span-8 flex flex-col gap-6">
-        <h2 className="text-2xl font-bold text-[#16302e]">System Preferences</h2>
+        <h2 className="text-2xl font-bold text-[#16302e]">Preferências da Residência</h2>
 
-        {/* Global Settings Cards Grid */}
+        {/* Grade de Configurações Globais */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Night Mode Card */}
+          {/* Card Modo Noturno */}
           <div className="bg-white p-6 rounded-2xl shadow-sm border border-[#d9e5e3] flex flex-col justify-between">
             <div>
               <div className="flex justify-between items-start mb-4">
                 <div className="flex items-center gap-2 text-[#16302e]">
-                  <span className="material-symbols-outlined text-2xl">routine</span>
-                  <h3 className="text-lg font-bold">Night Mode</h3>
+                  <span className="material-symbols-outlined text-2xl text-[#7b5800]">routine</span>
+                  <h3 className="text-lg font-bold">Modo Noturno</h3>
                 </div>
                 {/* Toggle switch */}
                 <button
@@ -96,7 +102,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               </div>
 
               <p className="text-xs text-[#414847] leading-relaxed mb-6">
-                Automatically dim lights, arm external sensors, and lower thermostat based on schedule.
+                Ajusta automaticamente luzes ambiente, ativa sensores de segurança e economiza energia conforme o horário definido.
               </p>
             </div>
 
@@ -131,13 +137,13 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             </div>
           </div>
 
-          {/* Vacation Triggers Card */}
+          {/* Card Gatilhos de Férias */}
           <div className="bg-white p-6 rounded-2xl shadow-sm border border-[#d9e5e3] flex flex-col justify-between">
             <div>
               <div className="flex justify-between items-start mb-4">
                 <div className="flex items-center gap-2 text-[#16302e]">
-                  <span className="material-symbols-outlined text-2xl">flight_takeoff</span>
-                  <h3 className="text-lg font-bold">Vacation Triggers</h3>
+                  <span className="material-symbols-outlined text-2xl text-[#7b5800]">flight_takeoff</span>
+                  <h3 className="text-lg font-bold">Gatilhos de Ausência / Férias</h3>
                 </div>
                 <button
                   onClick={handleToggleVacationTriggers}
@@ -154,19 +160,19 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               </div>
 
               <p className="text-xs text-[#414847] leading-relaxed mb-6">
-                Simulate occupancy with randomized lighting and suspend non-essential climate control.
+                Simula presença ligando luzes aleatórias à noite e suspende aquecedores e controles não essenciais durante ausências.
               </p>
             </div>
 
             <div className="space-y-2.5">
               <div className="flex items-center justify-between bg-[#eaf6f4] p-2.5 rounded-xl text-xs font-semibold text-[#131e1d]">
-                <span>Randomize Living Room Lights</span>
+                <span>Iluminação Inteligente Simulada</span>
                 <span className="material-symbols-outlined text-[#7b5800] text-sm filled">
                   check_circle
                 </span>
               </div>
               <div className="flex items-center justify-between bg-[#eaf6f4] p-2.5 rounded-xl text-xs font-semibold text-[#131e1d]">
-                <span>Suspend Water Heater Scheduling</span>
+                <span>Pausa em Agendamentos Não Críticos</span>
                 <span className="material-symbols-outlined text-[#7b5800] text-sm filled">
                   check_circle
                 </span>
@@ -175,61 +181,76 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           </div>
         </div>
 
-        {/* House Rules & Philosophy Section */}
+        {/* Seção Regras da Casa & Convivência */}
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-[#d9e5e3] mt-2">
           <div className="flex justify-between items-center border-b border-[#d9e5e3] pb-4 mb-4">
-            <h3 className="text-lg font-bold text-[#16302e]">
-              House Rules & Philosophy
-            </h3>
-            <button
-              onClick={onOpenAddRuleModal}
-              className="text-[#7b5800] hover:underline text-xs font-bold uppercase tracking-wider flex items-center gap-1"
-            >
-              <span className="material-symbols-outlined text-sm">edit</span> Edit
-            </button>
+            <div className="flex items-center gap-2">
+              <span className="material-symbols-outlined text-xl text-[#7b5800]">gavel</span>
+              <h3 className="text-lg font-bold text-[#16302e]">
+                Regras de Convivência da Casa
+              </h3>
+            </div>
+            {canAddMember && (
+              <button
+                onClick={onOpenAddRuleModal}
+                className="text-[#7b5800] hover:underline text-xs font-bold uppercase tracking-wider flex items-center gap-1"
+              >
+                <span className="material-symbols-outlined text-sm">add_circle</span> Adicionar Regra
+              </button>
+            )}
           </div>
 
           <div className="space-y-4">
-            {houseRules.map((rule, idx) => (
-              <div key={rule.id} className="flex gap-4 items-start group">
-                <div className="w-8 h-8 rounded-full bg-[#ffca5e] flex items-center justify-center shrink-0 mt-0.5 shadow-sm">
-                  <span className="text-[#755400] font-black text-xs">{idx + 1}</span>
+            {houseRules.length === 0 ? (
+              <p className="text-xs text-[#727877] italic py-2">
+                Nenhuma regra cadastrada ainda. Clique no botão acima para adicionar a primeira regra de convivência.
+              </p>
+            ) : (
+              houseRules.map((rule, idx) => (
+                <div key={rule.id} className="flex gap-4 items-start group">
+                  <div className="w-8 h-8 rounded-full bg-[#ffca5e] flex items-center justify-center shrink-0 mt-0.5 shadow-sm">
+                    <span className="text-[#755400] font-black text-xs">{idx + 1}</span>
+                  </div>
+                  <div className="flex-1">
+                    <h4 className="text-sm font-bold text-[#131e1d]">{rule.title}</h4>
+                    <p className="text-xs text-[#414847] leading-relaxed">{rule.description}</p>
+                  </div>
+                  {canAddMember && (
+                    <button
+                      onClick={() => handleDeleteRule(rule.id)}
+                      className="opacity-0 group-hover:opacity-100 text-[#727877] hover:text-rose-500 transition-opacity p-1"
+                      title="Excluir regra"
+                    >
+                      <span className="material-symbols-outlined text-sm">delete</span>
+                    </button>
+                  )}
                 </div>
-                <div className="flex-1">
-                  <h4 className="text-sm font-bold text-[#131e1d]">{rule.title}</h4>
-                  <p className="text-xs text-[#414847] leading-relaxed">{rule.description}</p>
-                </div>
-                <button
-                  onClick={() => handleDeleteRule(rule.id)}
-                  className="opacity-0 group-hover:opacity-100 text-[#727877] hover:text-rose-500 transition-opacity p-1"
-                  title="Excluir regra"
-                >
-                  <span className="material-symbols-outlined text-sm">delete</span>
-                </button>
-              </div>
-            ))}
+              ))
+            )}
 
-            {/* Add Rule Button */}
-            <div
-              onClick={onOpenAddRuleModal}
-              className="flex gap-4 items-center cursor-pointer pt-2 group"
-            >
-              <div className="w-8 h-8 rounded-full bg-[#d0dddb] flex items-center justify-center shrink-0 group-hover:bg-[#ffca5e] transition-colors">
-                <span className="material-symbols-outlined text-[#414847] group-hover:text-[#755400] text-sm">
-                  add
+            {/* Atalho para adicionar regra */}
+            {canAddMember && (
+              <div
+                onClick={onOpenAddRuleModal}
+                className="flex gap-4 items-center cursor-pointer pt-2 group"
+              >
+                <div className="w-8 h-8 rounded-full bg-[#d0dddb] flex items-center justify-center shrink-0 group-hover:bg-[#ffca5e] transition-colors">
+                  <span className="material-symbols-outlined text-[#414847] group-hover:text-[#755400] text-sm">
+                    add
+                  </span>
+                </div>
+                <span className="text-xs font-semibold italic text-[#727877] group-hover:text-[#16302e]">
+                  Criar nova regra de convivência...
                 </span>
               </div>
-              <span className="text-xs font-semibold italic text-[#727877] group-hover:text-[#16302e]">
-                Add a new house rule...
-              </span>
-            </div>
+            )}
           </div>
         </div>
       </div>
 
-      {/* Right Column: Member Management Panel */}
+      {/* Coluna Direita: Painel de Membros e Governança */}
       <div className="lg:col-span-4 bg-[#16302e] text-white rounded-3xl p-6 shadow-xl flex flex-col justify-between border border-[#2d4644] min-h-[500px] relative overflow-hidden">
-        {/* Subtle background overlay graphic */}
+        {/* Gráfico sutil de fundo */}
         <div
           className="absolute inset-0 opacity-10 pointer-events-none z-0 bg-cover bg-center"
           style={{
@@ -244,7 +265,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               <h3 className="text-xl font-bold text-white">Membros da Residência</h3>
               <p className="text-xs text-[#b0ccc9]">Hierarquia e papéis de acesso</p>
             </div>
-            {(currentUserRole === 'Admin Geral' || currentUserRole === 'Admin') && (
+            {canAddMember && (
               <button
                 onClick={onOpenAddMemberModal}
                 className="bg-[#ffca5e] text-[#755400] rounded-full p-2 hover:scale-105 transition-transform shadow-md"
@@ -260,29 +281,45 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               const isTargetGeneralAdmin = member.role === 'Admin Geral' || member.isPrimary;
               const isTargetAdmin = member.role === 'Admin';
               const isTargetResident = member.role === 'Resident';
-              const isGeneralAdmin = currentUserRole === 'Admin Geral';
+              const isSelf = member.id === currentUserId;
+
+              const canRemoveThisMember =
+                !isSelf &&
+                ((isGeneralAdmin && !isTargetGeneralAdmin) ||
+                  (isAdmin && !isTargetGeneralAdmin && !isTargetAdmin));
 
               return (
                 <div
                   key={member.id}
-                  className={`p-3.5 rounded-2xl flex flex-col gap-2 border transition-all ${
+                  className={`p-3.5 rounded-2xl flex flex-col gap-2.5 border transition-all ${
                     isTargetGeneralAdmin
                       ? 'bg-[#2d4644] border-[#ffca5e]'
                       : 'bg-[#2d4644]/50 border-transparent hover:border-[#3e4241]'
                   }`}
                 >
-                  <div className="flex items-center gap-3">
-                    <img
-                      src={member.avatar}
-                      alt={member.name}
-                      className="w-10 h-10 rounded-full object-cover border-2 border-[#ffca5e] shrink-0"
-                    />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-bold text-white truncate">{member.name}</p>
-                      <p className="text-[11px] text-[#b0ccc9]">{member.email}</p>
+                  {/* Linha superior: Avatar + Dados + Badge com zero sobreposição */}
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                      <img
+                        src={member.avatar}
+                        alt={member.name}
+                        className="w-10 h-10 rounded-full object-cover border-2 border-[#ffca5e] shrink-0"
+                      />
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <p className="text-sm font-bold text-white truncate">{member.name}</p>
+                          {isSelf && (
+                            <span className="text-[9px] bg-white text-[#16302e] px-1.5 py-0.5 rounded font-black uppercase">
+                              Você
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-[11px] text-[#b0ccc9] truncate">{member.email}</p>
+                      </div>
                     </div>
+
                     <span
-                      className={`text-[10px] font-extrabold px-2 py-0.5 rounded uppercase tracking-wider ${
+                      className={`text-[10px] font-extrabold px-2 py-0.5 rounded uppercase tracking-wider shrink-0 ${
                         isTargetGeneralAdmin
                           ? 'bg-[#ffca5e] text-[#755400]'
                           : isTargetAdmin
@@ -294,10 +331,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     </span>
                   </div>
 
-                  {/* Ações Administrativas Exclusivas do Admin Geral */}
-                  {isGeneralAdmin && !isTargetGeneralAdmin && (
+                  {/* Ações Administrativas Exclusivas do Admin Geral e Remoção */}
+                  {((isGeneralAdmin && !isTargetGeneralAdmin) || canRemoveThisMember) && !isSelf && (
                     <div className="pt-2 border-t border-[#3d5c5a] flex items-center justify-end gap-1.5 flex-wrap">
-                      {isTargetResident && onPromoteToAdmin && (
+                      {isGeneralAdmin && isTargetResident && onPromoteToAdmin && (
                         <button
                           type="button"
                           onClick={() => onPromoteToAdmin(member.id)}
@@ -309,19 +346,19 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                         </button>
                       )}
 
-                      {isTargetAdmin && onDemoteToResident && (
+                      {isGeneralAdmin && isTargetAdmin && onDemoteToResident && (
                         <button
                           type="button"
                           onClick={() => onDemoteToResident(member.id)}
-                          className="px-2 py-1 bg-rose-950/40 hover:bg-rose-900/60 text-rose-300 border border-rose-800/60 rounded-lg text-[10px] font-bold flex items-center gap-1 transition-all"
-                          title="Destituir para Residente"
+                          className="px-2 py-1 bg-white hover:bg-amber-50 text-[#7b5800] border border-[#ffca5e] rounded-lg text-[10px] font-bold flex items-center gap-1 transition-all"
+                          title="Destituir para Morador"
                         >
-                          <span className="material-symbols-outlined text-xs">person_remove</span>
-                          <span>Destituir p/ Morador</span>
+                          <span className="material-symbols-outlined text-xs">arrow_downward</span>
+                          <span>Despromover</span>
                         </button>
                       )}
 
-                      {onTransferGeneralAdmin && (
+                      {isGeneralAdmin && onTransferGeneralAdmin && (
                         <button
                           type="button"
                           onClick={() => onTransferGeneralAdmin(member)}
@@ -332,6 +369,18 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                           <span>Passar Admin Geral</span>
                         </button>
                       )}
+
+                      {canRemoveThisMember && onRemoveMember && (
+                        <button
+                          type="button"
+                          onClick={() => onRemoveMember(member.id, member.name)}
+                          className="px-2 py-1 bg-rose-950/40 hover:bg-rose-900/60 text-rose-300 border border-rose-800/60 rounded-lg text-[10px] font-bold flex items-center gap-1 transition-all"
+                          title="Remover Morador"
+                        >
+                          <span className="material-symbols-outlined text-xs">person_remove</span>
+                          <span>Remover</span>
+                        </button>
+                      )}
                     </div>
                   )}
                 </div>
@@ -340,7 +389,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           </div>
         </div>
 
-        {/* Footer */}
+        {/* Rodapé com Troca de Residência */}
         <div className="relative z-10 pt-4 border-t border-[#2d4644] flex flex-col sm:flex-row justify-between items-center text-xs font-semibold text-[#b0ccc9] gap-2">
           <span>Total de Moradores: {familyMembers.length}</span>
           <div className="flex items-center gap-3">
@@ -353,12 +402,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 <span>Trocar Residência</span>
               </button>
             )}
-            <button
-              onClick={onOpenAccessLogsModal}
-              className="text-[#98b3b0] hover:text-white hover:underline font-medium"
-            >
-              Logs de Acesso
-            </button>
           </div>
         </div>
       </div>

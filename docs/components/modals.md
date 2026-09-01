@@ -27,5 +27,9 @@
 - **Governança:** Apenas o `Admin Geral` pode convidar alguém como `Admin` ou `👑 Admin Geral` (disparando o diálogo de transferência). Admins Normais convidam como `Resident` ou `Guest Access`.
 
 ### 1.7 Gaveta de Membros da Família (`FamilyMembersDrawer`)
-- **Exibição:** Lista em tempo real de status, localização e papéis.
-- **Ações Administrativas:** Permite ao Admin Geral promover residentes a Admin ou destituir admins para residentes diretamente pela interface.
+- **Exibição:** Lista em tempo real de status, localização e papéis com layout anti-sobreposição.
+- **Privacidade de Status:** Apenas o próprio usuário autenticado visualiza o botão de editar seu status e localização ("Meu Status"). Para os demais, o status é somente leitura.
+- **Ações Administrativas & Remoção:**
+  - Admin Geral: Pode promover residentes a Admin, destituir Admins para Residentes, transferir liderança geral e remover moradores/admins da residência.
+  - Admin Normal: Pode remover apenas moradores regulares (`Resident`/`Guest`).
+

@@ -1,7 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import confetti from 'canvas-confetti';
-import { dashboardApi, type DashboardData, type DashboardTaskItem } from '../api/dashboardApi.js';
-import { tasksApi } from '../../tasks-rotation/api/tasksApi.js';
+import { dashboardApi, type DashboardData } from '../api/dashboardApi.js';
 import { useHouseSocket } from '../../../shared/socket/useHouseSocket.js';
 import { MuralNote, FamilyMember } from '../../../types';
 
@@ -32,17 +30,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Modals state
-  const [activePinTask, setActivePinTask] = useState<DashboardTaskItem | null>(null);
-  const [pinInput, setPinInput] = useState('');
-  const [pinError, setPinError] = useState<string | null>(null);
-  const [pinLoading, setPinLoading] = useState(false);
-
-  const [activeBlockTask, setActiveBlockTask] = useState<DashboardTaskItem | null>(null);
-  const [blockReason, setBlockReason] = useState('');
-  const [blockLoading, setBlockLoading] = useState(false);
-
-  // New Note Modal state
+  // Modal Novo Recado
   const [isAddNoteModalOpen, setIsAddNoteModalOpen] = useState(false);
   const [noteTitle, setNoteTitle] = useState('');
   const [noteContent, setNoteContent] = useState('');
@@ -60,7 +48,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         }
       }
     } catch (err) {
-      console.warn('Erro ao buscar dados do dashboard:', err);
+      console.warn('Erro ao carregar dados da residência:', err);
     } finally {
       setLoading(false);
     }
@@ -70,137 +58,25 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     fetchDashboard();
   }, [fetchDashboard]);
 
-  // Timer de virada de turno automático (a cada 60s)
-  useEffect(() => {
-    const interval = setInterval(() => {
-      const currentHour = new Date().getHours();
-      let expectedShift: 'MORNING' | 'AFTERNOON' | 'NIGHT' = 'NIGHT';
-      if (currentHour >= 6 && currentHour < 12) expectedShift = 'MORNING';
-      else if (currentHour >= 12 && currentHour < 18) expectedShift = 'AFTERNOON';
-
-      if (dashboardData && dashboardData.shift_info.current_shift !== expectedShift) {
-        fetchDashboard();
-      }
-    }, 60000);
-
-    return () => clearInterval(interval);
-  }, [dashboardData, fetchDashboard]);
-
   // Sincronização em Tempo Real via WebSocket
   useHouseSocket(currentHouseId, {
-    onTaskLocked: (data) => {
-      onShowToast?.(`Uma tarefa foi trancada para execução em tempo real.`);
-      setDashboardData((prev) => {
-        if (!prev) return prev;
-        return {
-          ...prev,
-          current_shift_tasks: prev.current_shift_tasks.map((t) =>
-            t.id === data.taskId
-              ? { ...t, status: 'LOCKED', locked_at: data.lockedAt, locked_by: { id: data.userId, name: 'Morador' } }
-              : t
-          ),
-        };
-      });
-    },
-    onTaskUnlocked: (data) => {
-      onShowToast?.(`Uma tarefa foi destrancada.`);
-      setDashboardData((prev) => {
-        if (!prev) return prev;
-        return {
-          ...prev,
-          current_shift_tasks: prev.current_shift_tasks.map((t) =>
-            t.id === data.taskId
-              ? { ...t, status: 'OPEN', locked_at: null, locked_by: null }
-              : t
-          ),
-        };
-      });
-    },
     onVacationChanged: (data) => {
-      onShowToast?.(`${data.name} alterou o modo férias. Rodízio recalculado.`);
-      fetchDashboard();
+      onShowToast?.(`${data.name} alterou o modo férias.`);
     },
-    onSwapRequested: (data) => {
-      onShowToast?.(`${data.requesterName} solicitou troca de escala na tarefa "${data.taskTitle}".`);
+    onMembersUpdated: () => {
+      fetchDashboard();
     },
   });
 
-  const handleLockTask = async (task: DashboardTaskItem) => {
-    try {
-      await tasksApi.lockTask(task.id, currentUserId, currentHouseId);
-      onShowToast?.(`Tarefa "${task.title}" trancada para sua execução.`);
-      fetchDashboard();
-    } catch (err: any) {
-      onShowToast?.(err.message || 'Erro ao trancar tarefa.');
-    }
-  };
-
-  const handleCompleteSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!activePinTask) return;
-
-    try {
-      setPinLoading(true);
-      setPinError(null);
-
-      await tasksApi.completeTask(activePinTask.id, currentUserId, pinInput.trim() || undefined);
-
-      // Micro-interação de celebração com confetes
-      try {
-        confetti({
-          particleCount: 70,
-          spread: 60,
-          origin: { y: 0.7 },
-          colors: ['#7b5800', '#ffca5e', '#16302e', '#22c55e'],
-        });
-      } catch {
-        // Fallback silencioso caso canvas não esteja disponível
-      }
-
-      onShowToast?.(`🎉 Tarefa "${activePinTask.title}" concluída com sucesso! Rodízio avançado.`);
-
-      setActivePinTask(null);
-      setPinInput('');
-      fetchDashboard();
-    } catch (err: any) {
-      setPinError(err.message || 'PIN incorreto.');
-    } finally {
-      setPinLoading(false);
-    }
-  };
-
-  const handleBlockSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!activeBlockTask || !blockReason.trim()) return;
-
-    try {
-      setBlockLoading(true);
-      await tasksApi.blockTask(activeBlockTask.id, currentUserId, blockReason.trim());
-      onShowToast?.(`Impedimento registrado na tarefa "${activeBlockTask.title}".`);
-
-      setActiveBlockTask(null);
-      setBlockReason('');
-      fetchDashboard();
-    } catch (err: any) {
-      onShowToast?.(err.message || 'Erro ao registrar impedimento.');
-    } finally {
-      setBlockLoading(false);
-    }
-  };
-
   const handleCreateNoteSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!noteContent.trim() && !noteTitle.trim()) return;
-
-    const authorMember = familyMembers.find((m) => m.name === selectedAuthor);
+    if (!noteContent.trim()) return;
 
     onAddMuralNote?.({
       title: noteTitle.trim() || undefined,
       content: noteContent.trim(),
       color: noteColor,
       author: selectedAuthor,
-      authorAvatar: authorMember?.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80',
-      isPinned: true,
     });
 
     setNoteTitle('');
@@ -211,50 +87,26 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   const getNoteBgColor = (color: MuralNote['color']) => {
     switch (color) {
       case 'amber':
-        return 'bg-[#fde396] text-[#543c00] border-[#eed17d]';
+        return 'bg-[#fef3c7] border-[#fde68a] text-[#78350f]';
       case 'teal':
-        return 'bg-[#c3e8e2] text-[#133834] border-[#a2d8cf]';
-      case 'gray':
-        return 'bg-[#e3eae8] text-[#273634] border-[#cdd8d5]';
+        return 'bg-[#ccfbf1] border-[#99f6e4] text-[#115e59]';
       case 'rose':
-        return 'bg-[#fcdede] text-[#591d1d] border-[#f5c6c6]';
+        return 'bg-[#ffe4e6] border-[#fecdd3] text-[#9f1239]';
+      case 'lavender':
+        return 'bg-[#ede9fe] border-[#ddd6fe] text-[#5b21b6]';
+      case 'gray':
       default:
-        return 'bg-[#fde396] text-[#543c00] border-[#eed17d]';
+        return 'bg-[#f3f4f6] border-[#e5e7eb] text-[#1f2937]';
     }
   };
 
-  const currentShiftLabel = () => {
-    const shift = dashboardData?.shift_info.current_shift || 'MORNING';
-    if (shift === 'MORNING') return 'Manhã (06h - 12h)';
-    if (shift === 'AFTERNOON') return 'Tarde (12h - 18h)';
-    return 'Noite (18h - 06h)';
-  };
-
   return (
-    <div className="p-3 sm:p-6 max-w-6xl mx-auto w-full space-y-6 animate-in fade-in duration-300">
-      {/* Vacation Banner */}
-      {vacationMode && (
-        <div className="bg-[#7b5800] text-white p-4 rounded-2xl shadow-xs flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <span className="material-symbols-outlined text-2xl text-[#ffca5e] shrink-0">flight_takeoff</span>
-            <div>
-              <h3 className="text-xs sm:text-sm font-bold">Modo Férias Ativo</h3>
-              <p className="text-[11px] sm:text-xs text-white/80">
-                Você está temporariamente fora da escala automática do rodízio.
-              </p>
-            </div>
-          </div>
-          <span className="px-3 py-1 rounded-full bg-black/20 text-xs font-bold text-[#ffca5e]">
-            Pausado
-          </span>
-        </div>
-      )}
-
-      {/* Top Header Card / Overview */}
+    <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto space-y-6 w-full animate-in fade-in duration-200">
+      {/* Banner de Boas-vindas da Residência */}
       <div className="bg-white p-5 sm:p-6 rounded-3xl border border-[#d9e5e3] shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div className="flex items-center gap-4">
           <div className="w-12 h-12 rounded-2xl bg-[#ffca5e] text-[#755400] flex items-center justify-center shadow-xs shrink-0">
-            <span className="material-symbols-outlined text-2xl">roofing</span>
+            <span className="material-symbols-outlined text-2xl font-black">dashboard</span>
           </div>
           <div>
             <div className="flex items-center gap-2">
@@ -266,184 +118,64 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               </span>
             </div>
             <p className="text-xs text-[#727877] mt-0.5 flex items-center gap-1.5">
-              <span className="material-symbols-outlined text-sm text-[#7b5800]">schedule</span>
-              <span>Turno Ativo: <strong>{currentShiftLabel()}</strong></span>
+              <span className="material-symbols-outlined text-sm text-[#7b5800]">group</span>
+              <span>Total de Moradores: <strong>{familyMembers.length || dashboardData?.members?.length || 1}</strong></span>
             </p>
           </div>
         </div>
 
-        {/* Resumo Rápido */}
+        {/* Ação Rápida */}
         <div className="flex items-center gap-3 self-stretch md:self-auto">
-          <div className="bg-[#f0fcfa] px-3.5 py-2 rounded-2xl border border-[#d0dddb] text-xs font-bold text-[#16302e] flex items-center gap-2 flex-1 md:flex-initial justify-center">
-            <span className="material-symbols-outlined text-base text-[#7b5800]">pending_actions</span>
-            <span>{dashboardData?.summary.pending_tasks_count ?? 0} Pendentes</span>
-          </div>
-          <div className="bg-[#fff8e6] px-3.5 py-2 rounded-2xl border border-[#ffca5e] text-xs font-bold text-[#7b5800] flex items-center gap-2 flex-1 md:flex-initial justify-center">
-            <span className="material-symbols-outlined text-base">task_alt</span>
-            <span>{dashboardData?.summary.completed_today_count ?? 0} Hoje</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Grid de Tarefas do Turno Atual (BFF Real-time) */}
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="material-symbols-outlined text-xl text-[#7b5800]">wb_twilight</span>
-            <h2 className="text-base font-black text-[#16302e]">Tarefas do Turno Atual</h2>
-          </div>
-          <span className="text-xs text-[#727877]">
-            Lock em tempo real ativo
-          </span>
-        </div>
-
-        {loading ? (
-          <div className="p-8 text-center text-[#727877] bg-white rounded-3xl border border-[#d9e5e3]">
-            <span className="material-symbols-outlined text-2xl animate-spin mb-1">sync</span>
-            <p className="text-xs font-bold">Carregando tarefas do turno...</p>
-          </div>
-        ) : (dashboardData?.current_shift_tasks?.length ?? 0) === 0 ? (
-          <div className="bg-white rounded-3xl p-8 text-center border border-dashed border-[#c1c8c6] space-y-2">
-            <span className="material-symbols-outlined text-3xl text-[#98b3b0]">check_circle</span>
-            <h3 className="text-sm font-bold text-[#16302e]">Tudo limpo e organizado!</h3>
-            <p className="text-xs text-[#727877]">Nenhuma tarefa pendente para o turno atual.</p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {dashboardData?.current_shift_tasks.map((task) => {
-              const isLocked = task.status === 'LOCKED';
-              const isBlocked = task.status === 'BLOCKED';
-              const isLockedByMe = isLocked && task.locked_by?.id === currentUserId;
-
-              return (
-                <div
-                  key={task.id}
-                  className={`bg-white rounded-3xl p-5 border transition-all flex flex-col justify-between space-y-4 shadow-xs ${
-                    isLocked
-                      ? 'border-[#ffca5e] bg-[#fffdfa]'
-                      : isBlocked
-                      ? 'border-rose-300 bg-rose-50/30'
-                      : 'border-[#d9e5e3] hover:border-[#7b5800]'
-                  }`}
-                >
-                  <div>
-                    <div className="flex items-start justify-between gap-2 mb-2">
-                      <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-[#e4f0ee] text-[#16302e]">
-                        {task.frequency}
-                      </span>
-
-                      {isLocked ? (
-                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#ffca5e] text-[#755400] flex items-center gap-1">
-                          <span className="material-symbols-outlined text-xs animate-pulse">lock</span>
-                          <span>{isLockedByMe ? 'Você trancou' : `${task.locked_by?.name || 'Morador'}`}</span>
-                        </span>
-                      ) : isBlocked ? (
-                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-100 text-rose-700 flex items-center gap-1">
-                          <span className="material-symbols-outlined text-xs">block</span>
-                          <span>Bloqueada</span>
-                        </span>
-                      ) : (
-                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
-                          Aberta
-                        </span>
-                      )}
-                    </div>
-
-                    <h3 className="text-sm font-black text-[#16302e] line-clamp-1">{task.title}</h3>
-                    {task.description && (
-                      <p className="text-xs text-[#727877] mt-1 line-clamp-2">{task.description}</p>
-                    )}
-
-                    {/* Próximo da Vez (Motor de Rodízio A-Z) */}
-                    <div className="mt-3 pt-3 border-t border-[#f0f4f3] flex items-center justify-between text-xs">
-                      <span className="text-[11px] text-[#727877]">Responsável da Vez:</span>
-                      <span className="font-bold text-[#16302e] flex items-center gap-1">
-                        <span className="material-symbols-outlined text-xs text-[#7b5800]">person</span>
-                        <span>{task.current_assignee?.name || 'Livre no pool'}</span>
-                      </span>
-                    </div>
-
-                    {isBlocked && task.last_block_reason && (
-                      <div className="mt-2 p-2 rounded-xl bg-rose-50 border border-rose-200 text-[11px] text-rose-800 font-medium">
-                        <strong>Motivo:</strong> {task.last_block_reason}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Ações da Tarefa ("Sistema de 3 Vias") */}
-                  <div className="space-y-2 pt-2 border-t border-[#f0f4f3]">
-                    {isLocked ? (
-                      isLockedByMe ? (
-                        <button
-                          onClick={() => setActivePinTask(task)}
-                          className="w-full py-2 bg-[#7b5800] hover:bg-[#5d4200] text-white rounded-xl text-xs font-bold transition-all shadow-xs flex items-center justify-center gap-1.5"
-                        >
-                          <span className="material-symbols-outlined text-sm">check_circle</span>
-                          <span>Concluir com PIN</span>
-                        </button>
-                      ) : (
-                        <div className="w-full py-2 bg-[#f0f4f3] text-[#727877] text-center text-xs font-bold rounded-xl">
-                          Em execução por outro morador
-                        </div>
-                      )
-                    ) : isBlocked ? (
-                      <button
-                        onClick={() => handleLockTask(task)}
-                        className="w-full py-2 bg-[#16302e] hover:bg-[#2d4644] text-white rounded-xl text-xs font-bold transition-all shadow-xs flex items-center justify-center gap-1.5"
-                      >
-                        <span className="material-symbols-outlined text-sm">lock_open</span>
-                        <span>Desbloquear & Executar</span>
-                      </button>
-                    ) : (
-                      <div className="grid grid-cols-2 gap-2">
-                        <button
-                          onClick={() => handleLockTask(task)}
-                          className="py-2 bg-[#7b5800] hover:bg-[#5d4200] text-white rounded-xl text-xs font-bold transition-all shadow-xs flex items-center justify-center gap-1"
-                        >
-                          <span className="material-symbols-outlined text-sm">lock</span>
-                          <span>Iniciar</span>
-                        </button>
-                        <button
-                          onClick={() => setActiveBlockTask(task)}
-                          className="py-2 bg-[#f0fcfa] hover:bg-[#e0f5f2] text-[#16302e] border border-[#c1c8c6] rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1"
-                        >
-                          <span className="material-symbols-outlined text-sm text-rose-600">block</span>
-                          <span>Bloquear</span>
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
-
-      {/* Container: Mural de Recados da Família */}
-      <div className="bg-white p-5 sm:p-6 rounded-3xl border border-[#d9e5e3] shadow-xs space-y-4">
-        <div className="flex items-center justify-between border-b border-[#e4f0ee] pb-3">
-          <div className="flex items-center gap-2 text-[#16302e]">
-            <span className="material-symbols-outlined text-xl text-[#7b5800]">push_pin</span>
-            <h2 className="text-base font-black">Mural de Recados</h2>
-          </div>
-
           <button
             onClick={() => setIsAddNoteModalOpen(true)}
-            className="bg-[#7b5800] hover:bg-[#5f4400] text-white px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all shadow-xs flex items-center gap-1"
+            className="w-full md:w-auto bg-[#7b5800] hover:bg-[#5f4400] text-white px-5 py-2.5 rounded-2xl text-xs font-bold transition-all shadow-xs flex items-center justify-center gap-2"
           >
-            <span className="material-symbols-outlined text-sm">add</span>
-            <span>Novo Recado</span>
+            <span className="material-symbols-outlined text-base">push_pin</span>
+            <span>Fixar Novo Recado</span>
           </button>
         </div>
+      </div>
 
-        {/* Recados Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 min-h-[160px]">
+      {/* Container Principal: Mural de Recados da Residência */}
+      <div className="bg-white p-6 sm:p-7 rounded-3xl border border-[#d9e5e3] shadow-xs space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#e4f0ee] pb-4">
+          <div className="flex items-center gap-2.5 text-[#16302e]">
+            <div className="w-9 h-9 rounded-xl bg-[#fff8e6] border border-[#ffca5e] flex items-center justify-center text-[#7b5800]">
+              <span className="material-symbols-outlined text-xl">draw</span>
+            </div>
+            <div>
+              <h2 className="text-lg font-black text-[#16302e]">Mural de Recados & Avisos</h2>
+              <p className="text-xs text-[#727877]">Espaço colaborativo para mensagens, lembretes e notas da casa</p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-bold text-[#727877] bg-[#f0fcfa] px-3 py-1 rounded-xl border border-[#d0dddb]">
+              {muralNotes.length} {muralNotes.length === 1 ? 'recado fixado' : 'recados fixados'}
+            </span>
+          </div>
+        </div>
+
+        {/* Grid de Recados do Mural */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 min-h-[220px]">
           {muralNotes.length === 0 ? (
-            <div className="col-span-full flex flex-col items-center justify-center p-8 text-center text-[#727877]">
-              <span className="material-symbols-outlined text-3xl mb-1 text-[#98b3b0]">sticky_note_2</span>
-              <p className="text-xs font-bold text-[#16302e]">Nenhum recado no mural.</p>
-              <p className="text-[11px] text-[#98b3b0]">Clique em "Novo Recado" para fixar um aviso para a família.</p>
+            <div className="col-span-full flex flex-col items-center justify-center p-12 text-center text-[#727877] bg-[#f0fcfa] rounded-3xl border border-dashed border-[#c1c8c6] space-y-3">
+              <div className="w-14 h-14 rounded-2xl bg-white border border-[#d0dddb] flex items-center justify-center text-[#7b5800] shadow-2xs">
+                <span className="material-symbols-outlined text-3xl">sticky_note_2</span>
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-[#16302e]">Nenhum recado fixado no mural</h3>
+                <p className="text-xs text-[#727877] mt-0.5">
+                  Deixe lembretes de compras, avisos de visitas ou recados carinhosos para a família.
+                </p>
+              </div>
+              <button
+                onClick={() => setIsAddNoteModalOpen(true)}
+                className="mt-2 bg-[#16302e] hover:bg-[#2d4644] text-white px-4 py-2 rounded-xl text-xs font-bold transition-all shadow-xs flex items-center gap-1.5"
+              >
+                <span className="material-symbols-outlined text-sm">add</span>
+                <span>Escrever Primeiro Recado</span>
+              </button>
             </div>
           ) : (
             muralNotes.map((note) => {
@@ -451,22 +183,35 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               return (
                 <div
                   key={note.id}
-                  className={`p-4 rounded-2xl border shadow-2xs relative flex flex-col justify-between transition-all ${bgClass}`}
+                  className={`p-5 rounded-3xl border shadow-2xs relative flex flex-col justify-between transition-all hover:shadow-md hover:-translate-y-0.5 ${bgClass}`}
                 >
                   <div>
-                    {note.title && <h3 className="text-xs font-bold mb-1 border-b border-black/10 pb-1">{note.title}</h3>}
-                    <p className="text-xs font-medium leading-relaxed whitespace-pre-line">{note.content}</p>
+                    <div className="flex items-start justify-between gap-2 mb-2 pb-2 border-b border-black/10">
+                      <h3 className="text-xs font-black tracking-wide truncate flex-1">
+                        {note.title || 'Aviso da Casa'}
+                      </h3>
+                      <button
+                        onClick={() => onDeleteMuralNote?.(note.id)}
+                        className="p-1 text-black/40 hover:text-rose-700 transition-colors rounded-lg hover:bg-black/5"
+                        title="Excluir recado"
+                      >
+                        <span className="material-symbols-outlined text-sm">delete</span>
+                      </button>
+                    </div>
+
+                    <p className="text-xs font-medium leading-relaxed whitespace-pre-line break-words">
+                      {note.content}
+                    </p>
                   </div>
 
-                  <div className="flex items-center justify-between mt-3 pt-2 border-t border-black/5 text-[10px] font-bold opacity-80">
-                    <span>{note.author}</span>
-                    <button
-                      onClick={() => onDeleteMuralNote?.(note.id)}
-                      className="p-1 hover:text-rose-700 transition-colors"
-                      title="Excluir"
-                    >
-                      <span className="material-symbols-outlined text-xs">delete</span>
-                    </button>
+                  <div className="flex items-center justify-between mt-4 pt-2 border-t border-black/10 text-[10px] font-bold opacity-80">
+                    <span className="flex items-center gap-1">
+                      <span className="material-symbols-outlined text-xs">person</span>
+                      <span>{note.author}</span>
+                    </span>
+                    <span className="text-[9px] font-semibold opacity-70">
+                      {note.dateStr}
+                    </span>
                   </div>
                 </div>
               );
@@ -475,127 +220,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         </div>
       </div>
 
-      {/* Modal de Conclusão com PIN */}
-      {activePinTask && (
-        <div
-          onClick={() => setActivePinTask(null)}
-          className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4"
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            className="bg-white rounded-3xl max-w-sm w-full p-6 shadow-xl border border-[#d9e5e3] space-y-4 animate-in fade-in"
-          >
-            <div className="flex justify-between items-center border-b border-[#e4f0ee] pb-2">
-              <div>
-                <h3 className="text-sm font-black text-[#16302e]">Concluir Tarefa</h3>
-                <p className="text-xs text-[#727877]">{activePinTask.title}</p>
-              </div>
-              <button onClick={() => setActivePinTask(null)} className="text-[#727877] p-1">
-                <span className="material-symbols-outlined text-lg">close</span>
-              </button>
-            </div>
-
-            {pinError && (
-              <div className="p-2.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-bold flex items-center gap-1.5">
-                <span className="material-symbols-outlined text-sm shrink-0">error</span>
-                <span>{pinError}</span>
-              </div>
-            )}
-
-            <form onSubmit={handleCompleteSubmit} className="space-y-4">
-              <div>
-                <label className="block text-xs font-bold text-[#16302e] mb-1">
-                  Digite seu PIN (4-6 dígitos)
-                </label>
-                <input
-                  type="password"
-                  maxLength={6}
-                  value={pinInput}
-                  onChange={(e) => setPinInput(e.target.value)}
-                  placeholder="••••"
-                  className="w-full p-3 bg-[#f0fcfa] border border-[#c1c8c6] rounded-xl text-center text-lg tracking-widest font-black focus:outline-none focus:border-[#7b5800]"
-                  autoFocus
-                />
-              </div>
-
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => setActivePinTask(null)}
-                  className="flex-1 py-2.5 bg-[#f0fcfa] text-[#727877] text-xs font-bold rounded-xl border border-[#c1c8c6]"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  disabled={pinLoading}
-                  className="flex-1 py-2.5 bg-[#7b5800] hover:bg-[#5d4200] text-white text-xs font-bold rounded-xl shadow-xs disabled:opacity-50"
-                >
-                  {pinLoading ? 'Concluindo...' : 'Confirmar'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Modal de Registro de Impedimento */}
-      {activeBlockTask && (
-        <div
-          onClick={() => setActiveBlockTask(null)}
-          className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4"
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            className="bg-white rounded-3xl max-w-sm w-full p-6 shadow-xl border border-[#d9e5e3] space-y-4 animate-in fade-in"
-          >
-            <div className="flex justify-between items-center border-b border-[#e4f0ee] pb-2">
-              <div>
-                <h3 className="text-sm font-black text-[#16302e]">Reportar Impedimento</h3>
-                <p className="text-xs text-[#727877]">{activeBlockTask.title}</p>
-              </div>
-              <button onClick={() => setActiveBlockTask(null)} className="text-[#727877] p-1">
-                <span className="material-symbols-outlined text-lg">close</span>
-              </button>
-            </div>
-
-            <form onSubmit={handleBlockSubmit} className="space-y-4">
-              <div>
-                <label className="block text-xs font-bold text-[#16302e] mb-1">
-                  Motivo do Bloqueio
-                </label>
-                <textarea
-                  required
-                  rows={3}
-                  value={blockReason}
-                  onChange={(e) => setBlockReason(e.target.value)}
-                  placeholder="ex: Falta detergente, máquina ocupada..."
-                  className="w-full p-2.5 bg-[#f0fcfa] border border-[#c1c8c6] rounded-xl text-xs font-medium focus:outline-none focus:border-[#7b5800]"
-                />
-              </div>
-
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => setActiveBlockTask(null)}
-                  className="flex-1 py-2.5 bg-[#f0fcfa] text-[#727877] text-xs font-bold rounded-xl border border-[#c1c8c6]"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  disabled={blockLoading || !blockReason.trim()}
-                  className="flex-1 py-2.5 bg-rose-700 hover:bg-rose-800 text-white text-xs font-bold rounded-xl shadow-xs disabled:opacity-50"
-                >
-                  {blockLoading ? 'Registrando...' : 'Bloquear Tarefa'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* New Note Modal */}
+      {/* Modal Novo Recado */}
       {isAddNoteModalOpen && (
         <div
           onClick={() => setIsAddNoteModalOpen(false)}
@@ -603,71 +228,99 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            className="bg-white rounded-3xl max-w-sm w-full p-5 shadow-xl border border-[#d9e5e3] space-y-3 animate-in fade-in"
+            className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-[#d9e5e3] space-y-4 animate-in fade-in"
           >
-            <div className="flex justify-between items-center border-b border-[#e4f0ee] pb-2">
-              <h3 className="text-sm font-black text-[#16302e]">Novo Recado no Mural</h3>
-              <button onClick={() => setIsAddNoteModalOpen(false)} className="text-[#727877] p-1">
+            <div className="flex justify-between items-center border-b border-[#e4f0ee] pb-3">
+              <div className="flex items-center gap-2 text-[#16302e]">
+                <span className="material-symbols-outlined text-xl text-[#7b5800]">push_pin</span>
+                <h3 className="text-base font-black">Fixar Novo Recado no Mural</h3>
+              </div>
+              <button onClick={() => setIsAddNoteModalOpen(false)} className="text-[#727877] hover:text-[#16302e] p-1">
                 <span className="material-symbols-outlined text-lg">close</span>
               </button>
             </div>
 
-            <form onSubmit={handleCreateNoteSubmit} className="space-y-3">
+            <form onSubmit={handleCreateNoteSubmit} className="space-y-4">
               <div>
-                <label className="block text-xs font-bold text-[#16302e] mb-1">Título (Opcional)</label>
+                <label className="block text-xs font-bold text-[#16302e] mb-1">
+                  Título do Recado (Opcional)
+                </label>
                 <input
                   type="text"
                   value={noteTitle}
                   onChange={(e) => setNoteTitle(e.target.value)}
-                  placeholder="ex: Lembrar do Pão"
-                  className="w-full p-2.5 rounded-xl text-xs border border-[#c1c8c6] bg-[#f0fcfa]"
+                  placeholder="ex: Comprar café, Chaves na portaria..."
+                  className="w-full p-3 rounded-xl text-xs border border-[#c1c8c6] bg-[#f0fcfa] text-[#131e1d] focus:outline-none focus:border-[#7b5800]"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-[#16302e] mb-1">Recado</label>
+                <label className="block text-xs font-bold text-[#16302e] mb-1">
+                  Mensagem / Conteúdo
+                </label>
                 <textarea
                   value={noteContent}
                   onChange={(e) => setNoteContent(e.target.value)}
-                  rows={3}
-                  placeholder="Escreva sua mensagem..."
-                  className="w-full p-2.5 rounded-xl text-xs border border-[#c1c8c6] bg-[#f0fcfa]"
+                  rows={4}
+                  placeholder="Escreva seu recado para os outros moradores..."
+                  className="w-full p-3 rounded-xl text-xs border border-[#c1c8c6] bg-[#f0fcfa] text-[#131e1d] focus:outline-none focus:border-[#7b5800]"
                   required
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-[#16302e] mb-1">Cor</label>
-                <div className="flex gap-2">
+                <label className="block text-xs font-bold text-[#16302e] mb-1">
+                  Autor da Mensagem
+                </label>
+                <select
+                  value={selectedAuthor}
+                  onChange={(e) => setSelectedAuthor(e.target.value)}
+                  className="w-full p-2.5 rounded-xl text-xs border border-[#c1c8c6] bg-white text-[#131e1d] font-bold"
+                >
+                  {familyMembers.map((m) => (
+                    <option key={m.id} value={m.name}>
+                      {m.name} ({m.role})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-[#16302e] mb-1.5">
+                  Cor do Post-it
+                </label>
+                <div className="flex gap-3">
                   {[
-                    { id: 'amber', bg: 'bg-[#fde396]' },
-                    { id: 'teal', bg: 'bg-[#c3e8e2]' },
-                    { id: 'gray', bg: 'bg-[#e3eae8]' },
-                    { id: 'rose', bg: 'bg-[#fcdede]' },
+                    { id: 'amber', bg: 'bg-[#fde396]', label: 'Amarelo' },
+                    { id: 'teal', bg: 'bg-[#c3e8e2]', label: 'Menta' },
+                    { id: 'rose', bg: 'bg-[#fcdede]', label: 'Rosa' },
+                    { id: 'lavender', bg: 'bg-[#ddd6fe]', label: 'Lavanda' },
+                    { id: 'gray', bg: 'bg-[#e3eae8]', label: 'Cinza' },
                   ].map((c) => (
                     <button
                       key={c.id}
                       type="button"
                       onClick={() => setNoteColor(c.id as any)}
-                      className={`w-6 h-6 rounded-full ${c.bg} border ${
-                        noteColor === c.id ? 'ring-2 ring-[#7b5800]' : ''
+                      className={`w-7 h-7 rounded-full ${c.bg} border transition-all ${
+                        noteColor === c.id ? 'ring-2 ring-offset-2 ring-[#7b5800] scale-110' : 'hover:scale-105'
                       }`}
+                      title={c.label}
                     />
                   ))}
                 </div>
               </div>
 
-              <div className="flex justify-end gap-2 pt-2 border-t border-[#e4f0ee]">
+              <div className="flex justify-end gap-2 pt-3 border-t border-[#e4f0ee]">
                 <button
                   type="button"
                   onClick={() => setIsAddNoteModalOpen(false)}
-                  className="px-3 py-1.5 text-xs font-bold text-[#727877]"
+                  className="px-4 py-2 text-xs font-bold text-[#727877] hover:bg-[#e4f0ee] rounded-xl transition-colors"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-1.5 bg-[#7b5800] text-white text-xs font-bold rounded-xl"
+                  className="px-5 py-2 bg-[#7b5800] hover:bg-[#5f4400] text-white text-xs font-bold rounded-xl transition-all shadow-xs"
                 >
                   Fixar Recado
                 </button>

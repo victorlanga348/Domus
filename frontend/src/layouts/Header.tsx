@@ -55,15 +55,15 @@ export const Header: React.FC<HeaderProps> = ({
           }`}
         >
           <span className="material-symbols-outlined text-sm">flight_takeoff</span>
-          <span className="hidden sm:inline">{vacationMode ? 'Vacation ON' : 'Vacation Mode'}</span>
-          <span className="sm:hidden">{vacationMode ? 'ON' : 'Férias'}</span>
+          <span className="hidden sm:inline">{vacationMode ? 'Férias: Ativo' : 'Modo Férias'}</span>
+          <span className="sm:hidden">{vacationMode ? 'Férias' : 'Férias'}</span>
         </button>
 
         <div className="flex items-center gap-1 border-l border-[#d0dddb] pl-2 sm:pl-3">
           <button
             onClick={onOpenNotifications}
             className="text-[#16302e] p-1.5 sm:p-2 rounded-full hover:bg-[#e4f0ee] transition-colors relative"
-            title="Notifications"
+            title="Notificações da Residência"
           >
             <span className="material-symbols-outlined text-xl sm:text-2xl">notifications</span>
             {unreadNotificationCount > 0 && (
