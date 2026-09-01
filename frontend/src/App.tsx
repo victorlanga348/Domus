@@ -31,6 +31,7 @@ import {
   NotificationsDrawer,
   AccessLogsModal,
   FamilyMembersDrawer,
+  LeadershipTransferModal,
 } from './components/index.js';
 import { AuthView, HouseSelectionView, type AuthUser, type HouseResponse } from './features/auth/index.js';
 
@@ -79,13 +80,13 @@ export default function App() {
     const saved = houseKey ? localStorage.getItem(`${houseKey}_members`) : null;
     if (saved) return JSON.parse(saved);
 
-    // Membro inicial é estritamente o usuário cadastrado
+    // Membro inicial é estritamente o usuário cadastrado (Admin Geral quando criador)
     return [
       {
         id: authUser.id,
         name: authUser.name,
         email: authUser.email,
-        role: authUser.role === 'ADMIN' ? 'Admin' : 'Resident',
+        role: authUser.role === 'ADMIN' ? 'Admin Geral' : 'Resident',
         isPrimary: true,
         avatar: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(authUser.name)}`,
       },
@@ -220,7 +221,7 @@ export default function App() {
       id: houseData.user.id,
       name: houseData.user.name,
       email: houseData.user.email,
-      role: houseData.user.role === 'ADMIN' ? 'Admin' : 'Resident',
+      role: houseData.user.role === 'ADMIN' ? 'Admin Geral' : 'Resident',
       isPrimary: true,
       avatar: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(houseData.user.name)}`,
     };
@@ -252,21 +253,22 @@ export default function App() {
   const handleSyncMembers = useCallback((backendMembers: any[]) => {
     if (!backendMembers || backendMembers.length === 0) return;
     setFamilyMembers((prev) => {
-      const merged: FamilyMember[] = backendMembers.map((bm) => {
+      const merged: FamilyMember[] = backendMembers.map((bm, index) => {
         const existing = prev.find((p) => p.id === bm.id);
-        const isPrimary = authUser ? bm.id === authUser.id : false;
+        const isPrimary = existing ? existing.isPrimary : (index === 0 && bm.role === 'ADMIN');
+        const role = existing?.role || (bm.role === 'ADMIN' ? (isPrimary ? 'Admin Geral' : 'Admin') : 'Resident');
         return {
           id: bm.id,
           name: bm.name,
           email: bm.email,
-          role: bm.role === 'ADMIN' ? 'Admin' : 'Resident',
-          isPrimary,
+          role,
+          isPrimary: role === 'Admin Geral',
           avatar: existing?.avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(bm.name)}`,
         };
       });
       return merged;
     });
-  }, [authUser]);
+  }, []);
 
   const handleLogout = () => {
     setAuthUser(null);
@@ -376,10 +378,78 @@ export default function App() {
     showToast('Regra da casa adicionada!');
   };
 
+  // Estados e Handlers de Governança de Liderança & Membros
+  const [transferTarget, setTransferTarget] = useState<{
+    member?: FamilyMember;
+    newMemberData?: Omit<FamilyMember, 'id'>;
+  } | null>(null);
+  const [isTransferModalOpen, setIsTransferModalOpen] = useState(false);
+
   const handleAddFamilyMember = (member: Omit<FamilyMember, 'id'>) => {
     const newMember: FamilyMember = { ...member, id: `m_${Date.now()}` };
     setFamilyMembers((prev) => [...prev, newMember]);
-    showToast(`Membro ${member.name} adicionado!`);
+    showToast(`Membro ${member.name} adicionado com sucesso!`);
+  };
+
+  const handlePromoteToAdmin = (memberId: string) => {
+    setFamilyMembers((prev) =>
+      prev.map((m) => (m.id === memberId ? { ...m, role: 'Admin' } : m))
+    );
+    showToast('Membro promovido a Administrador Normal.');
+  };
+
+  const handleDemoteToResident = (memberId: string) => {
+    setFamilyMembers((prev) =>
+      prev.map((m) => (m.id === memberId ? { ...m, role: 'Resident' } : m))
+    );
+    showToast('Administrador destituído para Morador regular.');
+  };
+
+  const handleInitiateTransferGeneralAdmin = (targetMember: FamilyMember) => {
+    setTransferTarget({ member: targetMember });
+    setIsTransferModalOpen(true);
+  };
+
+  const handleInitiateTransferForNewMember = (pendingData: Omit<FamilyMember, 'id'>) => {
+    setTransferTarget({ newMemberData: pendingData });
+    setIsTransferModalOpen(true);
+  };
+
+  const handleConfirmLeadershipTransfer = () => {
+    if (!transferTarget) return;
+
+    if (transferTarget.member) {
+      const targetId = transferTarget.member.id;
+      setFamilyMembers((prev) =>
+        prev.map((m) => {
+          if (m.id === targetId) {
+            return { ...m, role: 'Admin Geral', isPrimary: true };
+          }
+          if (m.role === 'Admin Geral' || m.id === authUser?.id) {
+            return { ...m, role: 'Admin', isPrimary: false };
+          }
+          return m;
+        })
+      );
+      showToast(`Liderança transferida para ${transferTarget.member.name}! Você agora é Admin Normal.`);
+    } else if (transferTarget.newMemberData) {
+      const newCreatedMember: FamilyMember = {
+        ...transferTarget.newMemberData,
+        id: `m_${Date.now()}`,
+        role: 'Admin Geral',
+        isPrimary: true,
+      };
+      setFamilyMembers((prev) => [
+        ...prev.map((m) =>
+          m.role === 'Admin Geral' || m.id === authUser?.id ? { ...m, role: 'Admin' as const, isPrimary: false } : m
+        ),
+        newCreatedMember,
+      ]);
+      showToast(`Novo Admin Geral ${transferTarget.newMemberData.name} cadastrado! Você agora é Admin Normal.`);
+    }
+
+    setIsTransferModalOpen(false);
+    setTransferTarget(null);
   };
 
   const handleUpdateMemberStatus = (memberId: string, newLocation: string, newIcon?: string) => {
@@ -389,14 +459,15 @@ export default function App() {
     showToast('Status atualizado!');
   };
 
-  const currentUser: FamilyMember = familyMembers.find((m) => m.isPrimary) || {
-    id: authUser?.id || 'user-1',
-    name: authUser?.name || 'Morador',
-    email: authUser?.email || 'morador@domus.local',
-    role: authUser?.role === 'ADMIN' ? 'Admin' : 'Resident',
-    isPrimary: true,
-    avatar: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(authUser?.name || 'Morador')}`,
-  };
+  const currentUser: FamilyMember = familyMembers.find((m) => m.id === authUser?.id) ||
+    familyMembers.find((m) => m.isPrimary) || {
+      id: authUser?.id || 'user-1',
+      name: authUser?.name || 'Morador',
+      email: authUser?.email || 'morador@domus.local',
+      role: authUser?.role === 'ADMIN' ? 'Admin Geral' : 'Resident',
+      isPrimary: authUser?.role === 'ADMIN',
+      avatar: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(authUser?.name || 'Morador')}`,
+    };
 
   // --- HIERARQUIA DE ACESSO ---
 
@@ -514,6 +585,10 @@ export default function App() {
               onOpenAccessLogsModal={() => setIsAccessLogsOpen(true)}
               onOpenAddRuleModal={() => setIsAddRuleOpen(true)}
               onSwitchHouse={handleSwitchHouse}
+              currentUserRole={currentUser.role}
+              onPromoteToAdmin={handlePromoteToAdmin}
+              onDemoteToResident={handleDemoteToResident}
+              onTransferGeneralAdmin={handleInitiateTransferGeneralAdmin}
             />
           )}
 
@@ -569,6 +644,18 @@ export default function App() {
         isOpen={isAddMemberOpen}
         onClose={() => setIsAddMemberOpen(false)}
         onAddMember={handleAddFamilyMember}
+        currentUserRole={currentUser.role}
+        onInitiateTransferGeneralAdmin={handleInitiateTransferForNewMember}
+      />
+
+      <LeadershipTransferModal
+        isOpen={isTransferModalOpen}
+        onClose={() => {
+          setIsTransferModalOpen(false);
+          setTransferTarget(null);
+        }}
+        onConfirm={handleConfirmLeadershipTransfer}
+        targetMemberName={transferTarget?.member?.name || transferTarget?.newMemberData?.name || 'Novo Membro'}
       />
 
       <NotificationsDrawer
@@ -591,6 +678,10 @@ export default function App() {
         familyMembers={familyMembers}
         onUpdateMemberStatus={handleUpdateMemberStatus}
         onOpenAddMemberModal={() => setIsAddMemberOpen(true)}
+        currentUserRole={currentUser.role}
+        onPromoteToAdmin={handlePromoteToAdmin}
+        onDemoteToResident={handleDemoteToResident}
+        onTransferGeneralAdmin={handleInitiateTransferGeneralAdmin}
       />
     </div>
   );

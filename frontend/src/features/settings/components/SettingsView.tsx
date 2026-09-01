@@ -11,6 +11,10 @@ interface SettingsViewProps {
   onOpenAccessLogsModal: () => void;
   onOpenAddRuleModal: () => void;
   onSwitchHouse?: () => void;
+  currentUserRole?: FamilyMember['role'];
+  onPromoteToAdmin?: (memberId: string) => void;
+  onDemoteToResident?: (memberId: string) => void;
+  onTransferGeneralAdmin?: (member: FamilyMember) => void;
 }
 
 export const SettingsView: React.FC<SettingsViewProps> = ({
@@ -23,6 +27,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   onOpenAccessLogsModal,
   onOpenAddRuleModal,
   onSwitchHouse,
+  currentUserRole = 'Admin Geral',
+  onPromoteToAdmin,
+  onDemoteToResident,
+  onTransferGeneralAdmin,
 }) => {
   const [nightMode, setNightMode] = useState(preferences.nightMode);
   const [vacationTriggers, setVacationTriggers] = useState(preferences.vacationTriggers);
@@ -232,47 +240,103 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
         <div className="relative z-10">
           <div className="flex justify-between items-center mb-6">
-            <h3 className="text-xl font-bold text-white">Family Members</h3>
-            <button
-              onClick={onOpenAddMemberModal}
-              className="bg-[#ffca5e] text-[#755400] rounded-full p-2 hover:scale-105 transition-transform shadow-md"
-              title="Add Member"
-            >
-              <span className="material-symbols-outlined text-lg">person_add</span>
-            </button>
+            <div>
+              <h3 className="text-xl font-bold text-white">Membros da Residência</h3>
+              <p className="text-xs text-[#b0ccc9]">Hierarquia e papéis de acesso</p>
+            </div>
+            {(currentUserRole === 'Admin Geral' || currentUserRole === 'Admin') && (
+              <button
+                onClick={onOpenAddMemberModal}
+                className="bg-[#ffca5e] text-[#755400] rounded-full p-2 hover:scale-105 transition-transform shadow-md"
+                title="Convidar Novo Membro"
+              >
+                <span className="material-symbols-outlined text-lg font-bold">person_add</span>
+              </button>
+            )}
           </div>
 
           <div className="space-y-3 max-h-[380px] overflow-y-auto pr-1">
-            {familyMembers.map((member) => (
-              <div
-                key={member.id}
-                className={`p-3.5 rounded-2xl flex items-center gap-3 border transition-all ${
-                  member.isPrimary
-                    ? 'bg-[#2d4644] border-[#98b3b0]'
-                    : 'bg-[#2d4644]/50 border-transparent hover:border-[#3e4241]'
-                }`}
-              >
-                <img
-                  src={member.avatar}
-                  alt={member.name}
-                  className="w-10 h-10 rounded-full object-cover border-2 border-[#ffca5e]"
-                />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-bold text-white truncate">{member.name}</p>
-                  <p className="text-[11px] text-[#b0ccc9]">{member.role}</p>
+            {familyMembers.map((member) => {
+              const isTargetGeneralAdmin = member.role === 'Admin Geral' || member.isPrimary;
+              const isTargetAdmin = member.role === 'Admin';
+              const isTargetResident = member.role === 'Resident';
+              const isGeneralAdmin = currentUserRole === 'Admin Geral';
+
+              return (
+                <div
+                  key={member.id}
+                  className={`p-3.5 rounded-2xl flex flex-col gap-2 border transition-all ${
+                    isTargetGeneralAdmin
+                      ? 'bg-[#2d4644] border-[#ffca5e]'
+                      : 'bg-[#2d4644]/50 border-transparent hover:border-[#3e4241]'
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <img
+                      src={member.avatar}
+                      alt={member.name}
+                      className="w-10 h-10 rounded-full object-cover border-2 border-[#ffca5e] shrink-0"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-bold text-white truncate">{member.name}</p>
+                      <p className="text-[11px] text-[#b0ccc9]">{member.email}</p>
+                    </div>
+                    <span
+                      className={`text-[10px] font-extrabold px-2 py-0.5 rounded uppercase tracking-wider ${
+                        isTargetGeneralAdmin
+                          ? 'bg-[#ffca5e] text-[#755400]'
+                          : isTargetAdmin
+                          ? 'bg-[#16302e] text-white border border-[#486b68]'
+                          : 'bg-[#213836] text-[#b0ccc9]'
+                      }`}
+                    >
+                      {isTargetGeneralAdmin ? '👑 Admin Geral' : isTargetAdmin ? 'Admin' : 'Morador'}
+                    </span>
+                  </div>
+
+                  {/* Ações Administrativas Exclusivas do Admin Geral */}
+                  {isGeneralAdmin && !isTargetGeneralAdmin && (
+                    <div className="pt-2 border-t border-[#3d5c5a] flex items-center justify-end gap-1.5 flex-wrap">
+                      {isTargetResident && onPromoteToAdmin && (
+                        <button
+                          type="button"
+                          onClick={() => onPromoteToAdmin(member.id)}
+                          className="px-2 py-1 bg-[#16302e] hover:bg-[#213836] text-white rounded-lg text-[10px] font-bold flex items-center gap-1 transition-all border border-[#486b68]"
+                          title="Promover a Administrador Normal"
+                        >
+                          <span className="material-symbols-outlined text-xs">shield_person</span>
+                          <span>Tornar Admin</span>
+                        </button>
+                      )}
+
+                      {isTargetAdmin && onDemoteToResident && (
+                        <button
+                          type="button"
+                          onClick={() => onDemoteToResident(member.id)}
+                          className="px-2 py-1 bg-rose-950/40 hover:bg-rose-900/60 text-rose-300 border border-rose-800/60 rounded-lg text-[10px] font-bold flex items-center gap-1 transition-all"
+                          title="Destituir para Residente"
+                        >
+                          <span className="material-symbols-outlined text-xs">person_remove</span>
+                          <span>Destituir p/ Morador</span>
+                        </button>
+                      )}
+
+                      {onTransferGeneralAdmin && (
+                        <button
+                          type="button"
+                          onClick={() => onTransferGeneralAdmin(member)}
+                          className="px-2 py-1 bg-[#ffca5e] hover:bg-[#e0b04a] text-[#755400] rounded-lg text-[10px] font-black flex items-center gap-1 transition-all"
+                          title="Transferir Liderança da Residência"
+                        >
+                          <span className="material-symbols-outlined text-xs">crown</span>
+                          <span>Passar Admin Geral</span>
+                        </button>
+                      )}
+                    </div>
+                  )}
                 </div>
-                {member.isPrimary && (
-                  <span className="bg-[#7b5800] text-white text-[10px] font-extrabold px-2 py-0.5 rounded uppercase tracking-wider">
-                    PRIMARY
-                  </span>
-                )}
-                {member.temporary && (
-                  <button className="text-[#ffca5e] text-[10px] font-extrabold uppercase hover:underline">
-                    Configure
-                  </button>
-                )}
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
 

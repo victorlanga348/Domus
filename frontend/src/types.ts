@@ -22,7 +22,7 @@ export interface FamilyMember {
   id: string;
   name: string;
   email: string;
-  role: 'Admin' | 'Resident' | 'Resident (Restricted)' | 'Guest Access';
+  role: 'Admin Geral' | 'Admin' | 'Resident' | 'Resident (Restricted)' | 'Guest Access';
   isPrimary?: boolean;
   avatar: string;
   balanceOwed?: number; // positive = gets back, negative = owes, 0 = settled

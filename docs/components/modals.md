@@ -16,3 +16,16 @@
 ### 1.4 Modal de Verificação de PIN (`PinPromptModal`)
 - **Campos:** Teclado numérico virtual ou input de PIN com máscara de pontos.
 - **Segurança:** Oculta dígitos digitados e bloqueia múltiplos cliques.
+
+### 1.5 Modal de Transferência de Liderança Única (`LeadershipTransferModal`)
+- **Objetivo:** Confirmar a transferência de cargo de `Admin Geral` para outro morador.
+- **Estilo Visual:** Design premium institucional com fundo `#16302e`, detalhes em `#ffca5e` (ouro) e ícone de coroa `crown`.
+- **Regra de Negócio:** Notifica com clareza que o usuário atual deixará a liderança geral e passará a ser um `Admin Normal` (Administrador auxiliar).
+
+### 1.6 Modal de Convidar Membro (`AddMemberModal`)
+- **Campos:** Nome Completo, E-mail, Categoria / Cargo de Acesso.
+- **Governança:** Apenas o `Admin Geral` pode convidar alguém como `Admin` ou `👑 Admin Geral` (disparando o diálogo de transferência). Admins Normais convidam como `Resident` ou `Guest Access`.
+
+### 1.7 Gaveta de Membros da Família (`FamilyMembersDrawer`)
+- **Exibição:** Lista em tempo real de status, localização e papéis.
+- **Ações Administrativas:** Permite ao Admin Geral promover residentes a Admin ou destituir admins para residentes diretamente pela interface.

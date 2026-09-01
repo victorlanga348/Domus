@@ -312,17 +312,88 @@ export const AddHouseRuleModal: React.FC<{
   );
 };
 
+/* --- Leadership Transfer Confirmation Modal --- */
+export const LeadershipTransferModal: React.FC<{
+  isOpen: boolean;
+  onClose: () => void;
+  onConfirm: () => void;
+  targetMemberName: string;
+}> = ({ isOpen, onClose, onConfirm, targetMemberName }) => {
+  if (!isOpen) return null;
+
+  return (
+    <div
+      onClick={onClose}
+      className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 animate-in fade-in"
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="bg-[#16302e] text-white rounded-3xl max-w-md w-full p-6 sm:p-7 shadow-2xl border-2 border-[#ffca5e] relative overflow-hidden"
+      >
+        {/* Background ambient badge */}
+        <div className="absolute -top-6 -right-6 w-28 h-28 rounded-full bg-[#ffca5e]/10 blur-xl pointer-events-none" />
+
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-12 h-12 rounded-2xl bg-[#ffca5e] text-[#755400] flex items-center justify-center font-black shadow-lg">
+            <span className="material-symbols-outlined text-2xl font-black">crown</span>
+          </div>
+          <div>
+            <h3 className="text-base sm:text-lg font-black text-white">Transferência de Liderança</h3>
+            <span className="text-[11px] font-bold text-[#ffca5e] uppercase tracking-wider">
+              Apenas 1 Admin Geral
+            </span>
+          </div>
+        </div>
+
+        <div className="bg-[#214340] border border-[#2d5753] p-4 rounded-2xl space-y-2 mb-6">
+          <p className="text-xs sm:text-sm text-white/90 leading-relaxed">
+            Existe estritamente <strong>1 Admin Geral</strong> por residência.
+          </p>
+          <p className="text-xs text-[#ffca5e] font-medium leading-relaxed">
+            Ao nomear <strong>{targetMemberName}</strong> como novo Admin Geral, você deixará de ser o Admin Geral e passará a ser um <strong>Administrador Normal (Admin)</strong>.
+          </p>
+        </div>
+
+        <div className="flex gap-3">
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex-1 py-3 bg-[#2d4644] hover:bg-[#3d5c5a] text-white rounded-xl text-xs font-bold transition-all border border-[#486b68]"
+          >
+            Cancelar
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              onConfirm();
+              onClose();
+            }}
+            className="flex-1 py-3 bg-[#ffca5e] hover:bg-[#e0b04a] active:scale-98 text-[#755400] rounded-xl text-xs font-black transition-all shadow-lg flex items-center justify-center gap-1.5"
+          >
+            <span className="material-symbols-outlined text-sm font-bold">verified</span>
+            <span>Confirmar Transferência</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 /* --- Add Family Member Modal --- */
 export const AddMemberModal: React.FC<{
   isOpen: boolean;
   onClose: () => void;
   onAddMember: (member: Omit<FamilyMember, 'id'>) => void;
-}> = ({ isOpen, onClose, onAddMember }) => {
+  currentUserRole?: FamilyMember['role'];
+  onInitiateTransferGeneralAdmin?: (pendingMember: Omit<FamilyMember, 'id'>) => void;
+}> = ({ isOpen, onClose, onAddMember, currentUserRole = 'Admin Geral', onInitiateTransferGeneralAdmin }) => {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [role, setRole] = useState<FamilyMember['role']>('Resident');
 
   if (!isOpen) return null;
+
+  const isGeneralAdmin = currentUserRole === 'Admin Geral';
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -334,16 +405,24 @@ export const AddMemberModal: React.FC<{
       'https://lh3.googleusercontent.com/aida-public/AB6AXuADpC8k_C79YOfxtPphhWhwt-CWjWWIx1NUWLD-qwpmP3nEKdrRWMCnnH8083bHzDeafNIkzgIjmIsyO38eZrfRSKN0JHntWBQGlFRaa9f325UG8Yo5NTC4KP4X2XBOg6_fAMG80zWwF2ShpncDZCITTRkLs4rnhkCu79Al1GBpyUcy-RNLFn9w1ThRAEHNPEUkyv4jzsrPys1XEN_je5MZ4vQndh9QPV2GB4rZgLl-9zl6_qn4lss',
     ];
 
-    onAddMember({
-      name,
-      email,
-      role,
+    const newMemberData: Omit<FamilyMember, 'id'> = {
+      name: name.trim(),
+      email: email.trim(),
+      role: role,
       avatar: avatars[Math.floor(Math.random() * avatars.length)],
       balanceOwed: 0,
-    });
+    };
 
+    if (role === 'Admin Geral' && isGeneralAdmin && onInitiateTransferGeneralAdmin) {
+      onInitiateTransferGeneralAdmin(newMemberData);
+      onClose();
+      return;
+    }
+
+    onAddMember(newMemberData);
     setName('');
     setEmail('');
+    setRole('Resident');
     onClose();
   };
 
@@ -357,7 +436,10 @@ export const AddMemberModal: React.FC<{
         className="bg-white rounded-3xl max-w-md w-full p-5 sm:p-6 shadow-2xl border border-[#d9e5e3] max-h-[90vh] overflow-y-auto"
       >
         <div className="flex justify-between items-center mb-6">
-          <h3 className="text-xl font-bold text-[#16302e]">Invite Family Member</h3>
+          <div className="flex items-center gap-2">
+            <span className="material-symbols-outlined text-xl text-[#7b5800]">person_add</span>
+            <h3 className="text-lg font-black text-[#16302e]">Convidar Novo Membro</h3>
+          </div>
           <button onClick={onClose} className="text-[#727877] hover:text-[#16302e]">
             <span className="material-symbols-outlined">close</span>
           </button>
@@ -366,46 +448,56 @@ export const AddMemberModal: React.FC<{
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-xs font-bold uppercase text-[#727877] mb-1">
-              Full Name
+              Nome Completo
             </label>
             <input
               type="text"
               required
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="e.g. Michael Johnson"
-              className="w-full p-3 rounded-xl border border-[#c1c8c6] text-sm text-[#131e1d] focus:border-[#7b5800]"
+              placeholder="ex: Carlos Silva"
+              className="w-full p-3 rounded-xl border border-[#c1c8c6] text-xs font-medium text-[#131e1d] focus:border-[#7b5800]"
             />
           </div>
 
           <div>
             <label className="block text-xs font-bold uppercase text-[#727877] mb-1">
-              Email Address
+              E-mail
             </label>
             <input
               type="email"
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="michael@gmail.com"
-              className="w-full p-3 rounded-xl border border-[#c1c8c6] text-sm text-[#131e1d] focus:border-[#7b5800]"
+              placeholder="carlos@exemplo.com"
+              className="w-full p-3 rounded-xl border border-[#c1c8c6] text-xs font-medium text-[#131e1d] focus:border-[#7b5800]"
             />
           </div>
 
           <div>
             <label className="block text-xs font-bold uppercase text-[#727877] mb-1">
-              Access Role
+              Categoria / Cargo de Acesso
             </label>
             <select
               value={role}
               onChange={(e) => setRole(e.target.value as FamilyMember['role'])}
-              className="w-full p-3 rounded-xl border border-[#c1c8c6] text-sm text-[#131e1d] bg-white"
+              className="w-full p-3 rounded-xl border border-[#c1c8c6] text-xs font-bold text-[#131e1d] bg-white focus:border-[#7b5800]"
             >
-              <option value="Admin">Admin (Full Control)</option>
-              <option value="Resident">Resident (Standard)</option>
-              <option value="Resident (Restricted)">Resident (Restricted)</option>
-              <option value="Guest Access">Guest Access (Temporary)</option>
+              <option value="Resident">Morador (Residente Padrão)</option>
+              <option value="Resident (Restricted)">Morador com Restrição</option>
+              <option value="Guest Access">Convidado Temporário</option>
+              {isGeneralAdmin && (
+                <>
+                  <option value="Admin">Admin (Administrador Normal)</option>
+                  <option value="Admin Geral">👑 Admin Geral (Transferir Liderança)</option>
+                </>
+              )}
             </select>
+            {!isGeneralAdmin && (
+              <p className="text-[11px] text-[#727877] mt-1">
+                * Apenas o Admin Geral tem permissão para cadastrar ou promover Administradores.
+              </p>
+            )}
           </div>
 
           <div className="pt-4 flex justify-end gap-3">
@@ -414,13 +506,13 @@ export const AddMemberModal: React.FC<{
               onClick={onClose}
               className="px-4 py-2.5 rounded-xl text-xs font-bold text-[#414847] hover:bg-[#e4f0ee]"
             >
-              Cancel
+              Cancelar
             </button>
             <button
               type="submit"
-              className="px-6 py-2.5 rounded-xl bg-[#16302e] text-white text-xs font-extrabold uppercase hover:bg-[#2d4644]"
+              className="px-6 py-2.5 rounded-xl bg-[#7b5800] text-white text-xs font-bold hover:bg-[#5d4200] transition-all shadow-xs"
             >
-              Send Invite
+              Adicionar Membro
             </button>
           </div>
         </form>
@@ -626,12 +718,30 @@ export const FamilyMembersDrawer: React.FC<{
   familyMembers: FamilyMember[];
   onUpdateMemberStatus?: (memberId: string, newLocation: string, newIcon?: string) => void;
   onOpenAddMemberModal?: () => void;
-}> = ({ isOpen, onClose, memberStatuses, familyMembers, onUpdateMemberStatus, onOpenAddMemberModal }) => {
+  currentUserRole?: FamilyMember['role'];
+  onPromoteToAdmin?: (memberId: string) => void;
+  onDemoteToResident?: (memberId: string) => void;
+  onTransferGeneralAdmin?: (member: FamilyMember) => void;
+}> = ({
+  isOpen,
+  onClose,
+  memberStatuses,
+  familyMembers,
+  onUpdateMemberStatus,
+  onOpenAddMemberModal,
+  currentUserRole = 'Admin Geral',
+  onPromoteToAdmin,
+  onDemoteToResident,
+  onTransferGeneralAdmin,
+}) => {
   const [editingMemberId, setEditingMemberId] = useState<string | null>(null);
   const [locationInput, setLocationInput] = useState('');
   const [selectedIcon, setSelectedIcon] = useState('home');
 
   if (!isOpen) return null;
+
+  const isGeneralAdmin = currentUserRole === 'Admin Geral';
+  const canAddMember = currentUserRole === 'Admin Geral' || currentUserRole === 'Admin';
 
   const handleStartEdit = (member: { id: string; location: string; icon: string }) => {
     setEditingMemberId(member.id);
@@ -674,8 +784,8 @@ export const FamilyMembersDrawer: React.FC<{
                 <span className="material-symbols-outlined text-2xl font-bold">group</span>
               </div>
               <div>
-                <h3 className="text-lg font-black tracking-tight">Membros da Família</h3>
-                <p className="text-xs text-[#727877]">Status e localizações em tempo real</p>
+                <h3 className="text-lg font-black tracking-tight">Membros da Residência</h3>
+                <p className="text-xs text-[#727877]">Status, localizações e governança</p>
               </div>
             </div>
             <button
@@ -688,16 +798,19 @@ export const FamilyMembersDrawer: React.FC<{
 
           {/* Member Status List */}
           <div className="space-y-4 max-h-[65vh] overflow-y-auto pr-1">
-            {memberStatuses.map((member) => {
-              const matchedFamilyMember = familyMembers.find((m) => m.name === member.name);
+            {familyMembers.map((member) => {
+              const matchedStatus = memberStatuses.find((s) => s.name === member.name);
               const isEditing = editingMemberId === member.id;
+              const isTargetGeneralAdmin = member.role === 'Admin Geral';
+              const isTargetAdmin = member.role === 'Admin';
+              const isTargetResident = member.role === 'Resident';
 
               return (
                 <div
                   key={member.id}
                   className="p-4 rounded-2xl bg-[#f0fcfa] border border-[#e4f0ee] shadow-xs flex flex-col gap-3 transition-all hover:border-[#98b3b0]"
                 >
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-start justify-between gap-2">
                     <div className="flex items-center gap-3">
                       <img
                         src={member.avatar}
@@ -705,28 +818,85 @@ export const FamilyMembersDrawer: React.FC<{
                         className="w-11 h-11 rounded-full object-cover border-2 border-[#16302e]/20 shrink-0"
                       />
                       <div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
                           <h4 className="text-sm font-bold text-[#16302e]">{member.name}</h4>
-                          {matchedFamilyMember && (
-                            <span className="text-[10px] bg-[#e4f0ee] text-[#16302e] px-2 py-0.5 rounded-full font-bold">
-                              {matchedFamilyMember.role}
-                            </span>
-                          )}
+                          <span
+                            className={`text-[10px] px-2 py-0.5 rounded-full font-extrabold uppercase tracking-wider ${
+                              isTargetGeneralAdmin
+                                ? 'bg-[#ffca5e] text-[#755400] border border-[#d99b00]'
+                                : isTargetAdmin
+                                ? 'bg-[#16302e] text-white'
+                                : 'bg-[#e4f0ee] text-[#16302e]'
+                            }`}
+                          >
+                            {isTargetGeneralAdmin ? '👑 Admin Geral' : isTargetAdmin ? 'Admin' : 'Morador'}
+                          </span>
                         </div>
                         <div className="flex items-center gap-1.5 mt-0.5 text-xs text-[#7b5800] font-semibold">
-                          <span className="material-symbols-outlined text-sm">{member.icon}</span>
-                          <span>{member.location}</span>
+                          <span className="material-symbols-outlined text-sm">
+                            {matchedStatus?.icon || 'home'}
+                          </span>
+                          <span>{matchedStatus?.location || 'Em Casa'}</span>
                         </div>
                       </div>
                     </div>
 
                     <button
-                      onClick={() => (isEditing ? setEditingMemberId(null) : handleStartEdit(member))}
+                      onClick={() =>
+                        isEditing
+                          ? setEditingMemberId(null)
+                          : handleStartEdit({
+                              id: member.id,
+                              location: matchedStatus?.location || 'Em Casa',
+                              icon: matchedStatus?.icon || 'home',
+                            })
+                      }
                       className="text-xs text-[#7b5800] hover:text-[#5f4400] font-bold px-2.5 py-1 rounded-xl bg-white border border-[#c1c8c6] shadow-2xs hover:border-[#7b5800]"
                     >
-                      {isEditing ? 'Cancelar' : 'Alterar Status'}
+                      {isEditing ? 'Cancelar' : 'Status'}
                     </button>
                   </div>
+
+                  {/* Ações Administrativas Exclusivas do Admin Geral */}
+                  {isGeneralAdmin && !isTargetGeneralAdmin && (
+                    <div className="pt-2 border-t border-[#d0dddb] flex items-center justify-end gap-2 flex-wrap">
+                      {isTargetResident && onPromoteToAdmin && (
+                        <button
+                          type="button"
+                          onClick={() => onPromoteToAdmin(member.id)}
+                          className="px-2.5 py-1 bg-[#16302e] hover:bg-[#2d4644] text-white rounded-lg text-[10px] font-bold flex items-center gap-1 transition-all"
+                          title="Promover a Administrador Normal"
+                        >
+                          <span className="material-symbols-outlined text-xs">shield_person</span>
+                          <span>Tornar Admin</span>
+                        </button>
+                      )}
+
+                      {isTargetAdmin && onDemoteToResident && (
+                        <button
+                          type="button"
+                          onClick={() => onDemoteToResident(member.id)}
+                          className="px-2.5 py-1 bg-white hover:bg-rose-50 text-rose-700 border border-rose-300 rounded-lg text-[10px] font-bold flex items-center gap-1 transition-all"
+                          title="Destituir para Residente"
+                        >
+                          <span className="material-symbols-outlined text-xs">person_remove</span>
+                          <span>Destituir p/ Morador</span>
+                        </button>
+                      )}
+
+                      {onTransferGeneralAdmin && (
+                        <button
+                          type="button"
+                          onClick={() => onTransferGeneralAdmin(member)}
+                          className="px-2.5 py-1 bg-[#fff8e6] hover:bg-[#ffeec2] text-[#7b5800] border border-[#ffca5e] rounded-lg text-[10px] font-black flex items-center gap-1 transition-all"
+                          title="Transferir Liderança da Residência"
+                        >
+                          <span className="material-symbols-outlined text-xs">crown</span>
+                          <span>Passar Admin Geral</span>
+                        </button>
+                      )}
+                    </div>
+                  )}
 
                   {/* Inline Status Edit Form */}
                   {isEditing && (
@@ -797,7 +967,7 @@ export const FamilyMembersDrawer: React.FC<{
 
         {/* Action Controls Footer */}
         <div className="space-y-2 pt-4 border-t border-[#e4f0ee]">
-          {onOpenAddMemberModal && (
+          {canAddMember && onOpenAddMemberModal && (
             <button
               onClick={() => {
                 onClose();
