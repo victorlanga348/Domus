@@ -549,11 +549,11 @@ export const NotificationsDrawer: React.FC<{
   return (
     <div
       onClick={onClose}
-      className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex justify-end"
+      className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex justify-end h-[100dvh] max-h-[100dvh] overflow-hidden"
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="bg-white w-full max-w-sm h-full p-5 shadow-2xl flex flex-col justify-between border-l border-[#d9e5e3] max-h-[100vh] overflow-y-auto animate-in slide-in-from-right duration-200"
+        className="bg-white w-full max-w-sm h-full h-[100dvh] max-h-[100dvh] p-5 shadow-2xl flex flex-col justify-between border-l border-[#d9e5e3] overflow-y-auto animate-in slide-in-from-right duration-200"
       >
         <div>
           {/* Header */}
@@ -785,11 +785,11 @@ export const FamilyMembersDrawer: React.FC<{
   return (
     <div
       onClick={onClose}
-      className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex justify-end"
+      className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex justify-end h-[100dvh] max-h-[100dvh] overflow-hidden"
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="bg-white w-full max-w-md h-full p-6 shadow-2xl flex flex-col justify-between border-l border-[#d9e5e3] max-h-[100vh] overflow-y-auto animate-in slide-in-from-right duration-200"
+        className="bg-white w-full max-w-md h-full h-[100dvh] max-h-[100dvh] p-6 shadow-2xl flex flex-col justify-between border-l border-[#d9e5e3] overflow-y-auto animate-in slide-in-from-right duration-200"
       >
         <div>
           {/* Header */}

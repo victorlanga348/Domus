@@ -34,8 +34,8 @@ export const WalletView: React.FC<WalletViewProps> = ({
   return (
     <div className="p-4 sm:p-8 max-w-7xl mx-auto w-full flex flex-col gap-6 sm:gap-8">
       {/* Top Search & Filter Bar */}
-      <div className="bg-white rounded-2xl p-4 flex flex-wrap items-center gap-4 shadow-sm border border-[#d9e5e3]">
-        <div className="flex-1 min-w-[240px] relative">
+      <div className="bg-white rounded-2xl p-4 flex flex-wrap items-center gap-4 shadow-sm border border-[#d9e5e3] w-full min-w-0">
+        <div className="flex-1 w-full sm:w-auto min-w-0 relative">
           <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[#727877]">
             search
           </span>
@@ -48,7 +48,7 @@ export const WalletView: React.FC<WalletViewProps> = ({
           />
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto justify-between sm:justify-start">
           <button className="px-4 py-2 rounded-xl bg-[#2d4644] text-[#98b3b0] text-xs font-bold flex items-center gap-2 hover:text-white transition-colors">
             <span className="material-symbols-outlined text-sm">filter_list</span>
             Filter
@@ -116,21 +116,21 @@ export const WalletView: React.FC<WalletViewProps> = ({
                 return (
                   <div
                     key={expense.id}
-                    className={`bg-white rounded-2xl p-5 flex items-center justify-between shadow-sm border border-[#d9e5e3] hover:-translate-y-0.5 transition-all ${
+                    className={`bg-white rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm border border-[#d9e5e3] hover:-translate-y-0.5 transition-all w-full min-w-0 ${
                       isUnsettled ? 'border-l-4 border-l-[#16302e]' : 'border-l-4 border-l-[#7b5800]'
                     }`}
                   >
-                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 rounded-2xl bg-[#e4f0ee] flex items-center justify-center text-[#16302e]">
+                    <div className="flex items-center gap-3 sm:gap-4 min-w-0">
+                      <div className="w-12 h-12 rounded-2xl bg-[#e4f0ee] flex items-center justify-center text-[#16302e] shrink-0">
                         <span className="material-symbols-outlined text-2xl">
                           {expense.categoryIcon}
                         </span>
                       </div>
-                      <div>
-                        <h4 className="text-base font-bold text-[#131e1d]">
+                      <div className="min-w-0">
+                        <h4 className="text-base font-bold text-[#131e1d] truncate">
                           {expense.title}
                         </h4>
-                        <div className="flex items-center gap-2 text-xs text-[#727877] mt-1">
+                        <div className="flex flex-wrap items-center gap-2 text-xs text-[#727877] mt-1">
                           <span className="material-symbols-outlined text-sm">schedule</span>
                           <span>{expense.dateStr}</span>
                           <span className="mx-1">•</span>
@@ -139,7 +139,7 @@ export const WalletView: React.FC<WalletViewProps> = ({
                       </div>
                     </div>
 
-                    <div className="text-right flex items-center gap-4">
+                    <div className="text-left sm:text-right flex items-center justify-between sm:justify-end gap-3 sm:gap-4 border-t sm:border-t-0 pt-2 sm:pt-0 border-[#f0f4f3]">
                       <div>
                         <p className="text-lg font-black text-[#16302e]">
                           ${expense.amount.toFixed(2)}

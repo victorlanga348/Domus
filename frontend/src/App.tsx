@@ -738,7 +738,7 @@ export default function App() {
 
   // Nível 3: Autenticado e com Residência ➔ Aplicação Principal DOMUS
   return (
-    <div className="flex h-screen bg-[#e4f0ee] overflow-hidden text-[#131e1d]">
+    <div className="flex h-screen h-[100dvh] max-h-[100dvh] w-full max-w-full bg-[#e4f0ee] overflow-hidden text-[#131e1d]">
       {/* Sidebar Navigation */}
       <Sidebar
         currentTab={currentTab}
@@ -758,7 +758,7 @@ export default function App() {
       />
 
       {/* Main Content Area */}
-      <main className="ml-0 md:ml-[250px] lg:ml-[280px] flex-1 flex flex-col bg-[#f0fcfa] h-full overflow-y-auto relative">
+      <main className="ml-0 md:ml-[250px] lg:ml-[280px] flex-1 min-w-0 max-w-full flex flex-col bg-[#f0fcfa] h-full overflow-y-auto overflow-x-hidden relative">
         {/* Top Header */}
         <Header
           currentTab={currentTab}
@@ -774,7 +774,7 @@ export default function App() {
         />
 
         {/* Dynamic View Canvas */}
-        <div className="flex-1 pb-6 md:pb-12">
+        <div className="flex-1 min-w-0 max-w-full pb-6 md:pb-12 overflow-x-hidden">
           {currentTab === 'dashboard' && (
             <DashboardView
               currentUserId={authUser.id}

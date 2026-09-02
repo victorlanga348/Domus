@@ -24,12 +24,12 @@ export const Header: React.FC<HeaderProps> = ({
   onToggleMobileMenu,
 }) => {
   return (
-    <header className="sticky top-0 z-40 bg-[#f0fcfa]/95 backdrop-blur-md px-4 sm:px-8 py-3.5 sm:py-4 flex items-center justify-between border-b border-[#e4f0ee]">
-      <div className="flex items-center gap-2 sm:gap-3">
+    <header className="sticky top-0 z-40 bg-[#f0fcfa]/95 backdrop-blur-md px-3 sm:px-8 py-3 sm:py-4 flex items-center justify-between border-b border-[#e4f0ee] w-full max-w-full min-w-0">
+      <div className="flex items-center gap-1.5 sm:gap-3 min-w-0">
         {/* Hamburger Menu Button - ONLY visible on mobile (< md) */}
         <button
           onClick={onToggleMobileMenu}
-          className="md:hidden text-[#16302e] p-1.5 -ml-1 rounded-xl hover:bg-[#e4f0ee] active:bg-[#d0dddb] transition-colors flex items-center justify-center focus:outline-none"
+          className="md:hidden text-[#16302e] p-1.5 -ml-1 rounded-xl hover:bg-[#e4f0ee] active:bg-[#d0dddb] transition-colors flex items-center justify-center focus:outline-none shrink-0"
           title="Abrir Menu Navegação"
         >
           <span className="material-symbols-outlined text-2xl font-black">
@@ -37,15 +37,15 @@ export const Header: React.FC<HeaderProps> = ({
           </span>
         </button>
 
-        <span className="material-symbols-outlined text-[#16302e] text-2xl sm:text-3xl font-black hidden sm:inline-block">
+        <span className="material-symbols-outlined text-[#16302e] text-2xl sm:text-3xl font-black hidden sm:inline-block shrink-0">
           roofing
         </span>
-        <h1 className="text-xl sm:text-2xl font-black tracking-tighter text-[#16302e]">
+        <h1 className="text-lg sm:text-2xl font-black tracking-tighter text-[#16302e] truncate">
           DOMUS
         </h1>
       </div>
 
-      <div className="flex items-center gap-2 sm:gap-4">
+      <div className="flex items-center gap-1.5 sm:gap-4 shrink-0">
         <button
           onClick={onToggleVacationMode}
           className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-full text-[10px] sm:text-xs font-semibold uppercase tracking-wider transition-all duration-300 flex items-center gap-1.5 border ${

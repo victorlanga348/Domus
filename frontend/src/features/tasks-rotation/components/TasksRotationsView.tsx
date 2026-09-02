@@ -264,11 +264,11 @@ export const TasksRotationsView: React.FC<TasksRotationsViewProps> = ({
       </div>
 
       {/* Navigation Switcher & Turno Filter */}
-      <div className="flex flex-row items-center justify-between gap-2 bg-white p-1.5 rounded-xl border border-[#d9e5e3] shadow-2xs">
-        <div className="flex items-center gap-1 bg-[#f0fcfa] p-1 rounded-lg">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 bg-white p-1.5 rounded-xl border border-[#d9e5e3] shadow-2xs w-full max-w-full min-w-0">
+        <div className="flex items-center gap-1 bg-[#f0fcfa] p-1 rounded-lg w-full sm:w-auto justify-center sm:justify-start">
           <button
             onClick={() => setActiveTab('all_tasks')}
-            className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all flex items-center gap-1.5 ${
+            className={`flex-1 sm:flex-initial px-3 py-1.5 rounded-md text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
               activeTab === 'all_tasks'
                 ? 'bg-[#16302e] text-white shadow-xs'
                 : 'text-[#727877] hover:text-[#16302e]'
@@ -280,7 +280,7 @@ export const TasksRotationsView: React.FC<TasksRotationsViewProps> = ({
 
           <button
             onClick={() => setActiveTab('rotations')}
-            className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all flex items-center gap-1.5 ${
+            className={`flex-1 sm:flex-initial px-3 py-1.5 rounded-md text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
               activeTab === 'rotations'
                 ? 'bg-[#16302e] text-white shadow-xs'
                 : 'text-[#727877] hover:text-[#16302e]'
@@ -292,11 +292,11 @@ export const TasksRotationsView: React.FC<TasksRotationsViewProps> = ({
         </div>
 
         {activeTab === 'all_tasks' && (
-          <div className="flex items-center gap-1.5 shrink-0">
+          <div className="flex items-center gap-1.5 shrink-0 w-full sm:w-auto">
             <select
               value={selectedPeriod}
               onChange={(e) => setSelectedPeriod(e.target.value as any)}
-              className="bg-[#f0fcfa] border border-[#d0dddb] text-[#16302e] text-xs font-bold px-2.5 py-1.5 rounded-lg focus:outline-none cursor-pointer"
+              className="bg-[#f0fcfa] border border-[#d0dddb] text-[#16302e] text-xs font-bold px-2.5 py-1.5 rounded-lg focus:outline-none cursor-pointer w-full sm:w-auto"
             >
               <option value="all">Todos os Turnos</option>
               <option value="morning">Manhã</option>
