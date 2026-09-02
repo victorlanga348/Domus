@@ -13,8 +13,18 @@
 
 ## 2. Sidebar (`Sidebar.tsx`)
 - **Props:**
-  - `currentTab`: Aba ativa (`dashboard | tasks | wallet | reports | settings`).
-  - `onSelectTab`: Função de troca de aba.
-  - `stats`: Contadores em tempo real para badges numéricos nas abas.
+  - `currentTab`: Aba ativa (`dashboard | tasks | reports | statistics | settings`).
+  - `onTabChange`: Função de troca de aba.
+  - `currentUser`: Morador autenticado.
+  - `activeUsers`: Lista de moradores da residência.
+  - `onLogoutClick`: Callback para encerramento de sessão.
+  - `onSwitchHouseClick`: Callback para alternância de residência.
+  - `isMobileOpen`: Booleano para controle do drawer mobile.
+  - `onCloseMobile`: Callback de fechamento do drawer mobile.
+- **Animação & Estilo Visual (Desktop Cut-Out):**
+  - **Fusão Contínua:** O item ativo possui fundo `#f0fcfa` contínuo com o canvas principal (`<main>`), sem bordas ou sombras divisórias.
+  - **Abas Invertidas (Inverted Border-Radius):** Cantos côncavos superior (`.sidebar-curve-top`) e inferior (`.sidebar-curve-bottom`) com `box-shadow` negativo calibrado para `#f0fcfa`, conectando a barra lateral escura ao painel claro.
+  - **Indicador Deslizante:** Transição vertical fluida (`transform: translateY`) com timing `0.35s cubic-bezier(0.4, 0, 0.2, 1)`, suportando interação por clique e pré-visualização por hover com retorno automático.
 - **Responsividade:**
-  - Oculto em mobile (`hidden md:flex`), substituído por barra de navegação inferior ou drawer.
+  - Drawer slide-in em dispositivos móveis (`md:hidden fixed inset-0 z-50 flex`) com navegação tátil dedicada.
+  - Barra lateral fixa no desktop (`hidden md:flex fixed left-0 top-0 h-screen w-[250px] lg:w-[280px]`).

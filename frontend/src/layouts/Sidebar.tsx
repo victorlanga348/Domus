@@ -30,6 +30,38 @@ export const Sidebar: React.FC<SidebarProps> = ({
     { id: 'settings', label: 'Configurações', icon: 'settings' },
   ];
 
+  const [hoveredTab, setHoveredTab] = React.useState<TabType | null>(null);
+  const activeTabTarget = hoveredTab ?? currentTab;
+
+  const desktopNavRef = React.useRef<HTMLElement>(null);
+  const [indicatorStyle, setIndicatorStyle] = React.useState<{ top: number; height: number; ready: boolean }>({
+    top: 0,
+    height: 44,
+    ready: false,
+  });
+
+  const syncIndicator = React.useCallback(() => {
+    if (!desktopNavRef.current) return;
+    const targetEl = desktopNavRef.current.querySelector<HTMLElement>(`[data-nav-item="${activeTabTarget}"]`);
+    if (targetEl) {
+      setIndicatorStyle({
+        top: targetEl.offsetTop,
+        height: targetEl.offsetHeight,
+        ready: true,
+      });
+    }
+  }, [activeTabTarget]);
+
+  React.useLayoutEffect(() => {
+    syncIndicator();
+  }, [syncIndicator]);
+
+  React.useEffect(() => {
+    const handleResize = () => syncIndicator();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [syncIndicator]);
+
   return (
     <>
       {/* Mobile Slide-Over Sidebar Drawer */}
@@ -181,35 +213,62 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </p>
         </div>
 
-        {/* Navigation Tabs (compact spacing to guarantee no scrollbar) */}
-        <nav className="flex-1 w-full flex flex-col justify-center gap-0.5 lg:gap-1 relative py-1 px-0 shrink-0">
-          {navItems.map((item) => {
-            const isActive = currentTab === item.id;
-            if (isActive) {
-              return (
-                <button
-                  key={item.id}
-                  onClick={() => onTabChange(item.id)}
-                  className="bg-[#f0fcfa] text-[#16302e] rounded-l-full relative flex items-center gap-3.5 px-5 py-2 lg:py-2.5 ml-3 pl-5 text-left w-[calc(100%-12px)] font-bold transition-all duration-200 after:content-[''] after:absolute after:right-0 after:top-[-16px] after:w-[16px] after:h-[16px] after:bg-transparent after:shadow-[8px_8px_0_0_#f0fcfa] before:content-[''] before:absolute before:right-0 before:bottom-[-16px] before:w-[16px] before:h-[16px] before:bg-transparent before:shadow-[8px_-8px_0_0_#f0fcfa] focus:outline-none"
-                >
-                  <span className="material-symbols-outlined text-[#7b5800] filled text-lg lg:text-xl">
-                    {item.icon}
-                  </span>
-                  <span className="text-xs font-bold tracking-wide">{item.label}</span>
-                </button>
-              );
-            }
+        {/* Navigation Tabs (compact spacing with animated cut-out sliding indicator) */}
+        <nav
+          ref={desktopNavRef}
+          onMouseLeave={() => setHoveredTab(null)}
+          className="flex-1 w-full flex flex-col justify-center gap-1 lg:gap-1.5 relative py-2 px-0 shrink-0"
+        >
+          {/* Animated Indicator with Inverted Border-Radius Curves */}
+          <div
+            className={`absolute left-3 lg:left-3.5 right-0 pointer-events-none transition-transform duration-350 ease-[cubic-bezier(0.4,0,0.2,1)] z-0 ${
+              indicatorStyle.ready ? 'opacity-100' : 'opacity-0'
+            }`}
+            style={{
+              height: `${indicatorStyle.height}px`,
+              transform: `translateY(${indicatorStyle.top}px)`,
+            }}
+          >
+            <div className="w-full h-full bg-[#f0fcfa] rounded-l-full relative">
+              <div className="sidebar-curve-top" />
+              <div className="sidebar-curve-bottom" />
+            </div>
+          </div>
 
+          {/* Navigation Items */}
+          {navItems.map((item) => {
+            const isActive = activeTabTarget === item.id;
             return (
               <button
                 key={item.id}
-                onClick={() => onTabChange(item.id)}
-                className="text-[#98b3b0] opacity-75 flex items-center gap-3.5 px-7 py-2 lg:py-2.5 hover:opacity-100 hover:text-white transition-all duration-200 text-left w-full group focus:outline-none"
+                data-nav-item={item.id}
+                onClick={() => {
+                  onTabChange(item.id);
+                  setHoveredTab(null);
+                }}
+                onMouseEnter={() => setHoveredTab(item.id)}
+                className={`relative z-10 flex items-center gap-3.5 px-6 lg:px-7 py-2.5 lg:py-3 text-left w-full cursor-pointer focus:outline-none transition-colors duration-200 group ${
+                  isActive
+                    ? 'text-[#16302e]'
+                    : 'text-[#98b3b0] hover:text-white'
+                }`}
               >
-                <span className="material-symbols-outlined text-base lg:text-lg group-hover:text-[#ffca5e] transition-colors duration-200">
+                <span
+                  className={`material-symbols-outlined text-lg lg:text-xl transition-colors duration-200 ${
+                    isActive
+                      ? 'text-[#7b5800] filled font-bold'
+                      : 'text-[#98b3b0] group-hover:text-[#ffca5e]'
+                  }`}
+                >
                   {item.icon}
                 </span>
-                <span className="text-xs font-semibold tracking-wide">{item.label}</span>
+                <span
+                  className={`text-xs tracking-wide transition-colors duration-200 ${
+                    isActive ? 'font-bold text-[#16302e]' : 'font-semibold'
+                  }`}
+                >
+                  {item.label}
+                </span>
               </button>
             );
           })}

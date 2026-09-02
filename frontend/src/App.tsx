@@ -741,7 +741,7 @@ export default function App() {
       />
 
       {/* Main Content Area */}
-      <main className="ml-0 md:ml-[250px] lg:ml-[280px] flex-1 flex flex-col bg-[#f0fcfa] h-full overflow-y-auto relative rounded-none md:rounded-tl-[40px] shadow-none md:shadow-2xl border-l-0 md:border-l border-[#e4f0ee]">
+      <main className="ml-0 md:ml-[250px] lg:ml-[280px] flex-1 flex flex-col bg-[#f0fcfa] h-full overflow-y-auto relative">
         {/* Top Header */}
         <Header
           currentTab={currentTab}
