@@ -30,9 +30,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
     { id: 'settings', label: 'Configurações', icon: 'settings' },
   ];
 
-  const [hoveredTab, setHoveredTab] = React.useState<TabType | null>(null);
-  const activeTabTarget = hoveredTab ?? currentTab;
-
   const desktopNavRef = React.useRef<HTMLElement>(null);
   const [indicatorStyle, setIndicatorStyle] = React.useState<{ top: number; height: number; ready: boolean }>({
     top: 0,
@@ -42,7 +39,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   const syncIndicator = React.useCallback(() => {
     if (!desktopNavRef.current) return;
-    const targetEl = desktopNavRef.current.querySelector<HTMLElement>(`[data-nav-item="${activeTabTarget}"]`);
+    const targetEl = desktopNavRef.current.querySelector<HTMLElement>(`[data-nav-item="${currentTab}"]`);
     if (targetEl) {
       setIndicatorStyle({
         top: targetEl.offsetTop,
@@ -50,7 +47,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         ready: true,
       });
     }
-  }, [activeTabTarget]);
+  }, [currentTab]);
 
   React.useLayoutEffect(() => {
     syncIndicator();
@@ -216,12 +213,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
         {/* Navigation Tabs (compact spacing with animated cut-out sliding indicator) */}
         <nav
           ref={desktopNavRef}
-          onMouseLeave={() => setHoveredTab(null)}
           className="flex-1 w-full flex flex-col justify-center gap-1 lg:gap-1.5 relative py-2 px-0 shrink-0"
         >
           {/* Animated Indicator with Inverted Border-Radius Curves */}
           <div
-            className={`absolute left-3 lg:left-3.5 right-0 pointer-events-none transition-transform duration-350 ease-[cubic-bezier(0.4,0,0.2,1)] z-0 ${
+            className={`absolute top-0 left-3 lg:left-3.5 right-0 pointer-events-none transition-transform duration-350 ease-[cubic-bezier(0.4,0,0.2,1)] z-0 ${
               indicatorStyle.ready ? 'opacity-100' : 'opacity-0'
             }`}
             style={{
@@ -237,19 +233,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
           {/* Navigation Items */}
           {navItems.map((item) => {
-            const isActive = activeTabTarget === item.id;
+            const isActive = currentTab === item.id;
             return (
               <button
                 key={item.id}
                 data-nav-item={item.id}
-                onClick={() => {
-                  onTabChange(item.id);
-                  setHoveredTab(null);
-                }}
-                onMouseEnter={() => setHoveredTab(item.id)}
+                onClick={() => onTabChange(item.id)}
                 className={`relative z-10 flex items-center gap-3.5 px-6 lg:px-7 py-2.5 lg:py-3 text-left w-full cursor-pointer focus:outline-none transition-colors duration-200 group ${
                   isActive
-                    ? 'text-[#16302e]'
+                    ? 'active text-[#16302e]'
                     : 'text-[#98b3b0] hover:text-white'
                 }`}
               >
