@@ -13,6 +13,20 @@
     box-sizing: border-box;
   }
 
+  /* Previne auto-zoom no iOS Safari (mínimo de 16px para campos focáveis no mobile) */
+  input,
+  textarea,
+  select {
+    font-size: 16px;
+  }
+  @media (min-width: 640px) {
+    input,
+    textarea,
+    select {
+      font-size: inherit;
+    }
+  }
+
   :root {
     --color-domus-primary: #16302e;
     --color-domus-primary-container: #2d4644;
@@ -41,6 +55,22 @@
 .max-h-dvh {
   max-height: 100vh;
   max-height: 100dvh;
+}
+
+/* Força contenção estrita do botão do Google Identity Services */
+#google-btn-container {
+  width: 100% !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+  overflow: hidden !important;
+  display: flex !important;
+  justify-content: center !important;
+}
+
+#google-btn-container > div,
+#google-btn-container iframe {
+  max-width: 100% !important;
+  box-sizing: border-box !important;
 }
 
 .material-symbols-outlined {

@@ -46,3 +46,14 @@
     }
   });
   ```
+
+---
+
+## 6. Prevenção de Auto-Zoom no iOS Safari & Teclado Virtual
+- **Regra de Tamanho de Fonte (16px):**
+  - No iOS Safari, qualquer elemento `<input>`, `<textarea>` ou `<select>` com `font-size < 16px` aciona zoom automático ao receber foco, quebrando o layout da tela.
+  - No mobile (`< 640px`), todos os campos focáveis devem ter `font-size: 16px !important`, retornando aos tamanhos canônicos da escala tipográfica em telas maiores (`sm:` ou superiores).
+- **Metatag Viewport:**
+  - Configuração obrigatória: `<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover" />`.
+- **Containers de Autenticação com Teclado:**
+  - A tela de autenticação deve operar sob `min-h-[100dvh]` com `overflow-y-auto`, permitindo rolagem vertical suave para que os campos e o botão de ação continuem acessíveis quando o teclado virtual estiver aberto.

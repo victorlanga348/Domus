@@ -37,6 +37,7 @@ export class DashboardService {
             email: true,
             role: true,
             vacation_mode: true,
+            avatar_url: true,
           },
           orderBy: { name: 'asc' },
         },

@@ -2,23 +2,27 @@ import { io, Socket } from 'socket.io-client';
 import { APP_CONFIG } from '../../config/constants.js';
 
 let socket: Socket | null = null;
+let lastJoinedHouse: { houseId: string; user?: { id: string; name?: string; avatar?: string } } | null = null;
 
 export function getSocket(): Socket {
   if (!socket) {
     socket = io(APP_CONFIG.SOCKET_URL, {
       autoConnect: true,
       reconnection: true,
-      reconnectionAttempts: 5,
-      reconnectionDelay: 2000,
+      reconnectionAttempts: 10,
+      reconnectionDelay: 1500,
       transports: ['websocket', 'polling'],
     });
 
     socket.on('connect', () => {
       console.log('[Socket] Conectado ao servidor DOMUS em tempo real:', socket?.id);
+      if (lastJoinedHouse?.houseId) {
+        socket?.emit('house:join', lastJoinedHouse);
+      }
     });
 
-    socket.on('disconnect', () => {
-      console.log('[Socket] Desconectado do servidor');
+    socket.on('disconnect', (reason) => {
+      console.log('[Socket] Desconectado do servidor:', reason);
     });
 
     socket.on('connect_error', (error) => {
@@ -32,6 +36,7 @@ export function getSocket(): Socket {
 export function joinHouseRoom(houseId: string, user?: { id: string; name?: string; avatar?: string }): void {
   const s = getSocket();
   if (houseId) {
+    lastJoinedHouse = { houseId, user };
     s.emit('house:join', { houseId, user });
   }
 }
@@ -39,6 +44,9 @@ export function joinHouseRoom(houseId: string, user?: { id: string; name?: strin
 export function leaveHouseRoom(houseId: string): void {
   const s = getSocket();
   if (houseId) {
+    if (lastJoinedHouse?.houseId === houseId) {
+      lastJoinedHouse = null;
+    }
     s.emit('house:leave', { houseId });
   }
 }

@@ -20,6 +20,7 @@ Permitir que novos e recorrentes moradores criem suas contas, acessem o sistema 
 - **Layout:** Card centralizado com cantos arredondados sobre fundo verde-menta sereno.
 - **Login Social (Google OAuth 2.0):**
   - Botão oficial "Continuar com o Google" com logotipo da marca Google em SVG.
+  - Container responsivo com largura dinâmica (`w-full max-w-full overflow-hidden flex justify-center`), adaptando a largura do iframe oficial do GSI aos limites do dispositivo móvel sem estourar margens laterais.
   - Divisor discreto "ou continue com e-mail".
   - Integração com Google Identity Services capturando ID Token (`credential`).
 - **Campos Tradicionais:**

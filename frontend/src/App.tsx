@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   TabType,
   FamilyMember,
@@ -18,7 +18,7 @@ import {
 } from './types';
 import { INITIAL_PREFERENCES } from './data.js';
 import { Sidebar, Header } from './layouts/index.js';
-import { DashboardView } from './features/dashboard/index.js';
+import { DashboardView, dashboardApi } from './features/dashboard/index.js';
 import { TasksRotationsView, tasksApi } from './features/tasks-rotation/index.js';
 import { SettingsView } from './features/settings/index.js';
 import { ReportsView } from './features/reports/index.js';
@@ -104,6 +104,8 @@ export default function App() {
       },
     ];
   });
+
+  const [onlineUserIds, setOnlineUserIds] = useState<string[]>([]);
 
   const [tasks, setTasks] = useState<HouseTask[]>(() => {
     if (!houseKey) return [];
@@ -240,80 +242,153 @@ export default function App() {
     [authUser?.name, currentHouse?.id]
   );
 
-  // Escuta Notificações e Atividades em tempo real de outros dispositivos
-  useHouseSocket(currentHouse?.id || '', {
-    onActivityLog: (incomingLog: ActivityLog) => {
-      setActivityLogs((prev) => {
-        if (prev.some((l) => l.id === incomingLog.id)) return prev;
-        return [incomingLog, ...prev];
-      });
-    },
-    onTaskCreated: (incomingTask: HouseTask) => {
-      setTasks((prev) => {
-        if (prev.some((t) => t.id === incomingTask.id)) return prev;
-        return [incomingTask, ...prev];
-      });
-    },
-    onTaskDeleted: ({ taskId }: { taskId: string }) => {
-      setTasks((prev) => prev.filter((t) => t.id !== taskId));
-    },
-    onTaskStatusChanged: ({ taskId, status }: { taskId: string; status: HouseTask['status'] }) => {
-      setTasks((prev) =>
-        prev.map((t) => (t.id === taskId ? { ...t, status } : t))
-      );
-    },
-    onNoteCreated: (incomingNote: MuralNote) => {
-      setMuralNotes((prev) => {
-        if (prev.some((n) => n.id === incomingNote.id)) return prev;
-        return [incomingNote, ...prev];
-      });
-    },
-    onNoteDeleted: ({ noteId }: { noteId: string }) => {
-      setMuralNotes((prev) => prev.filter((n) => n.id !== noteId));
-    },
-    onStatusChanged: (statusData: MemberStatus) => {
-      setMemberStatuses((prev) => {
-        const exists = prev.some((s) => s.id === statusData.id || s.name === statusData.name);
-        if (exists) {
-          return prev.map((s) =>
-            s.id === statusData.id || s.name === statusData.name ? statusData : s
-          );
+  const handleSyncMembers = useCallback(
+    (backendMembers: any[]) => {
+      if (!backendMembers || backendMembers.length === 0) return;
+      setFamilyMembers((prev) => {
+        const merged: FamilyMember[] = backendMembers.map((bm) => {
+          const existing = prev.find((p) => p.id === bm.id || p.email === bm.email);
+          const isGeneralAdmin = bm.role === 'ADMIN';
+          return {
+            id: bm.id,
+            name: bm.name,
+            email: bm.email,
+            role: isGeneralAdmin ? 'Admin Geral' : existing?.role || 'Resident',
+            isPrimary: isGeneralAdmin,
+            avatar:
+              bm.avatar_url ||
+              existing?.avatar ||
+              `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(bm.name)}`,
+          };
+        });
+
+        if (houseKey) {
+          localStorage.setItem(`${houseKey}_members`, JSON.stringify(merged));
         }
-        return [...prev, statusData];
+        return merged;
       });
     },
-    onRuleCreated: (incomingRule: HouseRule) => {
-      setHouseRules((prev) => {
-        if (prev.some((r) => r.id === incomingRule.id)) return prev;
-        return [...prev, incomingRule];
-      });
-    },
-    onRuleDeleted: ({ ruleId }: { ruleId: string }) => {
-      setHouseRules((prev) => prev.filter((r) => r.id !== ruleId));
-    },
-    onRotationAdvanced: ({ rotationId }: { rotationId: string }) => {
-      setRotations((prev) =>
-        prev.map((rot) => {
-          if (rot.id === rotationId) {
-            const queue = [...rot.queue];
-            if (queue.length > 0) {
-              const first = queue.shift()!;
-              first.isNext = false;
-              queue.push(first);
-              queue[0].isNext = true;
-              return {
-                ...rot,
-                nextMember: queue[0].name,
-                nextMemberAvatar: queue[0].avatar,
-                queue,
-              };
-            }
+    [houseKey]
+  );
+
+  // Sincronização inicial automática dos membros da residência ao carregar
+  useEffect(() => {
+    if (currentHouse?.id && authUser?.id) {
+      dashboardApi
+        .getDashboardData(currentHouse.id, authUser.id)
+        .then((data) => {
+          if (data?.members && data.members.length > 0) {
+            handleSyncMembers(data.members);
           }
-          return rot;
         })
-      );
+        .catch((err) => {
+          console.warn('[DOMUS] Erro ao sincronizar membros da casa:', err);
+        });
+    }
+  }, [currentHouse?.id, authUser?.id, handleSyncMembers]);
+
+  // Escuta Notificações e Atividades em tempo real de outros dispositivos
+  useHouseSocket(
+    currentHouse?.id || '',
+    {
+      onPresence: (presenceData) => {
+        if (presenceData?.onlineUserIds) {
+          setOnlineUserIds(presenceData.onlineUserIds);
+        }
+      },
+      onMembersUpdated: () => {
+        if (currentHouse?.id && authUser?.id) {
+          dashboardApi
+            .getDashboardData(currentHouse.id, authUser.id)
+            .then((data) => {
+              if (data?.members) handleSyncMembers(data.members);
+            })
+            .catch(() => {});
+        }
+      },
+      onActivityLog: (incomingLog: ActivityLog) => {
+        setActivityLogs((prev) => {
+          if (prev.some((l) => l.id === incomingLog.id)) return prev;
+          return [incomingLog, ...prev];
+        });
+      },
+      onTaskCreated: (incomingTask: HouseTask) => {
+        setTasks((prev) => {
+          if (prev.some((t) => t.id === incomingTask.id)) return prev;
+          return [incomingTask, ...prev];
+        });
+      },
+      onTaskDeleted: ({ taskId }: { taskId: string }) => {
+        setTasks((prev) => prev.filter((t) => t.id !== taskId));
+      },
+      onTaskStatusChanged: ({ taskId, status }: { taskId: string; status: HouseTask['status'] }) => {
+        setTasks((prev) =>
+          prev.map((t) => (t.id === taskId ? { ...t, status } : t))
+        );
+      },
+      onNoteCreated: (incomingNote: MuralNote) => {
+        setMuralNotes((prev) => {
+          if (prev.some((n) => n.id === incomingNote.id)) return prev;
+          return [incomingNote, ...prev];
+        });
+      },
+      onNoteDeleted: ({ noteId }: { noteId: string }) => {
+        setMuralNotes((prev) => prev.filter((n) => n.id !== noteId));
+      },
+      onStatusChanged: (statusData: MemberStatus) => {
+        setMemberStatuses((prev) => {
+          const exists = prev.some((s) => s.id === statusData.id || s.name === statusData.name);
+          if (exists) {
+            return prev.map((s) =>
+              s.id === statusData.id || s.name === statusData.name ? statusData : s
+            );
+          }
+          return [...prev, statusData];
+        });
+      },
+      onRuleCreated: (incomingRule: HouseRule) => {
+        setHouseRules((prev) => {
+          if (prev.some((r) => r.id === incomingRule.id)) return prev;
+          return [...prev, incomingRule];
+        });
+      },
+      onRuleDeleted: ({ ruleId }: { ruleId: string }) => {
+        setHouseRules((prev) => prev.filter((r) => r.id !== ruleId));
+      },
+      onRotationAdvanced: ({ rotationId }: { rotationId: string }) => {
+        setRotations((prev) =>
+          prev.map((rot) => {
+            if (rot.id === rotationId) {
+              const queue = [...rot.queue];
+              if (queue.length > 0) {
+                const first = queue.shift()!;
+                first.isNext = false;
+                queue.push(first);
+                queue[0].isNext = true;
+                return {
+                  ...rot,
+                  nextMember: queue[0].name,
+                  nextMemberAvatar: queue[0].avatar,
+                  queue,
+                };
+              }
+            }
+            return rot;
+          })
+        );
+      },
     },
-  });
+    authUser
+      ? {
+          id: authUser.id,
+          name: authUser.name,
+          avatar:
+            authUser.avatar ||
+            authUser.avatar_url ||
+            `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(authUser.name)}`,
+        }
+      : undefined
+  );
 
   const handleAuthSuccess = (user: AuthUser, token: string) => {
     setAuthUser(user);
@@ -736,6 +811,13 @@ export default function App() {
     );
   }
 
+  // Membros ativos e online para exibição na barra lateral
+  const activeMembersForSidebar = useMemo(() => {
+    if (onlineUserIds.length === 0) return familyMembers;
+    const online = familyMembers.filter((m) => onlineUserIds.includes(m.id));
+    return online.length > 0 ? online : familyMembers;
+  }, [familyMembers, onlineUserIds]);
+
   // Nível 3: Autenticado e com Residência ➔ Aplicação Principal DOMUS
   return (
     <div className="flex h-screen h-[100dvh] max-h-[100dvh] w-full max-w-full bg-[#e4f0ee] overflow-hidden text-[#131e1d]">
@@ -750,7 +832,7 @@ export default function App() {
           setIsMobileMenuOpen(false);
         }}
         currentUser={currentUser}
-        activeUsers={familyMembers}
+        activeUsers={activeMembersForSidebar}
         onLogoutClick={handleLogout}
         onSwitchHouseClick={handleSwitchHouse}
         isMobileOpen={isMobileMenuOpen}
@@ -787,6 +869,7 @@ export default function App() {
               onAddMuralNote={handleAddMuralNote}
               onDeleteMuralNote={handleDeleteMuralNote}
               familyMembers={familyMembers}
+              onSyncMembers={handleSyncMembers}
             />
           )}
 

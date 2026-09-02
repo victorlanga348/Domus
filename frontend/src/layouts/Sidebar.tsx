@@ -62,131 +62,150 @@ export const Sidebar: React.FC<SidebarProps> = ({
   return (
     <>
       {/* Mobile Slide-Over Sidebar Drawer */}
-      {isMobileOpen && (
-        <div className="md:hidden fixed inset-0 z-50 flex h-[100dvh] max-h-[100dvh] overflow-hidden">
-          {/* Backdrop Overlay */}
+      <div
+        className={`md:hidden fixed inset-0 z-50 flex h-[100dvh] max-h-[100dvh] overflow-hidden transition-all duration-300 ${
+          isMobileOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
+        }`}
+      >
+        {/* Backdrop Overlay */}
+        <div
+          className={`fixed inset-0 bg-black/60 backdrop-blur-xs transition-opacity duration-300 ${
+            isMobileOpen ? 'opacity-100' : 'opacity-0'
+          }`}
+          onClick={onCloseMobile}
+        />
+
+        {/* Slide-In Drawer */}
+        <aside
+          className={`relative w-72 max-w-[80%] bg-[#16302e] h-full h-[100dvh] max-h-[100dvh] shadow-2xl flex flex-col justify-between py-5 px-4 z-50 overflow-y-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden transform transition-transform duration-300 ease-in-out ${
+            isMobileOpen ? 'translate-x-0' : '-translate-x-full'
+          }`}
+        >
+          {/* Top Bar with Brand & Close Button */}
+          <div className="flex items-center justify-between border-b border-[#2d4644] pb-4 mb-4">
+            <div className="flex items-center gap-2">
+              <span className="material-symbols-outlined text-[#ffca5e] text-2xl font-black">
+                roofing
+              </span>
+              <span className="text-lg font-black tracking-tight text-white">
+                DOMUS
+              </span>
+            </div>
+            <button
+              onClick={onCloseMobile}
+              className="text-[#98b3b0] hover:text-white p-1 rounded-full hover:bg-[#2d4644] transition-colors cursor-pointer"
+              title="Fechar Menu"
+            >
+              <span className="material-symbols-outlined text-2xl">close</span>
+            </button>
+          </div>
+
+          {/* User Profile Area */}
           <div
-            className="fixed inset-0 bg-black/60 backdrop-blur-xs transition-opacity duration-300"
-            onClick={onCloseMobile}
-          />
-
-          {/* Slide-In Drawer */}
-          <aside className="relative w-72 max-w-[80%] bg-[#16302e] h-full h-[100dvh] max-h-[100dvh] shadow-2xl flex flex-col justify-between py-5 px-4 z-50 overflow-y-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden animate-in slide-in-from-left duration-200">
-            {/* Top Bar with Brand & Close Button */}
-            <div className="flex items-center justify-between border-b border-[#2d4644] pb-4 mb-4">
-              <div className="flex items-center gap-2">
-                <span className="material-symbols-outlined text-[#ffca5e] text-2xl font-black">
-                  roofing
-                </span>
-                <span className="text-lg font-black tracking-tight text-white">
-                  DOMUS
-                </span>
-              </div>
-              <button
-                onClick={onCloseMobile}
-                className="text-[#98b3b0] hover:text-white p-1 rounded-full hover:bg-[#2d4644] transition-colors"
-                title="Fechar Menu"
-              >
-                <span className="material-symbols-outlined text-2xl">close</span>
-              </button>
+            onClick={() => {
+              onTabChange('settings');
+              onCloseMobile?.();
+            }}
+            className="flex items-center gap-3 px-2 mb-6 cursor-pointer group"
+          >
+            <img
+              className="w-12 h-12 rounded-full object-cover border-2 border-[#ffca5e] shadow-md group-hover:scale-105 transition-transform"
+              src={currentUser.avatar}
+              alt={currentUser.name}
+            />
+            <div className="overflow-hidden">
+              <h2 className="text-sm font-bold text-white uppercase truncate">
+                {currentUser.name}
+              </h2>
+              <p className="text-[11px] text-[#98b3b0] opacity-80 truncate">
+                {currentUser.email}
+              </p>
             </div>
+          </div>
 
-            {/* User Profile Area */}
-            <div className="flex items-center gap-3 px-2 mb-6">
-              <img
-                className="w-12 h-12 rounded-full object-cover border-2 border-[#ffca5e] shadow-md"
-                src={currentUser.avatar}
-                alt={currentUser.name}
-              />
-              <div className="overflow-hidden">
-                <h2 className="text-sm font-bold text-white uppercase truncate">
-                  {currentUser.name}
-                </h2>
-                <p className="text-[11px] text-[#98b3b0] opacity-80 truncate">
-                  {currentUser.email}
-                </p>
-              </div>
-            </div>
-
-            {/* Mobile Navigation Tabs */}
-            <nav className="flex-1 space-y-1">
-              {navItems.map((item) => {
-                const isActive = currentTab === item.id;
-                return (
-                  <button
-                    key={item.id}
-                    onClick={() => {
-                      onTabChange(item.id);
-                      onCloseMobile?.();
-                    }}
-                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-xs font-bold transition-all ${
-                      isActive
-                        ? 'bg-[#f0fcfa] text-[#16302e] shadow-md'
-                        : 'text-[#98b3b0] hover:text-white hover:bg-[#2d4644]/50'
-                    }`}
-                  >
-                    <span
-                      className={`material-symbols-outlined text-lg ${
-                        isActive ? 'text-[#7b5800]' : ''
-                      }`}
-                    >
-                      {item.icon}
-                    </span>
-                    <span>{item.label}</span>
-                  </button>
-                );
-              })}
-            </nav>
-
-            {/* Active Members & Logout */}
-            <div className="border-t border-[#2d4644] pt-4 mt-6">
-              <div className="flex items-center justify-between mb-2 px-1">
-                <h3 className="text-[10px] font-bold text-[#98b3b0] opacity-70 uppercase tracking-widest">
-                  MEMBROS ONLINE ({activeUsers.length})
-                </h3>
-              </div>
-              <div className="flex items-center -space-x-2 px-1 mb-4">
-                {activeUsers.slice(0, 5).map((user, idx) => (
-                  <img
-                    key={user.id}
-                    src={user.avatar}
-                    alt={user.name}
-                    title={user.name}
-                    className="w-7 h-7 rounded-full border-2 border-[#16302e] object-cover relative"
-                    style={{ zIndex: 30 - idx * 5 }}
-                  />
-                ))}
-              </div>
-
-              {/* Switch House & Logout Buttons */}
-              <div className="space-y-1">
-                {onSwitchHouseClick && (
-                  <button
-                    onClick={() => {
-                      onSwitchHouseClick();
-                      onCloseMobile?.();
-                    }}
-                    className="text-[#98b3b0] hover:text-[#ffca5e] flex items-center gap-2.5 px-2 py-2 text-xs font-semibold w-full transition-colors rounded-xl hover:bg-[#2d4644]/40"
-                  >
-                    <span className="material-symbols-outlined text-base text-[#ffca5e]">apartment</span>
-                    <span>Trocar Residência</span>
-                  </button>
-                )}
+          {/* Mobile Navigation Tabs */}
+          <nav className="flex-1 space-y-1">
+            {navItems.map((item) => {
+              const isActive = currentTab === item.id;
+              return (
                 <button
+                  key={item.id}
                   onClick={() => {
-                    onLogoutClick();
+                    onTabChange(item.id);
                     onCloseMobile?.();
                   }}
-                  className="text-[#98b3b0] hover:text-rose-300 flex items-center gap-2.5 px-2 py-2 text-xs font-semibold w-full transition-colors rounded-xl hover:bg-[#2d4644]/40"
+                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-xs font-bold transition-all cursor-pointer ${
+                    isActive
+                      ? 'bg-[#f0fcfa] text-[#16302e] shadow-md'
+                      : 'text-[#98b3b0] hover:text-white hover:bg-[#2d4644]/50'
+                  }`}
                 >
-                  <span className="material-symbols-outlined text-base">logout</span>
-                  <span>Sair da Conta</span>
+                  <span
+                    className={`material-symbols-outlined text-lg ${
+                      isActive ? 'text-[#7b5800]' : ''
+                    }`}
+                  >
+                    {item.icon}
+                  </span>
+                  <span>{item.label}</span>
                 </button>
-              </div>
+              );
+            })}
+          </nav>
+
+          {/* Active Members & Logout */}
+          <div className="border-t border-[#2d4644] pt-4 mt-6">
+            <div className="flex items-center justify-between mb-2 px-1">
+              <h3 className="text-[10px] font-bold text-[#98b3b0] opacity-70 uppercase tracking-widest">
+                MEMBROS ONLINE ({activeUsers.length})
+              </h3>
             </div>
-          </aside>
-        </div>
-      )}
+            <div className="flex items-center -space-x-2 px-1 mb-4">
+              {activeUsers.slice(0, 5).map((user, idx) => (
+                <div
+                  key={user.id}
+                  className="relative inline-block"
+                  style={{ zIndex: 30 - idx * 5 }}
+                  title={`${user.name} - Online`}
+                >
+                  <img
+                    src={user.avatar}
+                    alt={user.name}
+                    className="w-7 h-7 rounded-full border-2 border-[#16302e] object-cover relative"
+                  />
+                  <span className="absolute bottom-0 right-0 w-2 h-2 rounded-full bg-emerald-400 border border-[#16302e]" />
+                </div>
+              ))}
+            </div>
+
+            {/* Switch House & Logout Buttons */}
+            <div className="space-y-1">
+              {onSwitchHouseClick && (
+                <button
+                  onClick={() => {
+                    onSwitchHouseClick();
+                    onCloseMobile?.();
+                  }}
+                  className="text-[#98b3b0] hover:text-[#ffca5e] flex items-center gap-2.5 px-2 py-2 text-xs font-semibold w-full transition-colors rounded-xl hover:bg-[#2d4644]/40 cursor-pointer"
+                >
+                  <span className="material-symbols-outlined text-base text-[#ffca5e]">apartment</span>
+                  <span>Trocar Residência</span>
+                </button>
+              )}
+              <button
+                onClick={() => {
+                  onLogoutClick();
+                  onCloseMobile?.();
+                }}
+                className="text-[#98b3b0] hover:text-rose-300 flex items-center gap-2.5 px-2 py-2 text-xs font-semibold w-full transition-colors rounded-xl hover:bg-[#2d4644]/40 cursor-pointer"
+              >
+                <span className="material-symbols-outlined text-base">logout</span>
+                <span>Sair da Conta</span>
+              </button>
+            </div>
+          </div>
+        </aside>
+      </div>
       {/* Desktop Sidebar (hidden on mobile, fixed no scroll on desktop) */}
       <aside className="hidden md:flex fixed left-0 top-0 h-screen h-[100dvh] w-[250px] lg:w-[280px] bg-[#16302e] shadow-none flex-col justify-between py-4 lg:py-6 z-50 transition-all duration-300 overflow-hidden [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
         {/* Profile Area */}
@@ -278,14 +297,19 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </div>
           <div className="flex items-center -space-x-2">
             {activeUsers.slice(0, 4).map((user, idx) => (
-              <img
+              <div
                 key={user.id}
-                src={user.avatar}
-                alt={user.name}
-                title={`${user.name} (${user.role})`}
-                className="w-6 h-6 lg:w-7 lg:h-7 rounded-full border-2 border-[#16302e] object-cover relative transition-transform duration-200 hover:scale-110 hover:z-40"
+                className="relative inline-block"
                 style={{ zIndex: 30 - idx * 5 }}
-              />
+                title={`${user.name} (${user.role}) - Online`}
+              >
+                <img
+                  src={user.avatar}
+                  alt={user.name}
+                  className="w-6 h-6 lg:w-7 lg:h-7 rounded-full border-2 border-[#16302e] object-cover relative transition-transform duration-200 hover:scale-110 hover:z-40"
+                />
+                <span className="absolute bottom-0 right-0 w-2 h-2 rounded-full bg-emerald-400 border border-[#16302e]" />
+              </div>
             ))}
           </div>
         </div>

@@ -62,11 +62,13 @@ export const AuthView: React.FC<AuthViewProps> = ({ onAuthSuccess, onShowToast }
           const btnContainer = document.getElementById('google-btn-container');
           if (btnContainer) {
             btnContainer.innerHTML = '';
+            const parentWidth = btnContainer.parentElement?.clientWidth || 320;
+            const targetWidth = Math.max(240, Math.min(parentWidth - 8, 360));
             window.google.accounts.id.renderButton(btnContainer, {
               type: 'standard',
               theme: 'outline',
               size: 'large',
-              width: 384,
+              width: targetWidth,
               text: isRegister ? 'signup_with' : 'continue_with',
               shape: 'rectangular',
               logo_alignment: 'left',
@@ -144,8 +146,8 @@ export const AuthView: React.FC<AuthViewProps> = ({ onAuthSuccess, onShowToast }
   };
 
   return (
-    <div className="min-h-screen bg-[#e4f0ee] flex items-center justify-center p-4">
-      <div className="bg-white rounded-3xl p-6 sm:p-8 max-w-md w-full border border-[#d9e5e3] shadow-xl space-y-6 animate-in fade-in duration-300">
+    <div className="min-h-[100dvh] w-full max-w-full bg-[#e4f0ee] flex flex-col justify-center items-center p-4 sm:p-6 overflow-y-auto py-8">
+      <div className="bg-white rounded-3xl p-5 sm:p-8 max-w-md w-full border border-[#d9e5e3] shadow-xl space-y-5 sm:space-y-6 animate-in fade-in duration-300 my-auto">
         {/* Brand Header */}
         <div className="text-center space-y-2">
           <div className="w-14 h-14 rounded-2xl bg-[#ffca5e] text-[#755400] mx-auto flex items-center justify-center shadow-xs">
@@ -194,7 +196,7 @@ export const AuthView: React.FC<AuthViewProps> = ({ onAuthSuccess, onShowToast }
 
         {/* Google OAuth 2.0 / Google Identity Services */}
         <div className="space-y-3">
-          <div id="google-btn-container" className="w-full flex justify-center min-h-[44px]">
+          <div id="google-btn-container" className="w-full max-w-full flex justify-center min-h-[44px] overflow-hidden">
             {/* Fallback caso o script do Google ainda esteja carregando ou bloqueado */}
             <button
               type="button"

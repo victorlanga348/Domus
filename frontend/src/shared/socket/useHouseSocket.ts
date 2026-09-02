@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { getSocket, joinHouseRoom, leaveHouseRoom } from './socketClient.js';
 
 interface SocketCallbacks {
@@ -25,29 +25,35 @@ export function useHouseSocket(
   callbacks?: SocketCallbacks,
   user?: { id: string; name?: string; avatar?: string }
 ) {
+  const callbacksRef = useRef(callbacks);
+  callbacksRef.current = callbacks;
+
+  const userRef = useRef(user);
+  userRef.current = user;
+
   useEffect(() => {
     if (!houseId) return;
 
     const socket = getSocket();
-    joinHouseRoom(houseId, user);
+    joinHouseRoom(houseId, userRef.current);
 
-    const handleTaskLocked = (data: any) => callbacks?.onTaskLocked?.(data);
-    const handleTaskUnlocked = (data: any) => callbacks?.onTaskUnlocked?.(data);
-    const handleVacationChanged = (data: any) => callbacks?.onVacationChanged?.(data);
-    const handleSwapRequested = (data: any) => callbacks?.onSwapRequested?.(data);
-    const handlePresence = (data: any) => callbacks?.onPresence?.(data);
-    const handleMembersUpdated = () => callbacks?.onMembersUpdated?.();
-    const handleActivityLog = (log: any) => callbacks?.onActivityLog?.(log);
+    const handleTaskLocked = (data: any) => callbacksRef.current?.onTaskLocked?.(data);
+    const handleTaskUnlocked = (data: any) => callbacksRef.current?.onTaskUnlocked?.(data);
+    const handleVacationChanged = (data: any) => callbacksRef.current?.onVacationChanged?.(data);
+    const handleSwapRequested = (data: any) => callbacksRef.current?.onSwapRequested?.(data);
+    const handlePresence = (data: any) => callbacksRef.current?.onPresence?.(data);
+    const handleMembersUpdated = () => callbacksRef.current?.onMembersUpdated?.();
+    const handleActivityLog = (log: any) => callbacksRef.current?.onActivityLog?.(log);
 
-    const handleTaskCreated = (task: any) => callbacks?.onTaskCreated?.(task);
-    const handleTaskDeleted = (data: any) => callbacks?.onTaskDeleted?.(data);
-    const handleTaskStatusChanged = (data: any) => callbacks?.onTaskStatusChanged?.(data);
-    const handleNoteCreated = (note: any) => callbacks?.onNoteCreated?.(note);
-    const handleNoteDeleted = (data: any) => callbacks?.onNoteDeleted?.(data);
-    const handleStatusChanged = (status: any) => callbacks?.onStatusChanged?.(status);
-    const handleRuleCreated = (rule: any) => callbacks?.onRuleCreated?.(rule);
-    const handleRuleDeleted = (data: any) => callbacks?.onRuleDeleted?.(data);
-    const handleRotationAdvanced = (data: any) => callbacks?.onRotationAdvanced?.(data);
+    const handleTaskCreated = (task: any) => callbacksRef.current?.onTaskCreated?.(task);
+    const handleTaskDeleted = (data: any) => callbacksRef.current?.onTaskDeleted?.(data);
+    const handleTaskStatusChanged = (data: any) => callbacksRef.current?.onTaskStatusChanged?.(data);
+    const handleNoteCreated = (note: any) => callbacksRef.current?.onNoteCreated?.(note);
+    const handleNoteDeleted = (data: any) => callbacksRef.current?.onNoteDeleted?.(data);
+    const handleStatusChanged = (status: any) => callbacksRef.current?.onStatusChanged?.(status);
+    const handleRuleCreated = (rule: any) => callbacksRef.current?.onRuleCreated?.(rule);
+    const handleRuleDeleted = (data: any) => callbacksRef.current?.onRuleDeleted?.(data);
+    const handleRotationAdvanced = (data: any) => callbacksRef.current?.onRotationAdvanced?.(data);
 
     socket.on('task:locked', handleTaskLocked);
     socket.on('task:unlocked', handleTaskUnlocked);
@@ -88,5 +94,5 @@ export function useHouseSocket(
 
       leaveHouseRoom(houseId);
     };
-  }, [houseId, callbacks, user?.id, user?.name, user?.avatar]);
+  }, [houseId, user?.id]);
 }
