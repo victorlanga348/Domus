@@ -11,9 +11,25 @@ import { authRoutes } from './modules/auth/auth.routes.js';
 import { dashboardRoutes } from './modules/dashboard/dashboard.routes.js';
 import { statisticsRoutes } from './modules/statistics/statistics.routes.js';
 
+const isAllowedOrigin = (origin?: string): boolean => {
+  if (!origin) return true;
+  if (env.NODE_ENV === 'development') return true;
+  if (/^https?:\/\/(localhost|127\.0\.0\.1|192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+|172\.(1[6-9]|2\d|3[0-1])\.\d+\.\d+)(:\d+)?$/.test(origin)) {
+    return true;
+  }
+  return origin === env.CORS_ORIGIN;
+};
+
 const app: Express = express();
 
-app.use(cors({ origin: env.CORS_ORIGIN, credentials: true }));
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      callback(null, isAllowedOrigin(origin));
+    },
+    credentials: true,
+  })
+);
 app.use(express.json());
 
 // Rotas da API

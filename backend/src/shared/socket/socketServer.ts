@@ -49,7 +49,14 @@ function broadcastRoomPresence(roomId: string) {
 export function initSocketServer(httpServer: HttpServer): SocketIOServer {
   io = new SocketIOServer(httpServer, {
     cors: {
-      origin: env.CORS_ORIGIN,
+      origin: (origin, callback) => {
+        if (!origin) return callback(null, true);
+        if (env.NODE_ENV === 'development') return callback(null, true);
+        if (/^https?:\/\/(localhost|127\.0\.0\.1|192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+|172\.(1[6-9]|2\d|3[0-1])\.\d+\.\d+)(:\d+)?$/.test(origin)) {
+          return callback(null, true);
+        }
+        callback(null, origin === env.CORS_ORIGIN);
+      },
       credentials: true,
     },
     pingTimeout: 60000,

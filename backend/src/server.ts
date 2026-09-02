@@ -13,6 +13,7 @@ initSocketServer(httpServer);
 // Iniciar Job de timeout de locks (45 min)
 startLockTimeoutJob();
 
-httpServer.listen(env.PORT, () => {
-  logger.info(`[DOMUS Master Backend] Servidor HTTP & WebSocket rodando na porta ${env.PORT} (${env.NODE_ENV})`);
+httpServer.listen(env.PORT, '0.0.0.0', () => {
+  logger.info(`[DOMUS Master Backend] Servidor HTTP & WebSocket escutando em 0.0.0.0:${env.PORT} (${env.NODE_ENV})`);
 });
+

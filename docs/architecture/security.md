@@ -44,3 +44,12 @@ Para atender a dispositivos compartilhados (ex: tablet fixo na cozinha) e celula
   - O criador da sala recebe automaticamente o cargo `ARCHITECT` na tabela `Participant`.
   - Apenas usuários com role `ARCHITECT` na sala em questão possuem autorização para executar a rota de promoção (`PATCH /api/rooms/:id/members/:userId/role`) e gerenciar permissões internas da sala.
   - O middleware `checkRole` intercepta e bloqueia requisições de membros comuns (`MEMBER`) com status `403 Forbidden`.
+
+---
+
+## 5. Políticas de CORS & Rede Local (LAN Development)
+- **Produção:** Origem estritamente validada via variável de ambiente `CORS_ORIGIN` com `credentials: true`.
+- **Ambiente de Desenvolvimento & Testes Mobile na LAN:**
+  - O backend permite requisições originadas de `localhost`, `127.0.0.1` e faixas de IP privadas locais (`192.168.0.0/16`, `10.0.0.0/8`, `172.16.0.0/12`) em qualquer porta, refletindo o cabeçalho `Origin` na resposta com `Access-Control-Allow-Credentials: true`.
+  - O servidor HTTP e Socket.io realizam bind em `0.0.0.0` para responder a conexões de smartphones e tablets conectados ao mesmo Wi-Fi.
+  - O frontend resolve `API_BASE_URL` e `SOCKET_URL` dinamicamente baseado no `window.location.hostname`, mantendo sincronização de dados transparente entre desktop e mobile.
