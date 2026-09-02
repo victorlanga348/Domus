@@ -25,3 +25,10 @@ O **DOMUS** posiciona-se como um *Living System* de alto padrão: sereno, sofist
 ## 4. Tipografia
 - **Família:** `Inter`, `-apple-system`, `BlinkMacSystemFont`, `Segoe UI`, `sans-serif`.
 - **Pesos:** Regular (400) para leitura, Medium (500) para labels de controle, Semibold (600) e Bold (700) para títulos e valores métricos.
+
+---
+
+## 5. Micro-interações & Movimento Sereno
+- **Respeito à Atenção:** Proibido o uso de animações contínuas decorativas (ex.: `animate-bounce` em toasts, `animate-pulse` perpétuo em botões).
+- **Entrada e Saída Limpa:** Diálogos e notificações utilizam transições discretas (`duration-200` com fade e leve translação vertical).
+- **Sem Dependências Efêmeras:** Interfaces não dependem de URLs externas arbitrárias para compor o layout básico ou fundos de cartões.

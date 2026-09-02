@@ -70,7 +70,7 @@ export const AuthView: React.FC<AuthViewProps> = ({ onAuthSuccess, onShowToast }
           </div>
           <h1 className="text-2xl font-black text-[#16302e] tracking-tight">DOMUS</h1>
           <p className="text-xs text-[#727877]">
-            Gestão Colaborativa de Convivência & Escalas Inteligentes
+            Gestão compartilhada da casa, tarefas e despesas em família
           </p>
         </div>
 

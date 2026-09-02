@@ -691,7 +691,7 @@ export default function App() {
       <>
         <AuthView onAuthSuccess={handleAuthSuccess} />
         {toastMessage && (
-          <div className="fixed bottom-6 right-6 z-50 bg-[#16302e] text-white px-5 py-3 rounded-2xl shadow-2xl border border-[#ffca5e] text-xs font-bold flex items-center gap-3 animate-bounce">
+          <div className="fixed bottom-6 right-6 z-50 bg-[#16302e] text-white px-5 py-3 rounded-2xl shadow-lg border border-[#2d4644] text-xs font-semibold flex items-center gap-3 animate-in fade-in slide-in-from-bottom-2 duration-200">
             <span className="material-symbols-outlined text-[#ffca5e] text-base">info</span>
             <span>{toastMessage}</span>
           </div>
@@ -710,7 +710,7 @@ export default function App() {
           onLogout={handleLogout}
         />
         {toastMessage && (
-          <div className="fixed bottom-6 right-6 z-50 bg-[#16302e] text-white px-5 py-3 rounded-2xl shadow-2xl border border-[#ffca5e] text-xs font-bold flex items-center gap-3 animate-bounce">
+          <div className="fixed bottom-6 right-6 z-50 bg-[#16302e] text-white px-5 py-3 rounded-2xl shadow-lg border border-[#2d4644] text-xs font-semibold flex items-center gap-3 animate-in fade-in slide-in-from-bottom-2 duration-200">
             <span className="material-symbols-outlined text-[#ffca5e] text-base">info</span>
             <span>{toastMessage}</span>
           </div>
@@ -829,7 +829,7 @@ export default function App() {
 
       {/* Toast Notification Banner */}
       {toastMessage && (
-        <div className="fixed bottom-6 right-6 z-50 bg-[#16302e] text-white px-5 py-3 rounded-2xl shadow-2xl border border-[#ffca5e] text-xs font-bold flex items-center gap-3 animate-bounce">
+        <div className="fixed bottom-6 right-6 z-50 bg-[#16302e] text-white px-5 py-3 rounded-2xl shadow-lg border border-[#2d4644] text-xs font-semibold flex items-center gap-3 animate-in fade-in slide-in-from-bottom-2 duration-200">
           <span className="material-symbols-outlined text-[#ffca5e] text-base">info</span>
           <span>{toastMessage}</span>
         </div>

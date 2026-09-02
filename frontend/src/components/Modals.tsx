@@ -111,11 +111,11 @@ export const AddExpenseModal: React.FC<{
                 onChange={(e) => setIcon(e.target.value)}
                 className="w-full p-3 rounded-xl border border-[#c1c8c6] text-sm text-[#131e1d] bg-white font-bold"
               >
-                <option value="shopping_cart">🛒 Mercado / Compras</option>
-                <option value="plumbing">🔧 Manutenção</option>
-                <option value="bolt">⚡ Energia / Água</option>
-                <option value="wifi">🌐 Internet / TV</option>
-                <option value="restaurant">🍕 Alimentação</option>
+                <option value="shopping_cart">Mercado & Compras</option>
+                <option value="plumbing">Manutenção</option>
+                <option value="bolt">Energia & Água</option>
+                <option value="wifi">Internet & Serviços</option>
+                <option value="restaurant">Alimentação</option>
               </select>
             </div>
           </div>
@@ -343,8 +343,8 @@ export const LeadershipTransferModal: React.FC<{
         <div className="absolute -top-6 -right-6 w-28 h-28 rounded-full bg-[#ffca5e]/10 blur-xl pointer-events-none" />
 
         <div className="flex items-center gap-3 mb-4">
-          <div className="w-12 h-12 rounded-2xl bg-[#ffca5e] text-[#755400] flex items-center justify-center font-black shadow-lg">
-            <span className="material-symbols-outlined text-2xl font-black">crown</span>
+          <div className="w-12 h-12 rounded-2xl bg-[#ffca5e] text-[#755400] flex items-center justify-center font-black shadow-xs">
+            <span className="material-symbols-outlined text-2xl font-black">workspace_premium</span>
           </div>
           <div>
             <h3 className="text-base sm:text-lg font-black text-white">Transferência de Liderança</h3>
@@ -409,9 +409,10 @@ export const AddMemberModal: React.FC<{
     if (!name.trim() || !email.trim()) return;
 
     const avatars = [
-      'https://lh3.googleusercontent.com/aida-public/AB6AXuBC8TYOmIkYXRZide5HArpu-t7fu6HGnjVoYW-fT8kjMkFhmfedQAf43AqakxLaSSxWaHE3OQx1cpw97t-jPZ6bcKS9OshL9ks7FJTYV5g_t4rcu1aca3mxuCSIuYpeoZ4YlglztQm2CayEdq1eBmXIZNvFuS3878_gdkjmSROe2iO_vvdEWifnAA2O-oVoOkBLeksUDLWQ-bUmqrDWfr2WYJPuR9prj3UZJG6gmCDqWGz6Rl6-whI',
-      'https://lh3.googleusercontent.com/aida-public/AB6AXuDSRfWa_-6MKjmFp5UY08eDyV4qTAn7mVTxouTxMZWAw4Jyyuiic-WQdHAC1DsG68ZiDmJQk4lQ5t4fTOZWzVwETeEIwx7PeRmFLVJUw-H4uYp-rfwF51tsC7zlssRv64ZxTQXpicdQTO2to-sNTYBoHp_5EerZyQhr7KQzliqM1XqDryqws2d09jEl48HsjWst3N32Votqs-vNF0EcVQAOCrtjVsmhL8B6Hxd9o6e_hTHhfz4iiNU',
-      'https://lh3.googleusercontent.com/aida-public/AB6AXuADpC8k_C79YOfxtPphhWhwt-CWjWWIx1NUWLD-qwpmP3nEKdrRWMCnnH8083bHzDeafNIkzgIjmIsyO38eZrfRSKN0JHntWBQGlFRaa9f325UG8Yo5NTC4KP4X2XBOg6_fAMG80zWwF2ShpncDZCITTRkLs4rnhkCu79Al1GBpyUcy-RNLFn9w1ThRAEHNPEUkyv4jzsrPys1XEN_je5MZ4vQndh9QPV2GB4rZgLl-9zl6_qn4lss',
+      'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=120&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=120&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=120&auto=format&fit=crop&q=80',
     ];
 
     const newMemberData: Omit<FamilyMember, 'id'> = {
@@ -498,7 +499,7 @@ export const AddMemberModal: React.FC<{
               {isGeneralAdmin && (
                 <>
                   <option value="Admin">Admin (Administrador Normal)</option>
-                  <option value="Admin Geral">👑 Admin Geral (Transferir Liderança)</option>
+                  <option value="Admin Geral">Admin Geral (Transferir Liderança)</option>
                 </>
               )}
             </select>
@@ -867,7 +868,7 @@ export const FamilyMembersDrawer: React.FC<{
                             : 'bg-[#e4f0ee] text-[#16302e]'
                         }`}
                       >
-                        {isTargetGeneralAdmin ? '👑 Admin Geral' : isTargetAdmin ? 'Admin' : 'Morador'}
+                        {isTargetGeneralAdmin ? 'Admin Geral' : isTargetAdmin ? 'Admin' : 'Morador'}
                       </span>
 
                       {/* Botão de alterar status exclusivamente para o próprio usuário */}
@@ -924,7 +925,7 @@ export const FamilyMembersDrawer: React.FC<{
                           className="px-2 py-1 bg-[#fff8e6] hover:bg-[#ffeec2] text-[#7b5800] border border-[#ffca5e] rounded-lg text-[10px] font-black flex items-center gap-1 transition-all"
                           title="Transferir Liderança da Residência"
                         >
-                          <span className="material-symbols-outlined text-xs">crown</span>
+                          <span className="material-symbols-outlined text-xs">workspace_premium</span>
                           <span>Passar Admin Geral</span>
                         </button>
                       )}

@@ -93,7 +93,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             </div>
 
             <p className="text-xs text-[#414847] leading-relaxed mb-6">
-              Ajusta automaticamente luzes ambiente, ativa sensores de segurança e economiza energia conforme o horário definido.
+              Define o período de silêncio e repouso da casa, pausando notificações e alertas sonoros de tarefas.
             </p>
           </div>
 
@@ -197,15 +197,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
       {/* Coluna Direita: Painel de Membros e Governança */}
       <div className="lg:col-span-4 bg-[#16302e] text-white rounded-3xl p-6 shadow-xl flex flex-col justify-between border border-[#2d4644] min-h-[500px] relative overflow-hidden">
-        {/* Gráfico sutil de fundo */}
-        <div
-          className="absolute inset-0 opacity-10 pointer-events-none z-0 bg-cover bg-center"
-          style={{
-            backgroundImage:
-              "url('https://lh3.googleusercontent.com/aida-public/AB6AXuDbc90CKwQWyJE93sFiR5_Kk-X-8CYswcsFW0GpVUhOuMaHGnF5CyHSC4_Pvjp43ZmjogfClMlFYBCfrb0Y9gJSWFjAkJgjLTybjDTxpvLUWuocKlIFc_nnsXTdWhgLmiLa8HiOOKMT9YjZ-RKPWC7V0LE10FvteDXmXn0LuReYKFLRfodLLFP31AwKxixyraiV1cfmAm9bMlfGmdhi4NHFl3U14K9N4Nco0UwjDlfIaqfjSXOtqcc')",
-          }}
-        />
-
         <div className="relative z-10">
           <div className="flex justify-between items-center mb-6">
             <div>

@@ -270,7 +270,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         <div className="px-5 shrink-0 mt-1 mb-1 lg:mt-2 lg:mb-2">
           <div className="flex items-center justify-between mb-1.5 lg:mb-2">
             <h3 className="text-[10px] font-bold text-[#98b3b0] opacity-70 uppercase tracking-widest">
-              ACTIVE MEMBERS
+              MORADORES ONLINE
             </h3>
             <span className="text-[10px] text-[#ffca5e] font-bold">
               {activeUsers.length} Online

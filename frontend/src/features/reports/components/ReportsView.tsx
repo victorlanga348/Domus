@@ -270,7 +270,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
 
       {/* Toast Notification */}
       {toastMessage && (
-        <div className="fixed bottom-6 right-6 z-50 bg-[#16302e] text-white px-4 py-3 rounded-2xl shadow-xl border border-[#ffca5e] text-xs font-bold flex items-center gap-2 animate-bounce">
+        <div className="fixed bottom-6 right-6 z-50 bg-[#16302e] text-white px-4 py-3 rounded-2xl shadow-lg border border-[#2d4644] text-xs font-semibold flex items-center gap-2 animate-in fade-in slide-in-from-bottom-2 duration-200">
           <span className="material-symbols-outlined text-[#ffca5e]">check_circle</span>
           <span>{toastMessage}</span>
         </div>

@@ -26,3 +26,12 @@ Proibido inventar textos, mensagens de erro ou rótulos soltos no código. Todo 
 - **Impedimento Registrado:** *"Impedimento reportado com sucesso. A casa foi notificada."*
 - **Férias Ativadas:** *"Modo férias ativado. Você será temporariamente saltado dos rodízios."*
 - **Erro de PIN:** *"PIN incorreto. Verifique seus dígitos e tente novamente."*
+
+---
+
+## 4. Diretrizes Anti-Clichês & Tom Editorial (Anti-AI Slop)
+
+1. **Sem jargões corporativos vazios:** Proibido utilizar frases batidas de IA como "revolução da convivência", "soluções inteligentes", "eleve sua casa" ou metáforas sem relação com o produto.
+2. **Sem emojis em controles estruturais:** Controles, selects (`<option>`), botões de governança e badges utilizam ícones vetoriais padronizados (Material Symbols), nunca emojis gráficos inseridos como texto.
+3. **Microcopy contextual e humana:** O texto deve descrever a ação real do morador de forma calma, clara e objetiva (ex.: *"Gestão compartilhada da casa, tarefas e despesas em família"*).
+4. **Coerência de idioma:** 100% dos rótulos e comandos da aplicação operam em Português do Brasil (PT-BR), sem termos em inglês soltos no layout.

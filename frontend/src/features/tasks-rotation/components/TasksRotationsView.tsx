@@ -299,9 +299,9 @@ export const TasksRotationsView: React.FC<TasksRotationsViewProps> = ({
               className="bg-[#f0fcfa] border border-[#d0dddb] text-[#16302e] text-xs font-bold px-2.5 py-1.5 rounded-lg focus:outline-none cursor-pointer"
             >
               <option value="all">Todos os Turnos</option>
-              <option value="morning">🌅 Manhã</option>
-              <option value="afternoon">☀️ Tarde</option>
-              <option value="night">🌙 Noite</option>
+              <option value="morning">Manhã</option>
+              <option value="afternoon">Tarde</option>
+              <option value="night">Noite</option>
             </select>
           </div>
         )}
@@ -342,8 +342,9 @@ export const TasksRotationsView: React.FC<TasksRotationsViewProps> = ({
                               {task.title}
                             </h3>
                             <div className="flex flex-wrap items-center gap-1.5 mt-1">
-                              <span className="text-[10px] text-[#727877] font-medium bg-[#f0fcfa] px-1.5 py-0.5 rounded border border-[#e4f0ee]">
-                                🔁 {task.frequency || 'Diária'}
+                              <span className="text-[10px] text-[#727877] font-medium bg-[#f0fcfa] px-1.5 py-0.5 rounded border border-[#e4f0ee] inline-flex items-center gap-1">
+                                <span className="material-symbols-outlined text-[11px]">repeat</span>
+                                <span>{task.frequency || 'Diária'}</span>
                               </span>
                               {task.advanceNotice && (
                                 <span className="text-[10px] text-[#7b5800] font-bold bg-[#fff8e6] px-1.5 py-0.5 rounded border border-[#ffca5e]/50 flex items-center gap-0.5">
@@ -715,9 +716,9 @@ export const TasksRotationsView: React.FC<TasksRotationsViewProps> = ({
                       onChange={(e) => setTaskPeriod(e.target.value as any)}
                       className="w-full p-2.5 bg-[#f0fcfa] border border-[#c1c8c6] rounded-xl text-xs font-bold text-[#16302e]"
                     >
-                      <option value="morning">🌅 Manhã</option>
-                      <option value="afternoon">☀️ Tarde</option>
-                      <option value="night">🌙 Noite</option>
+                      <option value="morning">Manhã</option>
+                      <option value="afternoon">Tarde</option>
+                      <option value="night">Noite</option>
                     </select>
                   </div>
                 </div>

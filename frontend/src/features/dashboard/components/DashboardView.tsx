@@ -149,7 +149,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             </div>
             <div>
               <h2 className="text-lg font-black text-[#16302e]">Mural de Recados & Avisos</h2>
-              <p className="text-xs text-[#727877]">Espaço colaborativo para mensagens, lembretes e notas da casa</p>
+              <p className="text-xs text-[#727877]">Lembretes, avisos e mensagens compartilhadas entre os moradores</p>
             </div>
           </div>
 

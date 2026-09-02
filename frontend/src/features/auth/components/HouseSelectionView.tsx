@@ -85,10 +85,10 @@ export const HouseSelectionView: React.FC<HouseSelectionViewProps> = ({
         token
       );
 
-      onShowToast?.(`Residência "${result.house.name}" fundada com sucesso! Você é o Arquiteto Principal.`);
+      onShowToast?.(`Residência "${result.house.name}" criada com sucesso! Você é o Administrador Geral.`);
       onHouseSelected(result);
     } catch (err: any) {
-      setCreateError(err.message || 'Erro ao fundar residência.');
+      setCreateError(err.message || 'Erro ao criar residência.');
     } finally {
       setCreateLoading(false);
     }
@@ -216,8 +216,8 @@ export const HouseSelectionView: React.FC<HouseSelectionViewProps> = ({
                   <span className="material-symbols-outlined text-2xl">shield_person</span>
                 </div>
                 <div>
-                  <h2 className="text-base font-black text-[#16302e]">Fundar Nova Residência</h2>
-                  <p className="text-xs text-[#727877]">Você se tornará o Arquiteto Principal (ADMIN)</p>
+                  <h2 className="text-base font-black text-[#16302e]">Criar Nova Residência</h2>
+                  <p className="text-xs text-[#727877]">Você será o Administrador Geral da casa</p>
                 </div>
               </div>
 
@@ -267,7 +267,7 @@ export const HouseSelectionView: React.FC<HouseSelectionViewProps> = ({
               className="w-full py-3 bg-[#7b5800] hover:bg-[#5d4200] active:scale-98 text-white rounded-xl text-xs font-bold transition-all shadow-xs flex items-center justify-center gap-2 disabled:opacity-50 mt-4"
             >
               <span className="material-symbols-outlined text-base">add_home</span>
-              <span>{createLoading ? 'Fundando Casa...' : 'Fundar Residência & Acessar'}</span>
+              <span>{createLoading ? 'Criando Residência...' : 'Criar Residência & Acessar'}</span>
             </button>
           </div>
 
@@ -336,7 +336,7 @@ export const HouseSelectionView: React.FC<HouseSelectionViewProps> = ({
       </div>
 
       <div className="text-center text-xs text-[#727877] mt-6">
-        DOMUS • Sistema de Convivência & Escalas Inteligentes
+        DOMUS • Gestão Residencial Compartilhada
       </div>
     </div>
   );

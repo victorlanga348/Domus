@@ -50,7 +50,7 @@ export const Header: React.FC<HeaderProps> = ({
           onClick={onToggleVacationMode}
           className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-full text-[10px] sm:text-xs font-semibold uppercase tracking-wider transition-all duration-300 flex items-center gap-1.5 border ${
             vacationMode
-              ? 'bg-[#7b5800] text-white border-[#7b5800] shadow-sm animate-pulse'
+              ? 'bg-[#7b5800] text-white border-[#7b5800] shadow-xs'
               : 'bg-transparent border-[#16302e] text-[#16302e] hover:bg-[#16302e] hover:text-white'
           }`}
         >
