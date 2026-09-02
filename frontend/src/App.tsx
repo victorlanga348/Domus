@@ -31,8 +31,9 @@ import {
   NotificationsDrawer,
   FamilyMembersDrawer,
   LeadershipTransferModal,
+  LeaveHouseModal,
 } from './components/index.js';
-import { AuthView, HouseSelectionView, type AuthUser, type HouseResponse } from './features/auth/index.js';
+import { AuthView, HouseSelectionView, authApi, type AuthUser, type HouseResponse } from './features/auth/index.js';
 import {
   useHouseSocket,
   emitHouseLog,
@@ -176,6 +177,8 @@ export default function App() {
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [isMembersDrawerOpen, setIsMembersDrawerOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isLeaveHouseOpen, setIsLeaveHouseOpen] = useState(false);
+  const [leaveHouseLoading, setLeaveHouseLoading] = useState(false);
 
   // Sync Auth State
   useEffect(() => {
@@ -468,6 +471,30 @@ export default function App() {
     setCurrentHouse(null);
     localStorage.removeItem('domus_auth_house');
     showToast('Alternando de residência. Escolha uma residência salva ou funde uma nova.');
+  };
+
+  const handleConfirmLeaveHouse = async (successorId?: string) => {
+    if (!authUser?.id || !currentHouse?.id) return;
+
+    try {
+      setLeaveHouseLoading(true);
+      await authApi.leaveHouse(authUser.id, authToken || undefined, successorId);
+
+      const oldHouseName = currentHouse.name;
+      setCurrentHouse(null);
+      localStorage.removeItem('domus_auth_house');
+      setIsLeaveHouseOpen(false);
+
+      showToast(
+        successorId
+          ? `Liderança transferida e você se desvinculou de "${oldHouseName}".`
+          : `Você se desvinculou de "${oldHouseName}".`
+      );
+    } catch (err: any) {
+      showToast(err.message || 'Erro ao sair da residência.');
+    } finally {
+      setLeaveHouseLoading(false);
+    }
   };
 
   const handleLogout = () => {
@@ -903,6 +930,7 @@ export default function App() {
               onDemoteToResident={handleDemoteToResident}
               onTransferGeneralAdmin={handleInitiateTransferGeneralAdmin}
               onRemoveMember={handleRemoveMember}
+              onLeaveHouse={() => setIsLeaveHouseOpen(true)}
             />
           )}
 
@@ -995,6 +1023,16 @@ export default function App() {
         onDemoteToResident={handleDemoteToResident}
         onTransferGeneralAdmin={handleInitiateTransferGeneralAdmin}
         onRemoveMember={handleRemoveMember}
+      />
+
+      <LeaveHouseModal
+        isOpen={isLeaveHouseOpen}
+        onClose={() => setIsLeaveHouseOpen(false)}
+        onConfirm={handleConfirmLeaveHouse}
+        isGeneralAdmin={currentUser.role === 'Admin Geral'}
+        availableSuccessors={familyMembers.filter((m) => m.id !== authUser?.id)}
+        houseName={currentHouse?.name || 'Residência Atual'}
+        loading={leaveHouseLoading}
       />
     </div>
   );

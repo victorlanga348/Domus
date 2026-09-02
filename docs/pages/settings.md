@@ -26,3 +26,7 @@ Gerenciamento de membros da casa, governança de cargos administrativos, remoç�
 ### 2.3 Troca de Residência
 - Ação de troca rápida de casa ("Trocar Residência") sem deslogar a conta de usuário.
 
+### 2.4 Sair da Residência & Sucessão Obrigatória
+- Botão "Sair da Residência" no rodapé de membros, permitindo desvincular o usuário da casa ativa.
+- **Regra de Ouro da Liderança:** Se o solicitante for o `Admin Geral` e existirem outros membros na casa, o sistema bloqueia a saída direta e exige a seleção de um sucessor (`newAdminId`), promovendo o novo líder de forma atômica antes de desvincular o usuário anterior.
+

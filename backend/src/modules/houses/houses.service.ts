@@ -189,12 +189,119 @@ export class HouseService {
   /**
    * 5. leaveHouse:
    * Remove o vínculo da residência atual mantendo o morador autenticado.
+   * Regra Obrigatória: Se o usuário for ADMIN (Admin Geral) e houver outros moradores na residência,
+   * ele deve obrigatoriamente nomear outro morador ou subadmin (newAdminId) como novo Admin Geral antes de sair.
    */
-  async leaveHouse(userId: string) {
+  async leaveHouse(userId: string, newAdminId?: string) {
+    if (!userId) {
+      throw new AppError('Usuário não identificado.', 401, 'UNAUTHORIZED');
+    }
+
+    const currentUser = await prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!currentUser) {
+      throw new AppError('Usuário não encontrado.', 404, 'USER_NOT_FOUND');
+    }
+
+    if (!currentUser.house_id) {
+      throw new AppError('Usuário não pertence a nenhuma residência.', 400, 'NOT_IN_HOUSE');
+    }
+
+    const houseId = currentUser.house_id;
+
+    // Se for o ADMIN (Admin Geral)
+    if (currentUser.role === 'ADMIN') {
+      // Contar outros moradores na residência
+      const otherMembersCount = await prisma.user.count({
+        where: {
+          house_id: houseId,
+          id: { not: userId },
+        },
+      });
+
+      if (otherMembersCount > 0) {
+        if (!newAdminId || newAdminId === userId) {
+          throw new AppError(
+            'Como Administrador Geral, você deve nomear outro morador ou subadministrador como Administrador Geral antes de sair da residência.',
+            400,
+            'ADMIN_TRANSFER_REQUIRED'
+          );
+        }
+
+        // Validar que o sucessor pertence à mesma residência
+        const successor = await prisma.user.findFirst({
+          where: {
+            id: newAdminId,
+            house_id: houseId,
+          },
+        });
+
+        if (!successor) {
+          throw new AppError(
+            'O morador indicado para sucessão não pertence a esta residência.',
+            404,
+            'SUCCESSOR_NOT_FOUND'
+          );
+        }
+
+        // Execução atômica da sucessão e saída
+        return prisma.$transaction(async (tx) => {
+          // 1. Promover o novo Admin Geral
+          const promotedAdmin = await tx.user.update({
+            where: { id: newAdminId },
+            data: { role: 'ADMIN' },
+            select: { id: true, name: true, email: true, role: true, house_id: true },
+          });
+
+          // 2. Desvincular o Admin Geral anterior e redefinir cargo para MEMBER
+          const updatedUser = await tx.user.update({
+            where: { id: userId },
+            data: {
+              house_id: null,
+              role: 'MEMBER',
+            },
+            select: { id: true, name: true, email: true, role: true, house_id: true },
+          });
+
+          // 3. Registrar log de atividade da residência
+          await tx.activityLog.create({
+            data: {
+              user_id: userId,
+              house_id: houseId,
+              action_type: 'ROTATED',
+              comment: `${currentUser.name} transferiu a liderança geral para ${successor.name} e saiu da residência.`,
+            },
+          });
+
+          // 4. Notificar via WebSocket
+          try {
+            const { emitToHouse } = await import('../../shared/socket/socketServer.js');
+            emitToHouse(houseId, 'house:admin_transferred', {
+              previousAdminId: userId,
+              newAdmin: promotedAdmin,
+            });
+            emitToHouse(houseId, 'house:member_left', {
+              userId,
+              name: currentUser.name,
+            });
+          } catch {}
+
+          return {
+            user: updatedUser,
+            newAdmin: promotedAdmin,
+          };
+        });
+      }
+    }
+
+    // Caso não seja ADMIN ou seja o único morador na residência
     const updatedUser = await prisma.user.update({
       where: { id: userId },
       data: {
         house_id: null,
+        role: 'MEMBER',
       },
       select: {
         id: true,
@@ -204,6 +311,14 @@ export class HouseService {
         house_id: true,
       },
     });
+
+    try {
+      const { emitToHouse } = await import('../../shared/socket/socketServer.js');
+      emitToHouse(houseId, 'house:member_left', {
+        userId,
+        name: currentUser.name,
+      });
+    } catch {}
 
     return {
       user: updatedUser,

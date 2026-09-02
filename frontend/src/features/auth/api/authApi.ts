@@ -173,7 +173,7 @@ export const authApi = {
     return json.data;
   },
 
-  async leaveHouse(userId: string, token?: string): Promise<void> {
+  async leaveHouse(userId: string, token?: string, newAdminId?: string): Promise<void> {
     const response = await fetch(`${APP_CONFIG.API_BASE_URL}/house/leave`, {
       method: 'POST',
       headers: {
@@ -181,7 +181,7 @@ export const authApi = {
         'x-user-id': userId,
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
-      body: JSON.stringify({ userId }),
+      body: JSON.stringify({ userId, newAdminId }),
     });
 
     if (!response.ok) {

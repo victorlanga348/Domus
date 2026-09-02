@@ -74,7 +74,8 @@ export class HouseController {
   leaveHouse = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const userId = (req.headers['x-user-id'] as string) || req.body.userId || req.body.user_id;
-      const result = await this.houseService.leaveHouse(userId);
+      const newAdminId = req.body.newAdminId || req.body.new_admin_id || req.body.successorId;
+      const result = await this.houseService.leaveHouse(userId, newAdminId);
       res.status(200).json({ status: 'success', data: result });
     } catch (error) {
       next(error);

@@ -330,4 +330,55 @@ describe('Ciclo de Vida Completo da Aplicação (E2E)', () => {
       });
     });
   });
+
+  it('8. Sucessão Obrigatória de Admin Geral: Alice não pode sair sem sucessor, mas conclui ao nomear Bob', async () => {
+    // 8.1 Alice (Admin Geral) tenta sair sem indicar sucessor -> Deve falhar com 400 ADMIN_TRANSFER_REQUIRED
+    const resFail = await fetch(`${baseUrl}/house/leave`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${aliceToken}`,
+        'x-user-id': aliceId,
+      },
+      body: JSON.stringify({ userId: aliceId }),
+    });
+    assert.equal(resFail.status, 400, 'Saída sem sucessor deve retornar 400');
+    const failData = await resFail.json();
+    assert.match(failData.message, /Administrador Geral/);
+
+    // 8.2 Alice sai nomeando Bob como novo Admin Geral
+    const resSuccess = await fetch(`${baseUrl}/house/leave`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${aliceToken}`,
+        'x-user-id': aliceId,
+      },
+      body: JSON.stringify({ userId: aliceId, newAdminId: bobId }),
+    });
+    assert.equal(resSuccess.status, 200, 'Saída com sucessor válido deve retornar 200');
+
+    // 8.3 Validação no banco: Bob foi promovido a ADMIN e Alice está sem residência
+    const updatedBob = await prisma.user.findUnique({ where: { id: bobId } });
+    assert.equal(updatedBob?.role, 'ADMIN', 'Bob deve ter sido promovido a Admin Geral');
+    assert.equal(updatedBob?.house_id, houseId);
+
+    const updatedAlice = await prisma.user.findUnique({ where: { id: aliceId } });
+    assert.equal(updatedAlice?.house_id, null, 'Alice deve ter seu vínculo com a casa removido');
+    assert.equal(updatedAlice?.role, 'MEMBER');
+
+    // 8.4 Validação no banco: Bob agora é o único morador na residência e pode sair sem sucessor
+    const resBobLeave = await fetch(`${baseUrl}/house/leave`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${bobToken}`,
+        'x-user-id': bobId,
+      },
+      body: JSON.stringify({ userId: bobId }),
+    });
+    assert.equal(resBobLeave.status, 200, 'Único morador restante deve conseguir sair diretamente');
+    const finalBob = await prisma.user.findUnique({ where: { id: bobId } });
+    assert.equal(finalBob?.house_id, null);
+  });
 });

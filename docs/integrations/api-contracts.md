@@ -152,10 +152,12 @@
 - **Headers:** `x-user-id`
 - **Resposta (200):** `{ "house": {...}, "user": {...} }`
 
-### `POST /api/houses/leave`
+### `POST /api/houses/leave` (ou `/api/house/leave`)
 - Desvincula o morador da residência atual mantendo o login ativo.
-- **Payload:** `{ "userId": "uuid-user" }`
-- **Resposta (200):** `{ "user": {...} }`
+- **Payload:** `{ "userId": "uuid-user", "newAdminId": "uuid-sucessor-opcional" }`
+- **Regra Obrigatória:** Se o morador for o `Admin Geral` e houver outros moradores na residência, o campo `newAdminId` é mandatório. Caso contrário, a API rejeita a operação retornando `400 Bad Request` (`ADMIN_TRANSFER_REQUIRED`).
+- **Resposta (200):** `{ "status": "success", "data": { "user": {...}, "newAdmin": {...} } }`
+
 
 ---
 

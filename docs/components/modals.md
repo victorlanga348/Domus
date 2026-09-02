@@ -33,4 +33,14 @@
   - Admin Geral: Pode promover residentes a Admin, destituir Admins para Residentes, transferir liderança geral e remover moradores/admins da residência.
   - Admin Normal: Pode remover apenas moradores regulares (`Resident`/`Guest`).
 
+### 1.8 Modal de Saída & Sucessão Obrigatória de Admin Geral (`LeaveHouseModal`)
+- **Objetivo:** Permitir que moradores saiam da residência ativa de forma segura e transparente.
+- **Regra de Sucessão Mandatória:** Se o morador solicitante for o `Admin Geral` e existirem outros moradores cadastrados na residência, o modal obriga a seleção prévia de um sucessor (outro morador ou subadmin) antes de habilitar a confirmação de saída.
+- **Componentes:**
+  - Lista interativa dos moradores elegíveis com foto, nome e tag de cargo (`Subadmin` ou `Morador`);
+  - Banner institucional alertando sobre a regra de que a residência não pode ficar órfã;
+  - Botão de ação: "Nomear Sucessor e Sair da Residência" (com indicador de loading durante a transação atômica no backend).
+- **Casos Especiais:** Moradores regulares e o Admin Geral quando for o único morador na residência visualizam confirmação direta sem necessidade de seletor de sucessor.
+
+
 

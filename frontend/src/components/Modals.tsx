@@ -1037,3 +1037,186 @@ export const FamilyMembersDrawer: React.FC<{
     </div>
   );
 };
+
+/* --- Leave House Modal with Mandatory General Admin Succession --- */
+export const LeaveHouseModal: React.FC<{
+  isOpen: boolean;
+  onClose: () => void;
+  onConfirm: (successorId?: string) => Promise<void> | void;
+  isGeneralAdmin: boolean;
+  availableSuccessors: FamilyMember[];
+  houseName: string;
+  loading?: boolean;
+}> = ({
+  isOpen,
+  onClose,
+  onConfirm,
+  isGeneralAdmin,
+  availableSuccessors,
+  houseName,
+  loading = false,
+}) => {
+  const [selectedSuccessorId, setSelectedSuccessorId] = React.useState<string>('');
+
+  React.useEffect(() => {
+    if (isOpen) {
+      setSelectedSuccessorId(availableSuccessors.length > 0 ? availableSuccessors[0].id : '');
+    }
+  }, [isOpen, availableSuccessors]);
+
+  if (!isOpen) return null;
+
+  const mustNominateSuccessor = isGeneralAdmin && availableSuccessors.length > 0;
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (mustNominateSuccessor && !selectedSuccessorId) return;
+    onConfirm(mustNominateSuccessor ? selectedSuccessorId : undefined);
+  };
+
+  return (
+    <div
+      onClick={onClose}
+      className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-200"
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="bg-[#16302e] text-white rounded-3xl max-w-md w-full p-6 sm:p-7 shadow-2xl border-2 border-rose-500/40 relative overflow-hidden"
+      >
+        {/* Background glow */}
+        <div className="absolute -top-10 -right-10 w-32 h-32 rounded-full bg-rose-500/10 blur-2xl pointer-events-none" />
+
+        {/* Header */}
+        <div className="flex items-center gap-3 mb-5">
+          <div className="w-12 h-12 rounded-2xl bg-rose-500/20 text-rose-400 flex items-center justify-center font-black border border-rose-500/30 shrink-0">
+            <span className="material-symbols-outlined text-2xl">logout</span>
+          </div>
+          <div>
+            <h3 className="text-base sm:text-lg font-black text-white">Sair da Residência</h3>
+            <p className="text-[11px] font-medium text-[#b0ccc9] truncate max-w-[240px]">
+              {houseName}
+            </p>
+          </div>
+        </div>
+
+        {/* Form */}
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {mustNominateSuccessor ? (
+            <div className="space-y-3">
+              <div className="bg-[#214340] border border-[#ffca5e]/30 p-4 rounded-2xl space-y-1.5">
+                <div className="flex items-center gap-2 text-[#ffca5e] text-xs font-bold">
+                  <span className="material-symbols-outlined text-sm">workspace_premium</span>
+                  <span>Sucessão Obrigatória de Admin Geral</span>
+                </div>
+                <p className="text-xs text-white/90 leading-relaxed">
+                  Como <strong>Admin Geral</strong>, você não pode deixar a residência sem liderança.
+                  Selecione outro morador ou subadministrador para assumir como o novo <strong>Admin Geral</strong> antes de sair:
+                </p>
+              </div>
+
+              <div className="space-y-1.5 max-h-52 overflow-y-auto pr-1">
+                {availableSuccessors.map((member) => {
+                  const isSelected = selectedSuccessorId === member.id;
+                  const isSubadmin = member.role === 'Admin';
+
+                  return (
+                    <div
+                      key={member.id}
+                      onClick={() => setSelectedSuccessorId(member.id)}
+                      className={`p-3 rounded-2xl border transition-all cursor-pointer flex items-center justify-between gap-3 ${
+                        isSelected
+                          ? 'bg-[#2a4d49] border-[#ffca5e] shadow-xs'
+                          : 'bg-[#1b3836] border-[#2d5753] hover:border-[#486b68]'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <img
+                          src={member.avatar}
+                          alt={member.name}
+                          className="w-8 h-8 rounded-full border border-white/20 object-cover shrink-0"
+                        />
+                        <div className="min-w-0">
+                          <p className="text-xs font-bold text-white truncate">{member.name}</p>
+                          <p className="text-[10px] text-[#b0ccc9] truncate">{member.email}</p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span
+                          className={`text-[9px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider ${
+                            isSubadmin
+                              ? 'bg-amber-400/20 text-[#ffca5e] border border-[#ffca5e]/30'
+                              : 'bg-white/10 text-white/70'
+                          }`}
+                        >
+                          {isSubadmin ? 'Subadmin' : 'Morador'}
+                        </span>
+                        <div
+                          className={`w-4 h-4 rounded-full border flex items-center justify-center ${
+                            isSelected ? 'border-[#ffca5e] bg-[#ffca5e]' : 'border-white/40'
+                          }`}
+                        >
+                          {isSelected && <div className="w-1.5 h-1.5 rounded-full bg-[#16302e]" />}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ) : isGeneralAdmin && availableSuccessors.length === 0 ? (
+            <div className="bg-[#214340] border border-rose-500/30 p-4 rounded-2xl space-y-2 text-xs leading-relaxed text-white/90">
+              <p>
+                Você é o <strong>único morador</strong> restante nesta residência.
+              </p>
+              <p className="text-rose-300">
+                Ao sair, a casa ficará desocupada e você precisará de um novo convite caso deseje retornar no futuro.
+              </p>
+            </div>
+          ) : (
+            <div className="bg-[#214340] border border-rose-500/30 p-4 rounded-2xl space-y-2 text-xs leading-relaxed text-white/90">
+              <p>
+                Tem certeza que deseja se desvincular de <strong>{houseName}</strong>?
+              </p>
+              <p className="text-[#b0ccc9]">
+                Você sairá da residência e retornará ao seletor de casas. Suas tarefas e histórico serão preservados.
+              </p>
+            </div>
+          )}
+
+          {/* Action Buttons */}
+          <div className="flex gap-3 pt-2">
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={loading}
+              className="flex-1 py-3 bg-[#2d4644] hover:bg-[#3d5c5a] text-white rounded-xl text-xs font-bold transition-all border border-[#486b68] cursor-pointer"
+            >
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              disabled={loading || (mustNominateSuccessor && !selectedSuccessorId)}
+              className={`flex-1 py-3 rounded-xl text-xs font-black transition-all shadow-lg flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
+                mustNominateSuccessor
+                  ? 'bg-[#ffca5e] hover:bg-[#e0b04a] text-[#755400]'
+                  : 'bg-rose-600 hover:bg-rose-500 text-white'
+              }`}
+            >
+              {loading ? (
+                <span className="material-symbols-outlined text-base animate-spin">progress_activity</span>
+              ) : (
+                <>
+                  <span className="material-symbols-outlined text-base">
+                    {mustNominateSuccessor ? 'crown' : 'check'}
+                  </span>
+                  <span>{mustNominateSuccessor ? 'Nomear e Sair' : 'Confirmar Saída'}</span>
+                </>
+              )}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};

@@ -16,6 +16,7 @@ interface SettingsViewProps {
   onDemoteToResident?: (memberId: string) => void;
   onTransferGeneralAdmin?: (member: FamilyMember) => void;
   onRemoveMember?: (memberId: string, memberName: string) => void;
+  onLeaveHouse?: () => void;
 }
 
 export const SettingsView: React.FC<SettingsViewProps> = ({
@@ -33,6 +34,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   onDemoteToResident,
   onTransferGeneralAdmin,
   onRemoveMember,
+  onLeaveHouse,
 }) => {
   const [nightMode, setNightMode] = useState(preferences.nightMode);
 
@@ -330,7 +332,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         {/* Rodapé com Troca de Residência */}
         <div className="relative z-10 pt-4 border-t border-[#2d4644] flex flex-col sm:flex-row justify-between items-center text-xs font-semibold text-[#b0ccc9] gap-2">
           <span>Total de Moradores: {familyMembers.length}</span>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-4 flex-wrap">
             {onSwitchHouse && (
               <button
                 onClick={onSwitchHouse}
@@ -338,6 +340,16 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               >
                 <span className="material-symbols-outlined text-sm">apartment</span>
                 <span>Trocar Residência</span>
+              </button>
+            )}
+            {onLeaveHouse && (
+              <button
+                onClick={onLeaveHouse}
+                className="text-rose-400 hover:text-rose-300 hover:underline font-bold flex items-center gap-1 transition-colors cursor-pointer"
+                title="Sair desta residência"
+              >
+                <span className="material-symbols-outlined text-sm">logout</span>
+                <span>Sair da Residência</span>
               </button>
             )}
           </div>
