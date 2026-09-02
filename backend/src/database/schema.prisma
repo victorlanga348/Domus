@@ -75,6 +75,8 @@ model User {
   role          UserRole  @default(MEMBER)
   vacation_mode Boolean   @default(false)
   house_id      String?
+  avatar_url    String?
+  google_id     String?   @unique
   created_at    DateTime  @default(now())
   updated_at    DateTime  @updatedAt
 

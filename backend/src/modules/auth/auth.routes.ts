@@ -21,5 +21,6 @@ const authLimiter = rateLimit({
 
 authRoutes.post('/register', authLimiter, controller.register);
 authRoutes.post('/login', authLimiter, controller.login);
+authRoutes.post('/google', authLimiter, controller.googleLogin);
 authRoutes.post('/verify-pin', authLimiter, controller.verifyPin);
 authRoutes.patch('/vacation', authMiddleware, controller.toggleVacation);

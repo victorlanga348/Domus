@@ -14,15 +14,19 @@ Permitir que novos e recorrentes moradores criem suas contas, acessem o sistema 
   - Email (`email`)
   - Senha (`password`)
   - Confirmação de Senha (`confirmPassword`)
-- **Ações:** Criar Conta, link para login ("Log in here").
+- **Ações:** Criar Conta, login com Google ("Continuar com o Google"), link para login ("Log in here").
 
-### 2.2 Login (`LoginView`)
+### 2.2 Login (`LoginView` / `AuthView`)
 - **Layout:** Card centralizado com cantos arredondados sobre fundo verde-menta sereno.
-- **Campos:**
+- **Login Social (Google OAuth 2.0):**
+  - Botão oficial "Continuar com o Google" com logotipo da marca Google em SVG.
+  - Divisor discreto "ou continue com e-mail".
+  - Integração com Google Identity Services capturando ID Token (`credential`).
+- **Campos Tradicionais:**
   - Email (`email`)
   - Senha (`password`) com atalho "Forgot password?"
   - Alternador "Remember me"
-- **Ações:** Entrar ("Sign In ->"), link para criação ("New to DOMUS? Set up your home").
+- **Ações:** Entrar ("Entrar"), link para criação ("Criar Conta"), autenticação em 1 clique via Google.
 
 ### 2.3 Escolha de Residência / Boas-vindas (`HouseholdSelectionView` / `HouseSelectionView`)
 - **Layout:** Moldura institucional DOMUS com cards interativos de seleção e formulários.

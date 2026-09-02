@@ -25,6 +25,8 @@ export interface AuthUser {
   role: string;
   vacation_mode: boolean;
   house_id?: string | null;
+  avatar?: string;
+  avatar_url?: string;
 }
 
 export interface AuthResponse {
@@ -42,6 +44,21 @@ export interface HouseResponse {
 }
 
 export const authApi = {
+  async googleLogin(credential: string): Promise<AuthResponse> {
+    const response = await fetch(`${APP_CONFIG.API_BASE_URL}/auth/google`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ credential }),
+    });
+
+    const json = await response.json();
+    if (!response.ok) {
+      throw new Error(json.message || 'Erro ao realizar login com o Google');
+    }
+
+    return json.data;
+  },
+
   async login(data: LoginPayload): Promise<AuthResponse> {
     const response = await fetch(`${APP_CONFIG.API_BASE_URL}/auth/login`, {
       method: 'POST',

@@ -1,8 +1,12 @@
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import crypto from 'crypto';
+import { OAuth2Client } from 'google-auth-library';
 import { prisma } from '../../database/prisma.js';
 import { env } from '../../config/env.js';
 import { AppError } from '../../shared/errors/AppError.js';
+
+const googleClient = new OAuth2Client(env.GOOGLE_CLIENT_ID);
 
 export interface RegisterDTO {
   name: string;
@@ -155,5 +159,73 @@ export class AuthService {
     });
 
     return updatedUser;
+  }
+
+  async googleLogin(credential: string) {
+    if (!credential || typeof credential !== 'string') {
+      throw new AppError('Token de credencial do Google é obrigatório.', 400, 'CREDENTIAL_REQUIRED');
+    }
+
+    let payload;
+    try {
+      const ticket = await googleClient.verifyIdToken({
+        idToken: credential,
+        audience: env.GOOGLE_CLIENT_ID,
+      });
+      payload = ticket.getPayload();
+    } catch (error: any) {
+      throw new AppError('Credencial do Google inválida ou expirada.', 401, 'INVALID_GOOGLE_TOKEN');
+    }
+
+    if (!payload || !payload.email) {
+      throw new AppError('Email não fornecido pela conta Google.', 400, 'GOOGLE_EMAIL_NOT_FOUND');
+    }
+
+    const normalizedEmail = payload.email.toLowerCase().trim();
+    const name = payload.name || normalizedEmail.split('@')[0];
+    const avatarUrl = payload.picture || null;
+    const googleId = payload.sub;
+
+    // Gerar hashes seguros para contas criadas via Google
+    const randomPassword = crypto.randomBytes(24).toString('hex');
+    const passwordHash = await bcrypt.hash(randomPassword, 10);
+    const pinHash = await bcrypt.hash('0000', 10);
+
+    const user = await prisma.user.upsert({
+      where: { email: normalizedEmail },
+      update: {
+        name,
+        avatar_url: avatarUrl,
+        google_id: googleId,
+      },
+      create: {
+        name,
+        email: normalizedEmail,
+        password_hash: passwordHash,
+        pin_hash: pinHash,
+        avatar_url: avatarUrl,
+        google_id: googleId,
+        role: 'MEMBER',
+      },
+      include: {
+        house: true,
+      },
+    });
+
+    const token = jwt.sign(
+      { userId: user.id, email: user.email, role: user.role, houseId: user.house_id },
+      env.JWT_SECRET,
+      { expiresIn: '7d' }
+    );
+
+    const { password_hash, pin_hash, ...userWithoutSecrets } = user;
+
+    return {
+      user: {
+        ...userWithoutSecrets,
+        avatar: user.avatar_url,
+      },
+      token,
+    };
   }
 }

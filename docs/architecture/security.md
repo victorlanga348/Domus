@@ -17,6 +17,12 @@ Para atender a dispositivos compartilhados (ex: tablet fixo na cozinha) e celula
 - O backend compara o PIN recebido contra o hash armazenado utilizando **Argon2id** ou **Bcrypt** (com salt apropriado).
 - Em caso de sucesso, emite um JWT com claims de `userId`, `houseId` e `role`.
 
+### 1.3 Autenticação Federada Google OAuth 2.0
+- O frontend captura o ID Token emitido pelo Google Identity Services e envia via POST seguro (`/api/auth/google`).
+- O backend valida a assinatura do ID Token usando a biblioteca oficial `google-auth-library` contra o `GOOGLE_CLIENT_ID` (`client.verifyIdToken`).
+- O payload verificado extrai com integridade `email`, `name`, `picture` e `sub` (identificador único Google).
+- O backend realiza upsert do usuário e gera o JWT de sessão oficial do DOMUS.
+
 ---
 
 ## 2. Isolamento Multi-tenant

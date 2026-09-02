@@ -673,17 +673,34 @@ export default function App() {
     showToast('Status atualizado com sucesso!');
   };
 
-  const currentLoggedInMember = familyMembers.find((m) => m.id === authUser?.id);
-  const currentUser: FamilyMember = currentLoggedInMember || {
-    id: authUser?.id || 'guest',
-    name: authUser?.name || 'Morador Conectado',
-    email: authUser?.email || 'morador@domus.local',
-    role: authUser?.role === 'ADMIN' ? 'Admin Geral' : 'Resident',
-    isPrimary: authUser?.role === 'ADMIN',
-    avatar: authUser?.name
-      ? `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(authUser.name)}`
-      : 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80',
-  };
+  const currentLoggedInMember = familyMembers.find(
+    (m) => m.id === authUser?.id || (authUser?.email && m.email === authUser.email)
+  );
+
+  const currentUser: FamilyMember = currentLoggedInMember
+    ? {
+        ...currentLoggedInMember,
+        name: authUser?.name || currentLoggedInMember.name,
+        email: authUser?.email || currentLoggedInMember.email,
+        avatar:
+          authUser?.avatar ||
+          authUser?.avatar_url ||
+          currentLoggedInMember.avatar ||
+          `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(authUser?.name || 'User')}`,
+      }
+    : {
+        id: authUser?.id || 'guest',
+        name: authUser?.name || 'Morador Conectado',
+        email: authUser?.email || 'morador@domus.local',
+        role: authUser?.role === 'ADMIN' ? 'Admin Geral' : 'Resident',
+        isPrimary: authUser?.role === 'ADMIN',
+        avatar:
+          authUser?.avatar ||
+          authUser?.avatar_url ||
+          (authUser?.name
+            ? `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(authUser.name)}`
+            : 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80'),
+      };
 
   // Nível 1: Não Autenticado ➔ Tela de Login / Cadastro
   if (!authUser) {

@@ -31,6 +31,36 @@
   }
   ```
 
+### `POST /api/auth/google`
+- **Descrição:** Valida o ID Token do Google Identity Services, realiza upsert no banco e retorna sessão JWT.
+- **Payload:**
+  ```json
+  {
+    "credential": "eyJhbGciOiJSUzI1NiIs..."
+  }
+  ```
+- **Resposta (200):**
+  ```json
+  {
+    "status": "success",
+    "data": {
+      "token": "eyJhbGciOi...",
+      "user": {
+        "id": "uuid",
+        "name": "Nome do Usuário",
+        "email": "usuario@gmail.com",
+        "avatar": "https://lh3.googleusercontent.com/...",
+        "role": "MEMBER",
+        "vacation_mode": false,
+        "house_id": null
+      }
+    }
+  }
+  ```
+- **Erros:**
+  - `400 Bad Request`: Token Google (`credential`) ausente ou malformatado.
+  - `401 Unauthorized`: Token Google inválido ou expirado.
+
 ---
 
 ## 3. Endpoints de Tarefas (`/api/tasks`)

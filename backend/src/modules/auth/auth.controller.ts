@@ -22,6 +22,16 @@ export class AuthController {
     }
   };
 
+  googleLogin = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const credential = req.body.credential || req.body.idToken || req.body.token;
+      const result = await this.authService.googleLogin(credential);
+      res.status(200).json({ status: 'success', data: result });
+    } catch (error) {
+      next(error);
+    }
+  };
+
   verifyPin = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const { user_id, pin } = req.body;
