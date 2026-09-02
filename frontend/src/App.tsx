@@ -390,6 +390,13 @@ export default function App() {
       : undefined
   );
 
+  // Membros ativos e online para exibição na barra lateral (declarado no topo para conformidade com regras de hooks)
+  const activeMembersForSidebar = useMemo(() => {
+    if (onlineUserIds.length === 0) return familyMembers;
+    const online = familyMembers.filter((m) => onlineUserIds.includes(m.id));
+    return online.length > 0 ? online : familyMembers;
+  }, [familyMembers, onlineUserIds]);
+
   const handleAuthSuccess = (user: AuthUser, token: string) => {
     setAuthUser(user);
     setAuthToken(token);
@@ -798,6 +805,7 @@ export default function App() {
       <>
         <HouseSelectionView
           currentUser={authUser}
+          token={authToken || undefined}
           onHouseSelected={handleHouseSelected}
           onLogout={handleLogout}
         />
@@ -810,13 +818,6 @@ export default function App() {
       </>
     );
   }
-
-  // Membros ativos e online para exibição na barra lateral
-  const activeMembersForSidebar = useMemo(() => {
-    if (onlineUserIds.length === 0) return familyMembers;
-    const online = familyMembers.filter((m) => onlineUserIds.includes(m.id));
-    return online.length > 0 ? online : familyMembers;
-  }, [familyMembers, onlineUserIds]);
 
   // Nível 3: Autenticado e com Residência ➔ Aplicação Principal DOMUS
   return (
