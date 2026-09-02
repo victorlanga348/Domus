@@ -32,9 +32,4 @@ export const INITIAL_PREFERENCES: SystemPreferences = {
     startTime: '23:00',
     endTime: '07:00',
   },
-  vacationTriggers: {
-    enabled: true,
-    randomizeLivingRoomLights: true,
-    suspendWaterHeater: true,
-  },
 };

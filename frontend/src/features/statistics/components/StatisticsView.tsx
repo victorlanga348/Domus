@@ -1,38 +1,157 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { statisticsApi, type HouseStatisticsData } from '../api/statisticsApi.js';
-import { FamilyMember } from '../../../types';
+import { statisticsApi, type HouseStatisticsData, type MemberContribution, type HarmonyScoreDetails } from '../api/statisticsApi.js';
+import { FamilyMember, HouseTask, ActivityLog } from '../../../types';
 
 interface StatisticsViewProps {
   currentHouseId?: string;
   currentUserId?: string;
   familyMembers?: FamilyMember[];
+  tasks?: HouseTask[];
+  activityLogs?: ActivityLog[];
 }
 
 export const StatisticsView: React.FC<StatisticsViewProps> = ({
   currentHouseId = 'house-1',
   currentUserId = 'user-1',
   familyMembers = [],
+  tasks = [],
+  activityLogs = [],
 }) => {
   const [stats, setStats] = useState<HouseStatisticsData | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // Motor dinâmico de cálculo de estatísticas a partir do estado local
+  const computeLocalStatistics = useCallback((): HouseStatisticsData => {
+    const now = new Date();
+    const completedTasks = tasks.filter((t) => t.status === 'completed');
+    const blockedTasks = tasks.filter((t) => t.status === 'alert');
+    const totalCompleted = completedTasks.length;
+
+    // Contagem de conclusões por membro
+    const completedPerMember = new Map<string, number>();
+    familyMembers.forEach((m) => {
+      completedPerMember.set(m.id, 0);
+      completedPerMember.set(m.name, 0);
+    });
+
+    completedTasks.forEach((t) => {
+      let matched = false;
+      if (t.completedById && completedPerMember.has(t.completedById)) {
+        completedPerMember.set(t.completedById, (completedPerMember.get(t.completedById) || 0) + 1);
+        matched = true;
+      } else if (t.completedBy && completedPerMember.has(t.completedBy)) {
+        completedPerMember.set(t.completedBy, (completedPerMember.get(t.completedBy) || 0) + 1);
+        matched = true;
+      } else if (t.nextMember && completedPerMember.has(t.nextMember)) {
+        completedPerMember.set(t.nextMember, (completedPerMember.get(t.nextMember) || 0) + 1);
+        matched = true;
+      }
+
+      if (!matched && familyMembers.length > 0) {
+        const fallbackId = currentUserId || familyMembers[0].id;
+        completedPerMember.set(fallbackId, (completedPerMember.get(fallbackId) || 0) + 1);
+      }
+    });
+
+    const contributions: MemberContribution[] = familyMembers.map((member) => {
+      const userCompleted = (completedPerMember.get(member.id) || 0) + (completedPerMember.get(member.name) || 0);
+      const percentage = totalCompleted > 0 ? Math.round((userCompleted / totalCompleted) * 100) : 0;
+      return {
+        user_id: member.id,
+        name: member.name,
+        avatar: member.avatar,
+        completed_count: userCompleted,
+        percentage,
+      };
+    }).sort((a, b) => b.completed_count - a.completed_count);
+
+    const topContributor = contributions.length > 0 && contributions[0].completed_count > 0
+      ? contributions[0]
+      : null;
+
+    const totalBlocked = blockedTasks.length;
+    const totalInteractions = totalCompleted + totalBlocked;
+    let completionRate = 1.0;
+    let harmonyScore = 100;
+
+    if (totalInteractions > 0) {
+      completionRate = totalCompleted / totalInteractions;
+      const penalty = (totalBlocked * 10) / totalInteractions;
+      harmonyScore = Math.max(0, Math.min(100, Math.round(completionRate * 100 - penalty)));
+    }
+
+    let levelLabel = 'Excelente';
+    if (harmonyScore < 50) levelLabel = 'Crítica';
+    else if (harmonyScore < 75) levelLabel = 'Atenção';
+    else if (harmonyScore < 90) levelLabel = 'Boa';
+
+    const harmony: HarmonyScoreDetails = {
+      score: harmonyScore,
+      total_completed: totalCompleted,
+      total_failed: 0,
+      total_blocked: totalBlocked,
+      completion_rate: Math.round(completionRate * 100) / 100,
+      level_label: levelLabel,
+    };
+
+    const shiftDistribution = {
+      MORNING: tasks.filter((t) => t.period === 'morning').length,
+      AFTERNOON: tasks.filter((t) => t.period === 'afternoon').length,
+      NIGHT: tasks.filter((t) => t.period === 'night').length,
+    };
+
+    return {
+      house: {
+        id: currentHouseId,
+        name: 'Minha Residência',
+      },
+      period: {
+        month: now.getMonth() + 1,
+        year: now.getFullYear(),
+      },
+      harmony,
+      top_contributor: topContributor,
+      contributions,
+      shift_distribution: shiftDistribution,
+    };
+  }, [tasks, familyMembers, currentHouseId, currentUserId]);
+
   const fetchStats = useCallback(async () => {
+    const local = computeLocalStatistics();
     try {
       setLoading(true);
       const data = await statisticsApi.getStatistics(currentHouseId, currentUserId);
       if (data) {
-        setStats(data);
+        // Se houver mais conclusões no estado local (ex: recém-concluídas), preserva a contagem
+        if (local.harmony.total_completed >= data.harmony.total_completed) {
+          setStats(local);
+        } else {
+          setStats(data);
+        }
+      } else {
+        setStats(local);
       }
-    } catch (err) {
-      console.warn('Erro ao carregar estatísticas:', err);
+    } catch {
+      setStats(local);
     } finally {
       setLoading(false);
     }
-  }, [currentHouseId, currentUserId]);
+  }, [currentHouseId, currentUserId, computeLocalStatistics]);
 
   useEffect(() => {
     fetchStats();
   }, [fetchStats]);
+
+  // Atualiza reativamente se tasks mudarem
+  useEffect(() => {
+    const local = computeLocalStatistics();
+    setStats((prev) => {
+      if (!prev || local.harmony.total_completed > prev.harmony.total_completed) {
+        return local;
+      }
+      return prev;
+    });
+  }, [computeLocalStatistics]);
 
   const monthNames = [
     'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
@@ -84,9 +203,9 @@ export const StatisticsView: React.FC<StatisticsViewProps> = ({
                 </span>
                 <span
                   className={`text-[11px] font-black px-3 py-1 rounded-full uppercase tracking-wider ${
-                    (stats?.harmony.score || 100) >= 80
+                    (stats?.harmony.score ?? 100) >= 80
                       ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
-                      : (stats?.harmony.score || 100) >= 60
+                      : (stats?.harmony.score ?? 100) >= 60
                       ? 'bg-amber-100 text-amber-800 border border-amber-300'
                       : 'bg-rose-100 text-rose-800 border border-rose-300'
                   }`}
@@ -103,7 +222,7 @@ export const StatisticsView: React.FC<StatisticsViewProps> = ({
               </div>
 
               <p className="text-xs text-[#727877] mt-2 leading-relaxed">
-                Pontuação calculada com base na taxa de conclusão ({Math.round((stats?.harmony.completion_rate || 1) * 100)}%), sem bloqueios ou atrasos acumulados.
+                Pontuação calculada com base na taxa de conclusão ({Math.round((stats?.harmony.completion_rate ?? 1) * 100)}%), sem bloqueios ou atrasos acumulados.
               </p>
             </div>
 

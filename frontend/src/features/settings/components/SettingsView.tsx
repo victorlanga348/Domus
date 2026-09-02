@@ -35,7 +35,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   onRemoveMember,
 }) => {
   const [nightMode, setNightMode] = useState(preferences.nightMode);
-  const [vacationTriggers, setVacationTriggers] = useState(preferences.vacationTriggers);
 
   const handleToggleNightMode = () => {
     const updated = { ...nightMode, enabled: !nightMode.enabled };
@@ -55,12 +54,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     onUpdatePreferences({ ...preferences, nightMode: updated });
   };
 
-  const handleToggleVacationTriggers = () => {
-    const updated = { ...vacationTriggers, enabled: !vacationTriggers.enabled };
-    setVacationTriggers(updated);
-    onUpdatePreferences({ ...preferences, vacationTriggers: updated });
-  };
-
   const handleDeleteRule = (id: string) => {
     const updated = houseRules.filter((r) => r.id !== id);
     onUpdateHouseRules(updated);
@@ -76,106 +69,60 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       <div className="lg:col-span-8 flex flex-col gap-6">
         <h2 className="text-2xl font-bold text-[#16302e]">Preferências da Residência</h2>
 
-        {/* Grade de Configurações Globais */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Card Modo Noturno */}
-          <div className="bg-white p-6 rounded-2xl shadow-sm border border-[#d9e5e3] flex flex-col justify-between">
-            <div>
-              <div className="flex justify-between items-start mb-4">
-                <div className="flex items-center gap-2 text-[#16302e]">
-                  <span className="material-symbols-outlined text-2xl text-[#7b5800]">routine</span>
-                  <h3 className="text-lg font-bold">Modo Noturno</h3>
-                </div>
-                {/* Toggle switch */}
-                <button
-                  onClick={handleToggleNightMode}
-                  className={`w-12 h-6 rounded-full relative transition-colors p-0.5 ${
-                    nightMode.enabled ? 'bg-[#7b5800]' : 'bg-[#d0dddb]'
+        {/* Card Modo Noturno */}
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-[#d9e5e3] flex flex-col justify-between">
+          <div>
+            <div className="flex justify-between items-start mb-4">
+              <div className="flex items-center gap-2 text-[#16302e]">
+                <span className="material-symbols-outlined text-2xl text-[#7b5800]">routine</span>
+                <h3 className="text-lg font-bold">Modo Noturno</h3>
+              </div>
+              {/* Toggle switch */}
+              <button
+                onClick={handleToggleNightMode}
+                className={`w-12 h-6 rounded-full relative transition-colors p-0.5 ${
+                  nightMode.enabled ? 'bg-[#7b5800]' : 'bg-[#d0dddb]'
+                }`}
+              >
+                <div
+                  className={`w-5 h-5 bg-white rounded-full shadow-sm transition-transform ${
+                    nightMode.enabled ? 'translate-x-6' : 'translate-x-0'
                   }`}
-                >
-                  <div
-                    className={`w-5 h-5 bg-white rounded-full shadow-sm transition-transform ${
-                      nightMode.enabled ? 'translate-x-6' : 'translate-x-0'
-                    }`}
-                  />
-                </button>
-              </div>
-
-              <p className="text-xs text-[#414847] leading-relaxed mb-6">
-                Ajusta automaticamente luzes ambiente, ativa sensores de segurança e economiza energia conforme o horário definido.
-              </p>
+                />
+              </button>
             </div>
 
-            <div className="grid grid-cols-2 gap-3 pt-2">
-              <div>
-                <label className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-[#727877] mb-1">
-                  HORÁRIO DE INÍCIO
-                </label>
-                <div className="border border-[#c1c8c6] focus-within:border-[#7b5800] rounded-xl px-3 py-2 bg-[#f0fcfa] transition-colors">
-                  <input
-                    type="time"
-                    value={nightMode.startTime}
-                    onChange={(e) => handleStartTimeChange(e.target.value)}
-                    className="w-full min-w-0 bg-transparent text-sm font-bold text-[#131e1d] focus:outline-none cursor-pointer"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-[#727877] mb-1">
-                  HORÁRIO DE TÉRMINO
-                </label>
-                <div className="border border-[#c1c8c6] focus-within:border-[#7b5800] rounded-xl px-3 py-2 bg-[#f0fcfa] transition-colors">
-                  <input
-                    type="time"
-                    value={nightMode.endTime}
-                    onChange={(e) => handleEndTimeChange(e.target.value)}
-                    className="w-full min-w-0 bg-transparent text-sm font-bold text-[#131e1d] focus:outline-none cursor-pointer"
-                  />
-                </div>
-              </div>
-            </div>
+            <p className="text-xs text-[#414847] leading-relaxed mb-6">
+              Ajusta automaticamente luzes ambiente, ativa sensores de segurança e economiza energia conforme o horário definido.
+            </p>
           </div>
 
-          {/* Card Gatilhos de Férias */}
-          <div className="bg-white p-6 rounded-2xl shadow-sm border border-[#d9e5e3] flex flex-col justify-between">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 max-w-md">
             <div>
-              <div className="flex justify-between items-start mb-4">
-                <div className="flex items-center gap-2 text-[#16302e]">
-                  <span className="material-symbols-outlined text-2xl text-[#7b5800]">flight_takeoff</span>
-                  <h3 className="text-lg font-bold">Gatilhos de Ausência / Férias</h3>
-                </div>
-                <button
-                  onClick={handleToggleVacationTriggers}
-                  className={`w-12 h-6 rounded-full relative transition-colors p-0.5 ${
-                    vacationTriggers.enabled ? 'bg-[#7b5800]' : 'bg-[#d0dddb]'
-                  }`}
-                >
-                  <div
-                    className={`w-5 h-5 bg-white rounded-full shadow-sm transition-transform ${
-                      vacationTriggers.enabled ? 'translate-x-6' : 'translate-x-0'
-                    }`}
-                  />
-                </button>
+              <label className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-[#727877] mb-1">
+                HORÁRIO DE INÍCIO
+              </label>
+              <div className="border border-[#c1c8c6] focus-within:border-[#7b5800] rounded-xl px-3 py-2 bg-[#f0fcfa] transition-colors">
+                <input
+                  type="time"
+                  value={nightMode.startTime}
+                  onChange={(e) => handleStartTimeChange(e.target.value)}
+                  className="w-full min-w-0 bg-transparent text-sm font-bold text-[#131e1d] focus:outline-none cursor-pointer"
+                />
               </div>
-
-              <p className="text-xs text-[#414847] leading-relaxed mb-6">
-                Simula presença ligando luzes aleatórias à noite e suspende aquecedores e controles não essenciais durante ausências.
-              </p>
             </div>
 
-            <div className="space-y-2.5">
-              <div className="flex items-center justify-between bg-[#eaf6f4] p-2.5 rounded-xl text-xs font-semibold text-[#131e1d]">
-                <span>Iluminação Inteligente Simulada</span>
-                <span className="material-symbols-outlined text-[#7b5800] text-sm filled">
-                  check_circle
-                </span>
-              </div>
-              <div className="flex items-center justify-between bg-[#eaf6f4] p-2.5 rounded-xl text-xs font-semibold text-[#131e1d]">
-                <span>Pausa em Agendamentos Não Críticos</span>
-                <span className="material-symbols-outlined text-[#7b5800] text-sm filled">
-                  check_circle
-                </span>
+            <div>
+              <label className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-[#727877] mb-1">
+                HORÁRIO DE TÉRMINO
+              </label>
+              <div className="border border-[#c1c8c6] focus-within:border-[#7b5800] rounded-xl px-3 py-2 bg-[#f0fcfa] transition-colors">
+                <input
+                  type="time"
+                  value={nightMode.endTime}
+                  onChange={(e) => handleEndTimeChange(e.target.value)}
+                  className="w-full min-w-0 bg-transparent text-sm font-bold text-[#131e1d] focus:outline-none cursor-pointer"
+                />
               </div>
             </div>
           </div>

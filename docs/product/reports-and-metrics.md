@@ -6,7 +6,7 @@
 Percentual de tarefas planejadas para o turno da Manhã, Tarde e Noite que foram marcadas como `COMPLETED` dentro do horário previsto.
 
 ### 1.2 Distribuição de Execuções (Índice de Equidade)
-Gráfico comparativo demonstrando quantas tarefas cada membro executou no período (semana/mês), evidenciando se o rodízio está equilibrado.
+Gráfico comparativo demonstrando quantas tarefas cada membro executou no período (semana/mês), evidenciando se o rodízio está equilibrado. As métricas refletem de imediato qualquer tarefa recém-concluída via cálculo dinâmico reativo e reconciliação híbrida com o backend.
 
 ### 1.3 Histórico de Impedimentos & Bloqueios
 Relatório de ocorrências de tarefas em estado `BLOCKED`, listando os motivos frequentes (ex: "Falta de detergente", "Vassoura quebrada") para orientar compras e reposições.

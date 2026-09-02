@@ -19,7 +19,7 @@ import {
 import { INITIAL_PREFERENCES } from './data.js';
 import { Sidebar, Header } from './layouts/index.js';
 import { DashboardView } from './features/dashboard/index.js';
-import { TasksRotationsView } from './features/tasks-rotation/index.js';
+import { TasksRotationsView, tasksApi } from './features/tasks-rotation/index.js';
 import { SettingsView } from './features/settings/index.js';
 import { ReportsView } from './features/reports/index.js';
 import { StatisticsView } from './features/statistics/index.js';
@@ -463,11 +463,20 @@ export default function App() {
   };
 
   const handleTaskStatusChange = (taskId: string, newStatus: HouseTask['status']) => {
+    const completedByName = authUser?.name || 'Morador';
+    const completedById = authUser?.id;
     setTasks((prev) =>
       prev.map((t) => {
         if (t.id === taskId) {
           if (newStatus === 'completed') {
-            recordHouseActivity(`Tarefa "${t.title}" foi concluída por ${authUser?.name || 'Morador'}.`);
+            recordHouseActivity(`Tarefa "${t.title}" foi concluída por ${completedByName}.`);
+            return {
+              ...t,
+              status: newStatus,
+              completedBy: completedByName,
+              completedById: completedById,
+              completedAt: new Date().toISOString(),
+            };
           }
           return { ...t, status: newStatus };
         }
@@ -476,6 +485,11 @@ export default function App() {
     );
     if (currentHouse?.id) {
       emitTaskStatusChanged(currentHouse.id, taskId, newStatus);
+    }
+    if (newStatus === 'completed' && authUser?.id) {
+      tasksApi.completeTask(taskId, authUser.id).catch(() => {
+        // Ignora silenciosamente se for tarefa em mock local ou offline
+      });
     }
   };
 
@@ -806,6 +820,8 @@ export default function App() {
               currentHouseId={currentHouse.id}
               currentUserId={authUser.id}
               familyMembers={familyMembers}
+              tasks={tasks}
+              activityLogs={activityLogs}
             />
           )}
         </div>

@@ -45,6 +45,9 @@ export interface HouseTask {
   monthDay?: number;
   advanceNotice?: string;
   isRotation?: boolean;
+  completedBy?: string;
+  completedById?: string;
+  completedAt?: string;
 }
 
 export interface TaskRotation {
@@ -119,10 +122,5 @@ export interface SystemPreferences {
     enabled: boolean;
     startTime: string;
     endTime: string;
-  };
-  vacationTriggers: {
-    enabled: boolean;
-    randomizeLivingRoomLights: boolean;
-    suspendWaterHeater: boolean;
   };
 }

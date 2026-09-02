@@ -9,7 +9,6 @@ Gerenciamento de membros da casa, governança de cargos administrativos, remoç�
 
 ### 2.1 Preferências Globais da Residência (100% em Português)
 - **Modo Noturno:** Agendamento automático de dimmer de iluminação, sensores e economia de energia com horários de início e término.
-- **Gatilhos de Ausência / Férias:** Simulação inteligente de presença e suspensão de agendamentos não essenciais.
 - **Regras de Convivência:** Cadastro, listagem numerada e exclusão de regras comunitárias.
 
 ### 2.2 Gestão de Membros & Governança de Cargos
