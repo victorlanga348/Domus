@@ -23,6 +23,7 @@ import { TasksRotationsView, tasksApi } from './features/tasks-rotation/index.js
 import { SettingsView } from './features/settings/index.js';
 import { ReportsView } from './features/reports/index.js';
 import { StatisticsView } from './features/statistics/index.js';
+import { activityLogsApi } from './features/activity-logs/index.js';
 import {
   AddExpenseModal,
   RequestReimbursementModal,
@@ -48,6 +49,74 @@ import {
   emitRuleDeleted,
   emitRotationAdvanced,
 } from './shared/socket/index.js';
+
+function mapBackendTaskToHouseTask(task: any, currentMembers: FamilyMember[]): HouseTask {
+  let period: 'morning' | 'afternoon' | 'night' = 'morning';
+  if (task.shift === 'AFTERNOON') period = 'afternoon';
+  if (task.shift === 'NIGHT') period = 'night';
+
+  let status: HouseTask['status'] = 'pending';
+  if (task.status === 'COMPLETED') status = 'completed';
+  else if (task.status === 'BLOCKED') status = 'alert';
+  else status = 'pending';
+
+  const assignee = task.current_assignee || task.participants?.[0]?.user || task.creator;
+  const assigneeName = assignee?.name || 'Morador';
+  const assigneeAvatar =
+    assignee?.avatar_url ||
+    currentMembers.find((m) => m.id === assignee?.id)?.avatar ||
+    `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(assigneeName)}`;
+
+  return {
+    id: task.id,
+    title: task.title,
+    period,
+    status,
+    nextMember: assigneeName,
+    nextMemberAvatar: assigneeAvatar,
+    icon: 'task_alt',
+    frequency:
+      task.frequency === 'DAILY'
+        ? 'Diária'
+        : task.frequency === 'WEEKLY'
+        ? 'Semanal'
+        : task.frequency === 'MONTHLY'
+        ? 'Mensal'
+        : 'Única (Um só dia)',
+    completedBy: task.status === 'COMPLETED' ? (task.locked_by?.name || 'Concluído') : undefined,
+    completedById: task.status === 'COMPLETED' ? (task.locked_by?.id || undefined) : undefined,
+  };
+}
+
+function mapBackendLogToActivityLog(log: any): ActivityLog {
+  const time = new Date(log.created_at);
+  const now = new Date();
+  const diffMinutes = Math.floor((now.getTime() - time.getTime()) / 60000);
+  let timeAgo = 'Agora mesmo';
+  if (diffMinutes >= 1 && diffMinutes < 60) timeAgo = `Há ${diffMinutes} min`;
+  else if (diffMinutes >= 60 && diffMinutes < 1440) timeAgo = `Há ${Math.floor(diffMinutes / 60)}h`;
+  else if (diffMinutes >= 1440) timeAgo = time.toLocaleDateString();
+
+  return {
+    id: log.id,
+    title: log.comment || (log.action_type === 'COMPLETED' ? `Concluiu a tarefa` : log.action_type),
+    timeAgo,
+    author: log.user?.name || 'Morador',
+    type: log.action_type === 'COMPLETED' ? 'task' : 'system',
+  };
+}
+
+function mapBulletinToMuralNote(post: any, index = 0): MuralNote {
+  const colors: MuralNote['color'][] = ['teal', 'amber', 'lavender', 'rose', 'gray'];
+  const postDate = new Date(post.created_at);
+  return {
+    id: post.id,
+    content: post.content,
+    author: post.author?.name || 'Morador',
+    dateStr: `Hoje, ${postDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`,
+    color: colors[index % colors.length],
+  };
+}
 
 export default function App() {
   // 1. Limpeza proativa de chaves antigas de mock / un-scoped
@@ -228,22 +297,38 @@ export default function App() {
     setTimeout(() => setToastMessage(null), 3500);
   }, []);
 
-  // Helper de registro e sincronização de notificações em tempo real
+  // Helper de registro e sincronização de notificações em tempo real centralizada
   const recordHouseActivity = useCallback(
-    (title: string, author?: string) => {
+    (
+      title: string,
+      author?: string,
+      actionType: 'COMPLETED' | 'FAILED' | 'BLOCKED' | 'LOCKED' | 'ROTATED' = 'COMPLETED',
+      taskId?: string
+    ) => {
       const newLog: ActivityLog = {
         id: `log_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
         title,
         timeAgo: 'Agora mesmo',
         author: author || authUser?.name || 'Morador',
-        type: 'system',
+        type: actionType === 'COMPLETED' ? 'task' : 'system',
       };
       setActivityLogs((prev) => [newLog, ...prev]);
       if (currentHouse?.id) {
         emitHouseLog(currentHouse.id, newLog);
+        if (authUser?.id) {
+          activityLogsApi
+            .createLog({
+              house_id: currentHouse.id,
+              user_id: authUser.id,
+              action_type: actionType,
+              comment: title,
+              task_id: taskId,
+            })
+            .catch(() => {});
+        }
       }
     },
-    [authUser?.name, currentHouse?.id]
+    [authUser?.name, authUser?.id, currentHouse?.id]
   );
 
   const handleSyncMembers = useCallback(
@@ -275,18 +360,46 @@ export default function App() {
     [houseKey]
   );
 
-  // Sincronização inicial automática dos membros da residência ao carregar
+  // Sincronização inicial automática dos dados centrais da residência ao carregar
   useEffect(() => {
     if (currentHouse?.id && authUser?.id) {
+      // 1. Membros e Mural de Recados via BFF Dashboard
       dashboardApi
         .getDashboardData(currentHouse.id, authUser.id)
         .then((data) => {
           if (data?.members && data.members.length > 0) {
             handleSyncMembers(data.members);
           }
+          if (data?.bulletin_posts && Array.isArray(data.bulletin_posts)) {
+            setMuralNotes(data.bulletin_posts.map((p, idx) => mapBulletinToMuralNote(p, idx)));
+          }
         })
         .catch((err) => {
           console.warn('[DOMUS] Erro ao sincronizar membros da casa:', err);
+        });
+
+      // 2. Tarefas Centrais da Residência (PostgreSQL)
+      tasksApi
+        .getTasks(currentHouse.id, authUser.id)
+        .then((backendTasks) => {
+          if (Array.isArray(backendTasks) && backendTasks.length > 0) {
+            setTasks(backendTasks.map((t) => mapBackendTaskToHouseTask(t, familyMembers)));
+          }
+        })
+        .catch((err) => {
+          console.warn('[DOMUS] Erro ao sincronizar tarefas centralizadas:', err);
+        });
+
+      // 3. Histórico e Notificações Centrais da Residência (PostgreSQL)
+      activityLogsApi
+        .getLogs(currentHouse.id)
+        .then((backendLogs) => {
+          if (Array.isArray(backendLogs) && backendLogs.length > 0) {
+            setActivityLogs(backendLogs.map(mapBackendLogToActivityLog));
+          }
+        })
+        .catch((err) => {
+          console.warn('[DOMUS] Erro ao sincronizar logs de atividade centralizados:', err);
         });
     }
   }, [currentHouse?.id, authUser?.id, handleSyncMembers]);
@@ -536,62 +649,127 @@ export default function App() {
     showToast(next ? 'Modo Férias Ativado: Você foi temporariamente pausado do rodízio.' : 'Modo Férias Desativado: Retornando à escala normal.');
   };
 
-  const handleAddMuralNote = (newNote: Omit<MuralNote, 'id' | 'dateStr'>) => {
-    const note: MuralNote = {
-      ...newNote,
-      id: 'n_' + Date.now(),
-      dateStr: 'Hoje, ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-    };
-    setMuralNotes((prev) => [note, ...prev]);
-    if (currentHouse?.id) {
-      emitNoteCreated(currentHouse.id, note);
+  const handleAddMuralNote = async (newNote: Omit<MuralNote, 'id' | 'dateStr'>) => {
+    let noteObj: MuralNote;
+    if (currentHouse?.id && authUser?.id) {
+      try {
+        const created = await dashboardApi.createBulletinPost(currentHouse.id, authUser.id, newNote.content);
+        noteObj = {
+          ...newNote,
+          id: created.id,
+          dateStr: 'Hoje, ' + new Date(created.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          author: created.author?.name || newNote.author,
+        };
+      } catch {
+        noteObj = {
+          ...newNote,
+          id: 'n_' + Date.now(),
+          dateStr: 'Hoje, ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        };
+      }
+    } else {
+      noteObj = {
+        ...newNote,
+        id: 'n_' + Date.now(),
+        dateStr: 'Hoje, ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      };
     }
-    recordHouseActivity(`Novo recado no mural fixado por ${newNote.author}`);
+
+    setMuralNotes((prev) => [noteObj, ...prev]);
+    if (currentHouse?.id) {
+      emitNoteCreated(currentHouse.id, noteObj);
+    }
+    recordHouseActivity(`Novo recado no mural fixado por ${noteObj.author}`);
     showToast('Recado fixado no mural!');
   };
 
-  const handleDeleteMuralNote = (id: string) => {
+  const handleDeleteMuralNote = async (id: string) => {
     setMuralNotes((prev) => prev.filter((n) => n.id !== id));
     if (currentHouse?.id) {
       emitNoteDeleted(currentHouse.id, id);
+      if (authUser?.id) {
+        dashboardApi.deleteBulletinPost(id, authUser.id, currentHouse.id).catch(() => {});
+      }
     }
     showToast('Recado removido!');
   };
 
-  const handleAddTask = (newTask: Omit<HouseTask, 'id' | 'status'>) => {
-    const taskObj: HouseTask = {
-      ...newTask,
-      id: `t_${Date.now()}`,
-      status: 'pending',
+  const handleAddTask = async (newTask: Omit<HouseTask, 'id' | 'status'>) => {
+    const shiftMap: Record<string, 'MORNING' | 'AFTERNOON' | 'NIGHT'> = {
+      morning: 'MORNING',
+      afternoon: 'AFTERNOON',
+      night: 'NIGHT',
     };
+
+    const frequencyMap: Record<string, 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'ONCE'> = {
+      'Diária': 'DAILY',
+      'Semanal': 'WEEKLY',
+      'Mensal': 'MONTHLY',
+      'Única (Um só dia)': 'ONCE',
+    };
+
+    const matchedMember = familyMembers.find((m) => m.name === newTask.nextMember);
+    const participantIds = matchedMember ? [matchedMember.id] : authUser?.id ? [authUser.id] : [];
+
+    let taskObj: HouseTask;
+    if (currentHouse?.id && authUser?.id) {
+      try {
+        const backendCreated = await tasksApi.createTask({
+          title: newTask.title,
+          description: newTask.title,
+          shift: shiftMap[newTask.period] || 'MORNING',
+          frequency: frequencyMap[newTask.frequency || ''] || 'DAILY',
+          creator_id: authUser.id,
+          house_id: currentHouse.id,
+          participant_ids: participantIds,
+        });
+        taskObj = mapBackendTaskToHouseTask(backendCreated, familyMembers);
+      } catch (err) {
+        console.warn('[Tasks] Fallback local para criação de tarefa:', err);
+        taskObj = {
+          ...newTask,
+          id: `t_${Date.now()}`,
+          status: 'pending',
+        };
+      }
+    } else {
+      taskObj = {
+        ...newTask,
+        id: `t_${Date.now()}`,
+        status: 'pending',
+      };
+    }
+
     setTasks((prev) => [taskObj, ...prev]);
     if (currentHouse?.id) {
       emitTaskCreated(currentHouse.id, taskObj);
     }
-    recordHouseActivity(`Nova tarefa "${taskObj.title}" criada.`);
+    recordHouseActivity(`Nova tarefa "${taskObj.title}" criada.`, authUser?.name, 'ROTATED', taskObj.id);
     showToast(`Tarefa "${taskObj.title}" criada com sucesso!`);
   };
 
-  const handleDeleteTask = (taskId: string) => {
+  const handleDeleteTask = async (taskId: string) => {
     const taskObj = tasks.find((t) => t.id === taskId);
     setTasks((prev) => prev.filter((t) => t.id !== taskId));
     if (currentHouse?.id) {
       emitTaskDeleted(currentHouse.id, taskId);
+      if (authUser?.id) {
+        tasksApi.deleteTask(taskId, authUser.id, authUser.role).catch(() => {});
+      }
     }
     if (taskObj) {
-      recordHouseActivity(`Tarefa "${taskObj.title}" foi excluída.`);
+      recordHouseActivity(`Tarefa "${taskObj.title}" foi excluída.`, authUser?.name, 'FAILED', taskId);
       showToast(`Tarefa "${taskObj.title}" excluída.`);
     }
   };
 
-  const handleTaskStatusChange = (taskId: string, newStatus: HouseTask['status']) => {
+  const handleTaskStatusChange = async (taskId: string, newStatus: HouseTask['status']) => {
     const completedByName = authUser?.name || 'Morador';
     const completedById = authUser?.id;
     setTasks((prev) =>
       prev.map((t) => {
         if (t.id === taskId) {
           if (newStatus === 'completed') {
-            recordHouseActivity(`Tarefa "${t.title}" foi concluída por ${completedByName}.`);
             return {
               ...t,
               status: newStatus,
@@ -608,10 +786,28 @@ export default function App() {
     if (currentHouse?.id) {
       emitTaskStatusChanged(currentHouse.id, taskId, newStatus);
     }
-    if (newStatus === 'completed' && authUser?.id) {
-      tasksApi.completeTask(taskId, authUser.id).catch(() => {
-        // Ignora silenciosamente se for tarefa em mock local ou offline
-      });
+
+    const taskObj = tasks.find((t) => t.id === taskId);
+    if (newStatus === 'completed') {
+      recordHouseActivity(
+        `Tarefa "${taskObj?.title || 'Tarefa'}" foi concluída por ${completedByName}.`,
+        completedByName,
+        'COMPLETED',
+        taskId
+      );
+      if (authUser?.id) {
+        tasksApi.completeTask(taskId, authUser.id).catch(() => {});
+      }
+    } else if (newStatus === 'alert') {
+      recordHouseActivity(
+        `Tarefa "${taskObj?.title || 'Tarefa'}" reportou impedimento.`,
+        completedByName,
+        'BLOCKED',
+        taskId
+      );
+      if (authUser?.id) {
+        tasksApi.blockTask(taskId, authUser.id, 'Impedimento reportado').catch(() => {});
+      }
     }
   };
 

@@ -122,12 +122,29 @@ export const StatisticsView: React.FC<StatisticsViewProps> = ({
       setLoading(true);
       const data = await statisticsApi.getStatistics(currentHouseId, currentUserId);
       if (data) {
-        // Se houver mais conclusões no estado local (ex: recém-concluídas), preserva a contagem
-        if (local.harmony.total_completed >= data.harmony.total_completed) {
-          setStats(local);
-        } else {
-          setStats(data);
-        }
+        const enrichedContributions = (data.contributions || []).map((c) => {
+          const member = familyMembers.find((m) => m.id === c.user_id || m.name === c.name);
+          return {
+            ...c,
+            avatar: c.avatar || member?.avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(c.name)}`,
+          };
+        });
+
+        const enrichedTop = data.top_contributor
+          ? {
+              ...data.top_contributor,
+              avatar:
+                data.top_contributor.avatar ||
+                familyMembers.find((m) => m.id === data.top_contributor?.user_id)?.avatar ||
+                `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(data.top_contributor.name)}`,
+            }
+          : null;
+
+        setStats({
+          ...data,
+          contributions: enrichedContributions,
+          top_contributor: enrichedTop,
+        });
       } else {
         setStats(local);
       }
@@ -136,19 +153,17 @@ export const StatisticsView: React.FC<StatisticsViewProps> = ({
     } finally {
       setLoading(false);
     }
-  }, [currentHouseId, currentUserId, computeLocalStatistics]);
+  }, [currentHouseId, currentUserId, familyMembers, computeLocalStatistics]);
 
   useEffect(() => {
     fetchStats();
   }, [fetchStats]);
 
-  // Atualiza reativamente se tasks mudarem
+  // Atualiza reativamente se tarefas mudarem e não houver dados ainda
   useEffect(() => {
     const local = computeLocalStatistics();
     setStats((prev) => {
-      if (!prev || local.harmony.total_completed > prev.harmony.total_completed) {
-        return local;
-      }
+      if (!prev) return local;
       return prev;
     });
   }, [computeLocalStatistics]);

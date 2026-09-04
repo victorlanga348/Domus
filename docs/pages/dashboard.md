@@ -25,4 +25,14 @@ Oferecer ao morador um espaço acolhedor, interativo e centralizado para recados
 - Seletor de cor do cartão (Amarelo, Menta, Rosa, Lavanda, Cinza).
 - Sincronização em tempo real via WebSocket de novos recados e exclusões com todos os dispositivos na mesma residência.
 
+---
+
+## 3. Persistência Centralizada & Endpoints (PostgreSQL)
+- **Fonte da Verdade:** Todos os recados do mural são armazenados centralizadamente no PostgreSQL sob o modelo `BulletinBoard` indexado por `house_id`.
+- **Endpoints Oficiais:**
+  - `GET /api/v1/dashboard`: Carrega os recados oficiais da casa via BFF agregador no carregamento inicial da aplicação.
+  - `POST /api/v1/dashboard/bulletin`: Persiste novo recado no banco (`house_id`, `author_id`, `content`).
+  - `DELETE /api/v1/dashboard/bulletin/:id`: Remove recado do banco com validação de autoria ou permissão de Admin Geral.
+  - **Broadcast WebSocket:** Eventos `note:created` e `note:deleted` garantem atualização em tempo real para todos os moradores conectados à sala da residência.
+
 

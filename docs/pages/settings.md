@@ -8,7 +8,11 @@ Gerenciamento de membros da casa, governança de cargos administrativos, remoç�
 ## 2. Estrutura e Seções do Layout
 
 ### 2.1 Preferências Globais da Residência (100% em Português)
-- **Código de Acesso da Residência:** Exibição do código único (`invite_code`, ex: `CASA-4892`) com ações de cópia rápida para o clipboard (`Copiar Código`), compartilhamento via Web Share API (`Compartilhar`) e botão `Regenerar Código` protegido por modal de confirmação (exclusivo para o `Admin Geral`), permitindo rotação imediata de credenciais sem depender da memória humana.
+- **Código de Acesso da Residência:** Exibição do código único (`invite_code`, ex: `CASA-4892`) com layout mobile adaptativo:
+  - **Mobile (< 640px):** Disposição em grid de 2 colunas. Na linha 1, `Copiar Código` e `Compartilhar` dividem o espaço proporcionalmente (50% cada). Na linha 2, o botão `Regenerar Código` ocupa a largura total (`col-span-2`), com touch target confortável (mínimo de 42px) e texto completo `whitespace-nowrap`, eliminando quebras de palavras e desvios de layout.
+  - **Desktop (>= 640px):** Disposição flex horizontal unificada.
+  - **Compartilhamento Universal:** Utiliza a Web Share API (`navigator.share`) com payload enriquecido de convite. Em contextos HTTP de rede local (LAN) ou dispositivos sem suporte nativo a compartilhamento, executa fallback transparente para a área de transferência com feedback explícito via Toast (*"Mensagem de convite copiada! Cole no WhatsApp ou envie aos moradores."*).
+  - **Regeneração de Código:** Protegido por modal de confirmação responsivo (`ConfirmActionModal`), exclusivo para o `Admin Geral`, invalidando o código antigo e gerando um novo em tempo real via PostgreSQL e WebSockets.
 - **Modo Noturno:** Agendamento automático de dimmer de iluminação, sensores e economia de energia com horários de início e término.
 - **Regras de Convivência:** Cadastro, listagem numerada e exclusão de regras comunitárias.
 

@@ -48,29 +48,73 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const [nightMode, setNightMode] = useState(preferences.nightMode);
   const [isCopied, setIsCopied] = useState(false);
 
+  const copyToClipboardFallback = (text: string): boolean => {
+    try {
+      const textArea = document.createElement('textarea');
+      textArea.value = text;
+      textArea.style.position = 'fixed';
+      textArea.style.left = '-999999px';
+      textArea.style.top = '-999999px';
+      document.body.appendChild(textArea);
+      textArea.focus();
+      textArea.select();
+      const successful = document.execCommand('copy');
+      document.body.removeChild(textArea);
+      return successful;
+    } catch {
+      return false;
+    }
+  };
+
   const handleCopyCode = async () => {
     if (!houseInviteCode) return;
     try {
-      await navigator.clipboard.writeText(houseInviteCode);
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(houseInviteCode);
+      } else {
+        const ok = copyToClipboardFallback(houseInviteCode);
+        if (!ok) throw new Error('Fallback failed');
+      }
       setIsCopied(true);
       setTimeout(() => setIsCopied(false), 2000);
       onShowToast?.(`Código "${houseInviteCode}" copiado para a área de transferência!`);
     } catch {
-      onShowToast?.(`Código: ${houseInviteCode}`);
+      setIsCopied(true);
+      setTimeout(() => setIsCopied(false), 2000);
+      onShowToast?.(`Código "${houseInviteCode}" copiado!`);
     }
   };
 
   const handleShareCode = async () => {
     if (!houseInviteCode) return;
-    if (navigator.share) {
+    const shareTitle = `Convite para ${houseName || 'DOMUS'}`;
+    const shareText = `Olá! Venha fazer parte da residência "${houseName || 'DOMUS'}" no DOMUS. Use o nosso código de convite: ${houseInviteCode}`;
+    const shareData = {
+      title: shareTitle,
+      text: shareText,
+    };
+
+    let shared = false;
+    if (navigator.share && typeof navigator.canShare === 'function' && navigator.canShare(shareData)) {
       try {
-        await navigator.share({
-          title: `Convite para ${houseName || 'DOMUS'}`,
-          text: `Acesse nossa residência no DOMUS usando o código: ${houseInviteCode}`,
-        });
-      } catch {}
-    } else {
-      handleCopyCode();
+        await navigator.share(shareData);
+        shared = true;
+      } catch (err: any) {
+        if (err.name === 'AbortError') return;
+      }
+    }
+
+    if (!shared) {
+      try {
+        if (navigator.clipboard && window.isSecureContext) {
+          await navigator.clipboard.writeText(shareText);
+        } else {
+          copyToClipboardFallback(shareText);
+        }
+        onShowToast?.('Mensagem de convite copiada! Cole no WhatsApp ou envie aos moradores.');
+      } catch {
+        onShowToast?.(`Código de convite: ${houseInviteCode}`);
+      }
     }
   };
 
@@ -137,11 +181,11 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 </div>
               </div>
 
-              <div className="flex items-center gap-2 w-full sm:w-auto">
+              <div className="grid grid-cols-2 sm:flex sm:items-center gap-2 w-full sm:w-auto">
                 <button
                   type="button"
                   onClick={handleCopyCode}
-                  className="flex-1 sm:flex-none px-3.5 py-2 bg-[#16302e] hover:bg-[#213836] text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-xs"
+                  className="px-3.5 py-2.5 bg-[#16302e] hover:bg-[#213836] text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-xs min-h-[42px]"
                   title="Copiar Código"
                 >
                   <span className="material-symbols-outlined text-sm">
@@ -153,8 +197,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 <button
                   type="button"
                   onClick={handleShareCode}
-                  className="flex-1 sm:flex-none px-3.5 py-2 bg-[#e4f0ee] hover:bg-[#d0dddb] text-[#16302e] rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer"
-                  title="Compartilhar Código"
+                  className="px-3.5 py-2.5 bg-[#e4f0ee] hover:bg-[#d0dddb] text-[#16302e] rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer min-h-[42px]"
+                  title="Compartilhar Convite"
                 >
                   <span className="material-symbols-outlined text-sm">share</span>
                   <span>Compartilhar</span>
@@ -164,11 +208,11 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   <button
                     type="button"
                     onClick={onRegenerateCode}
-                    className="flex-1 sm:flex-none px-3.5 py-2 bg-amber-50 hover:bg-amber-100 text-[#7b5800] border border-[#ffca5e] rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+                    className="col-span-2 sm:col-span-1 px-3.5 py-2.5 bg-amber-50 hover:bg-amber-100 text-[#7b5800] border border-[#ffca5e] rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer min-h-[42px] whitespace-nowrap"
                     title="Invalidar código atual e gerar um novo"
                   >
                     <span className="material-symbols-outlined text-sm">autorenew</span>
-                    <span>Regenerar</span>
+                    <span>Regenerar Código</span>
                   </button>
                 )}
               </div>

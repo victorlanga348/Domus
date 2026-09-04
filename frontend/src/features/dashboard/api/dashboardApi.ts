@@ -79,4 +79,40 @@ export const dashboardApi = {
       return null;
     }
   },
+
+  async createBulletinPost(houseId: string, authorId: string, content: string) {
+    const response = await fetch(`${APP_CONFIG.API_BASE_URL}/v1/dashboard/bulletin`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-house-id': houseId,
+        'x-user-id': authorId,
+      },
+      body: JSON.stringify({ houseId, author_id: authorId, content }),
+    });
+
+    const json = await response.json();
+    if (!response.ok) {
+      throw new Error(json.message || 'Erro ao publicar recado no mural');
+    }
+
+    return json.data;
+  },
+
+  async deleteBulletinPost(postId: string, userId: string, houseId?: string) {
+    const response = await fetch(`${APP_CONFIG.API_BASE_URL}/v1/dashboard/bulletin/${postId}`, {
+      method: 'DELETE',
+      headers: {
+        'x-user-id': userId,
+        ...(houseId ? { 'x-house-id': houseId } : {}),
+      },
+    });
+
+    const json = await response.json();
+    if (!response.ok) {
+      throw new Error(json.message || 'Erro ao remover recado do mural');
+    }
+
+    return json.data;
+  },
 };

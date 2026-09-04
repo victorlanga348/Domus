@@ -172,4 +172,74 @@ export class DashboardService {
       })),
     };
   }
+
+  /**
+   * Cria uma nova publicação no mural de recados da residência.
+   */
+  async createBulletinPost(houseId: string, authorId: string, content: string) {
+    if (!houseId) {
+      throw new AppError('Identificação da residência (houseId) é obrigatória.', 400, 'HOUSE_ID_REQUIRED');
+    }
+    if (!authorId) {
+      throw new AppError('Identificação do autor (authorId) é obrigatória.', 400, 'AUTHOR_ID_REQUIRED');
+    }
+    if (!content || !content.trim()) {
+      throw new AppError('Conteúdo do recado não pode estar vazio.', 400, 'CONTENT_REQUIRED');
+    }
+
+    const post = await prisma.bulletinBoard.create({
+      data: {
+        house_id: houseId,
+        author_id: authorId,
+        content: content.trim(),
+      },
+      include: {
+        author: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+      },
+    });
+
+    return {
+      id: post.id,
+      content: post.content,
+      created_at: post.created_at,
+      author: post.author,
+    };
+  }
+
+  /**
+   * Exclui uma publicação do mural de recados.
+   */
+  async deleteBulletinPost(postId: string, userId: string) {
+    if (!postId) {
+      throw new AppError('Identificação do recado (postId) é obrigatória.', 400, 'POST_ID_REQUIRED');
+    }
+
+    const post = await prisma.bulletinBoard.findUnique({
+      where: { id: postId },
+    });
+
+    if (!post) {
+      throw new AppError('Recado não encontrado no mural.', 404, 'POST_NOT_FOUND');
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    // Permite exclusão pelo autor original ou por qualquer Admin Geral da casa
+    if (post.author_id !== userId && user?.role !== 'ADMIN') {
+      throw new AppError('Apenas o autor do recado ou um Admin Geral podem removê-lo.', 403, 'FORBIDDEN');
+    }
+
+    await prisma.bulletinBoard.delete({
+      where: { id: postId },
+    });
+
+    return { success: true, message: 'Recado removido do mural com sucesso.' };
+  }
 }

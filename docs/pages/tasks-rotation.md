@@ -28,3 +28,14 @@ Cada cartão exibe:
   - Se `OPEN`: Botão `[ Iniciar ]` e `[ Reportar Impedimento ]`.
   - Se `LOCKED`: Botão `[ Concluir ]` e cronômetro regressivo dos 45 minutos.
   - Se `BLOCKED`: Botão `[ Resolver / Desbloquear ]`.
+
+---
+
+## 3. Persistência Centralizada & Sincronização em Tempo Real (PostgreSQL)
+- **Fonte Canônica da Residência:** Tarefas não são mais armazenadas exclusivamente em navegadores individuais. O PostgreSQL é a fonte oficial da verdade sob a partição `house_id`.
+- **Fluxos Centralizados:**
+  - `GET /api/tasks?houseId=...`: Lista todas as tarefas ativas da residência na montagem da tela.
+  - `POST /api/tasks`: Criação persistente no banco de dados vinculada aos membros e emissão imediata de evento `task:created` via WebSocket.
+  - `PATCH /api/tasks/:id/complete`: Conclusão persistente no banco e emissão de `task:status_changed`.
+  - `DELETE /api/tasks/:id`: Exclusão persistente no banco e emissão de `task:deleted`.
+  - `POST /api/activity-logs`: Registro oficial de conclusões, bloqueios e rotações, garantindo que o histórico e as notificações sejam idênticos em todos os aparelhos da mesma residência.

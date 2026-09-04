@@ -33,3 +33,35 @@ describe('DashboardService (Cálculo Determinístico de Turnos)', () => {
     assert.equal(getShiftForHour(5), 'NIGHT');
   });
 });
+
+describe('DashboardService (Mural de Recados / BulletinBoard)', () => {
+  it('deve validar obrigatoriedade dos parâmetros para publicação no mural', async () => {
+    const { DashboardService } = await import('../../src/modules/dashboard/dashboard.service.js');
+    const service = new DashboardService();
+
+    await assert.rejects(
+      async () => service.createBulletinPost('', 'user-1', 'Recado de teste'),
+      (err: any) => err.code === 'HOUSE_ID_REQUIRED'
+    );
+
+    await assert.rejects(
+      async () => service.createBulletinPost('house-1', '', 'Recado de teste'),
+      (err: any) => err.code === 'AUTHOR_ID_REQUIRED'
+    );
+
+    await assert.rejects(
+      async () => service.createBulletinPost('house-1', 'user-1', '   '),
+      (err: any) => err.code === 'CONTENT_REQUIRED'
+    );
+  });
+
+  it('deve validar obrigatoriedade do postId ao excluir recado', async () => {
+    const { DashboardService } = await import('../../src/modules/dashboard/dashboard.service.js');
+    const service = new DashboardService();
+
+    await assert.rejects(
+      async () => service.deleteBulletinPost('', 'user-1'),
+      (err: any) => err.code === 'POST_ID_REQUIRED'
+    );
+  });
+});

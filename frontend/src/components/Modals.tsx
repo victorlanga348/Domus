@@ -1278,12 +1278,12 @@ export const ConfirmActionModal: React.FC<{
 
         <p className="text-xs text-[#b0ccc9] leading-relaxed mb-6">{description}</p>
 
-        <div className="flex justify-end gap-2.5">
+        <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2.5">
           <button
             type="button"
             onClick={onClose}
             disabled={loading}
-            className="px-4 py-2.5 rounded-xl text-xs font-bold text-[#b0ccc9] hover:bg-[#234441] hover:text-white transition-colors cursor-pointer border border-transparent"
+            className="w-full sm:w-auto px-4 py-3 sm:py-2.5 rounded-xl text-xs font-bold text-[#b0ccc9] hover:bg-[#234441] hover:text-white transition-colors cursor-pointer border border-transparent text-center justify-center flex items-center min-h-[42px]"
           >
             {cancelText}
           </button>
@@ -1291,7 +1291,7 @@ export const ConfirmActionModal: React.FC<{
             type="button"
             onClick={onConfirm}
             disabled={loading}
-            className={`px-4 py-2.5 rounded-xl text-xs font-black transition-all cursor-pointer shadow-md flex items-center gap-1.5 disabled:opacity-50 ${
+            className={`w-full sm:w-auto px-4 py-3 sm:py-2.5 rounded-xl text-xs font-black transition-all cursor-pointer shadow-md flex items-center justify-center gap-1.5 disabled:opacity-50 min-h-[42px] ${
               variant === 'danger'
                 ? 'bg-rose-600 hover:bg-rose-500 text-white'
                 : variant === 'warning'
