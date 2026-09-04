@@ -13,8 +13,9 @@ export interface RegisterPayload {
 }
 
 export interface HousePayload {
-  name: string;
-  password: string;
+  name?: string;
+  inviteCode?: string;
+  password?: string;
   user_id: string;
 }
 
@@ -99,7 +100,7 @@ export const authApi = {
       },
       body: JSON.stringify({
         houseName: data.name,
-        housePassword: data.password,
+        housePassword: data.password || '',
         user_id: data.user_id,
       }),
     });
@@ -113,6 +114,7 @@ export const authApi = {
   },
 
   async joinHouse(data: HousePayload, token?: string): Promise<HouseResponse> {
+    const code = data.inviteCode || data.name || '';
     const response = await fetch(`${APP_CONFIG.API_BASE_URL}/house/join`, {
       method: 'POST',
       headers: {
@@ -121,15 +123,16 @@ export const authApi = {
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
       body: JSON.stringify({
-        houseName: data.name,
-        housePassword: data.password,
+        inviteCode: code,
+        houseName: code,
+        housePassword: data.password || '',
         user_id: data.user_id,
       }),
     });
 
     const json = await response.json();
     if (!response.ok) {
-      throw new Error(json.message || 'Credenciais da residência inválidas');
+      throw new Error(json.message || 'Código de convite da residência inválido');
     }
 
     return json.data;

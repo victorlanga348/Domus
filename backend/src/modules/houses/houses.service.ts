@@ -9,15 +9,12 @@ export class HouseService {
 
   /**
    * 1. createHouse:
-   * Cria a casa, gera invite_code único, criptografa a senha com Bcrypt e vincula o usuário como ADMIN (Arquiteto Principal).
+   * Cria a casa, gera invite_code único e vincula o usuário como ADMIN (Arquiteto Principal).
+   * Opção A: Remoção da necessidade de senha da residência.
    */
-  async createHouse(userId: string, houseName: string, housePassword: string) {
+  async createHouse(userId: string, houseName: string, housePassword?: string) {
     if (!houseName || houseName.trim() === '') {
       throw new AppError('O nome da residência/sala é obrigatório.', 400, 'HOUSE_NAME_REQUIRED');
-    }
-
-    if (!housePassword || housePassword.length < 4) {
-      throw new AppError('A senha da residência deve ter no mínimo 4 caracteres.', 400, 'PASSWORD_TOO_SHORT');
     }
 
     const user = await prisma.user.findUnique({
@@ -32,8 +29,11 @@ export class HouseService {
       throw new AppError('Usuário já pertence a uma residência ativa.', 400, 'USER_ALREADY_IN_HOUSE');
     }
 
-    const saltRounds = 10;
-    const password_hash = await bcrypt.hash(housePassword.trim(), saltRounds);
+    let password_hash = '';
+    if (housePassword && housePassword.trim().length >= 4) {
+      const saltRounds = 10;
+      password_hash = await bcrypt.hash(housePassword.trim(), saltRounds);
+    }
 
     // Gerar código de convite único (ex: CASA-4892)
     const randomCode = Math.floor(1000 + Math.random() * 9000);
@@ -72,11 +72,12 @@ export class HouseService {
 
   /**
    * 2. joinHouse:
-   * Busca a casa prioritariamente pelo Código de Convite (@unique) ou nome, compara a senha via Bcrypt e vincula o usuário estritamente como MEMBER (Morador).
+   * Busca a casa prioritariamente pelo Código de Convite (@unique) ou nome e vincula o usuário estritamente como MEMBER (Morador).
+   * Opção A: Acesso exclusivo por código de convite sem validação de senha.
    */
-  async joinHouse(userId: string, houseIdentifier: string, housePassword: string) {
-    if (!houseIdentifier || !housePassword) {
-      throw new AppError('Código ou nome e senha da residência são obrigatórios.', 400, 'CREDENTIALS_REQUIRED');
+  async joinHouse(userId: string, houseIdentifier: string, _housePassword?: string) {
+    if (!houseIdentifier || !houseIdentifier.trim()) {
+      throw new AppError('O código de convite da residência é obrigatório.', 400, 'INVITE_CODE_REQUIRED');
     }
 
     const user = await prisma.user.findUnique({
@@ -92,10 +93,18 @@ export class HouseService {
     }
 
     const trimmedIdentifier = houseIdentifier.trim();
-    // Prioriza busca pelo Código Único de Entrada (invite_code), evitando colisão com nomes repetidos
+    const formattedCode = trimmedIdentifier.toUpperCase();
+
+    // Prioriza busca pelo Código Único de Entrada (invite_code), aceitando case-insensitive
     let house = await prisma.house.findUnique({
-      where: { invite_code: trimmedIdentifier },
+      where: { invite_code: formattedCode },
     });
+
+    if (!house) {
+      house = await prisma.house.findUnique({
+        where: { invite_code: trimmedIdentifier },
+      });
+    }
 
     if (!house) {
       house = await prisma.house.findFirst({
@@ -109,12 +118,7 @@ export class HouseService {
     }
 
     if (!house) {
-      throw new AppError('Residência não encontrada ou senha incorreta.', 401, 'INVALID_HOUSE_CREDENTIALS');
-    }
-
-    const isMatch = await bcrypt.compare(housePassword.trim(), house.password_hash);
-    if (!isMatch) {
-      throw new AppError('Residência não encontrada ou senha incorreta.', 401, 'INVALID_HOUSE_CREDENTIALS');
+      throw new AppError('Residência não encontrada com o código fornecido.', 404, 'HOUSE_NOT_FOUND');
     }
 
     // Regra mandatória: Qualquer usuário que ingressa ou reingressa na residência assume cargo de Morador (MEMBER)

@@ -30,10 +30,16 @@ export class HouseController {
   joinHouse = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const userId = (req.headers['x-user-id'] as string) || req.body.user_id || req.body.userId;
-      const houseName = req.body.houseName || req.body.name || req.body.house_name;
+      const inviteCode =
+        req.body.inviteCode ||
+        req.body.invite_code ||
+        req.body.code ||
+        req.body.houseName ||
+        req.body.name ||
+        req.body.house_name;
       const housePassword = req.body.housePassword || req.body.password || req.body.house_password;
 
-      const result = await this.houseService.joinHouse(userId, houseName, housePassword);
+      const result = await this.houseService.joinHouse(userId, inviteCode, housePassword);
       res.status(200).json({ status: 'success', data: result });
     } catch (error) {
       next(error);

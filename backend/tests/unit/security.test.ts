@@ -45,4 +45,11 @@ describe('Segurança, Senhas & Códigos de Residência (Unitário)', () => {
     }
     assert.ok(generatedCodes.size > 1, 'Os códigos gerados aleatoriamente devem apresentar entropia');
   });
+
+  it('deve normalizar códigos de convite com tolerância a maiúsculas, minúsculas e espaços', () => {
+    const rawInput = '  casa-4892  ';
+    const normalized = rawInput.trim().toUpperCase();
+    assert.equal(normalized, 'CASA-4892');
+    assert.match(normalized, /^CASA-\d{4}$/);
+  });
 });

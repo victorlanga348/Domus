@@ -31,36 +31,39 @@ Permitir que novos e recorrentes moradores criem suas contas, acessem o sistema 
 
 ### 2.3 Escolha de Residência / Boas-vindas (`HouseholdSelectionView` / `HouseSelectionView`)
 - **Layout:** Moldura institucional DOMUS com cards interativos de seleção e formulários.
-- **Seção Superior - Minhas Residências Salvas:**
-  - Exibida dinamicamente quando o usuário já possui residências criadas ou vinculadas.
-  - Exibe cards com nome, código de convite, cargo (`ADMIN`/`MEMBER`) e contagem de moradores.
-  - Ação: "Entrar na Casa ->" (entrada em 1 clique sem redigitação de senha).
+- **Seção Superior - Minha Residência Atual:**
+  - Exibida dinamicamente **apenas** quando o usuário possui vínculo ativo com uma residência (`house_id !== null`).
+  - Usuários que saíram da residência (`house_id === null`) **não** visualizam casas salvas nem códigos de convite antigos.
+  - Acesso direto seguro para alternância de contexto sem expor o `invite_code` na tela pública.
 - **Card 1 - Criar Residência:**
-  - Ícone de casa em círculo suave.
-  - Título: "Criar Residência".
-  - Descrição: "Configure uma nova residência do zero. Você será o administrador e poderá convidar outros membros da família."
-  - Ação: "Começar ->".
+  - Ícone de casa em círculo suave (`add_home`).
+  - Título: "Criar Nova Residência".
+  - Descrição: "Você será o Administrador Geral da casa".
+  - Formulário minimalista: apenas o Nome da Residência. Sem senha.
+  - O sistema gera deterministicamente o Código de Convite único no padrão `CASA-XXXX`.
 - **Card 2 - Entrar em Residência:**
-  - Ícone de login/seta em círculo suave.
+  - Ícone de chave (`key`).
   - Título: "Entrar em Residência".
-  - Descrição: "Junte-se a uma residência existente usando um código de convite fornecido pelo administrador."
-  - Ação: "Inserir Código ->".
+  - Descrição: "Insira o Código de Convite da casa (ex: CASA-4892)".
+  - Ação: "Validar Código & Entrar".
 
-### 2.4 Criar Residência (`CreateHouseholdView`)
+### 2.4 Criar Residência (`HouseSelectionView`)
 - **Layout:** Card refinado centralizado na moldura DOMUS.
 - **Campos:**
-  - **Nome da Residência:** Input com ícone `cottage`/`home` (Placeholder: "Ex: Residência Alameda").
-  - **Código da Residência:** Input com ícone `vpn_key`/`tag` (Placeholder: "Ex: DOMUS-8924") com gerador automático de código de convite.
-- **Ações:** "Criar Residência ->", "Voltar para opções".
+  - **Nome da Residência:** Input de texto simples (Placeholder: "ex: Casa Alameda, República Central...").
+  - **Senha da Residência:** **Eliminada (Opção A).** Residências não utilizam senhas; a governança de acesso apoia-se no Código de Convite rotativo e exclusivo.
+- **Ações:** "Criar Residência & Acessar" (cria e autentica o usuário como `ADMIN` - Administrador Geral).
 
-### 2.5 Entrar em Residência (`JoinHouseholdView` / `HouseSelectionView`)
+### 2.5 Entrar em Residência (`HouseSelectionView`)
 - **Layout:** Card refinado centralizado na moldura DOMUS.
 - **Campos:**
-  - **Código de Convite ou Nome da Residência:** Input com ícone `key`/`home` (Placeholder: "ex: CASA-4892 ou Nome da Residência..."). Prioriza o Código Único para resolução inequívoca sem colisão de nomes.
-  - **Senha da Residência:** Input com senha secreta definida no momento da fundação da casa.
+  - **Código de Convite da Residência:** Input de texto com normalização automática em maiúsculas (Placeholder: "ex: CASA-4892").
+  - **Senha da Residência:** **Eliminada (Opção A).**
 - **Regras:**
+  - **Reingresso Obrigatório por Código:** Qualquer usuário que se desvincular da casa deve obrigatoriamente preencher o Código de Convite para reingressar. Não há bypass de 1 clique.
   - **Reset de Cargo:** Qualquer usuário que ingressar ou reingressar entra estritamente com cargo de **Morador** (`Resident` / `MEMBER`), sem retenção de privilégios de liderança anteriores.
-- **Ações:** "Entrar em Residência ->".
+  - **Rotação de Credenciais:** Caso o código vaze ou seja esquecido, o `Admin Geral` utiliza o botão "Regenerar Código" no painel de configurações para emitir um novo `CASA-XXXX`, invalidando o anterior em tempo real.
+- **Ações:** "Validar Código & Entrar".
 
 ---
 

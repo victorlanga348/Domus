@@ -490,6 +490,14 @@ export default function App() {
       localStorage.removeItem('domus_auth_house');
       setIsLeaveHouseOpen(false);
 
+      const updatedUser: AuthUser = {
+        ...authUser,
+        house_id: null,
+        role: 'MEMBER',
+      };
+      setAuthUser(updatedUser);
+      localStorage.setItem('domus_auth_user', JSON.stringify(updatedUser));
+
       showToast(
         successorId
           ? `Liderança transferida e você se desvinculou de "${oldHouseName}".`

@@ -141,16 +141,25 @@
 
 ## 5. Endpoints de Gestão de Residências (`/api/houses` / `/api/house`)
 
+### `POST /api/houses/create` (ou `/api/house/create`)
+- Cria uma nova residência, gera código de convite único e vincula o usuário como `ADMIN` (Admin Geral).
+- **Payload:** `{ "houseName": "Mansão DOMUS", "user_id": "uuid" }`
+- **Regras:**
+  - Não exige senha de residência (Opção A).
+  - Gera `invite_code` único determinístico no formato `CASA-XXXX`.
+- **Resposta (201):** `{ "status": "success", "data": { "house": { "id": "uuid", "name": "...", "invite_code": "CASA-4892" }, "user": {...} } }`
+
 ### `GET /api/houses/my-houses`
-- Lista as residências salvas e vinculadas ao usuário autenticado.
+- Lista as residências ativas vinculadas ao usuário autenticado (retorna vazio caso `house_id` seja `null`).
 - **Headers:** `x-user-id`, `Authorization: Bearer <jwt>`
 - **Resposta (200):** Array de residências com contadores de membros e papel do morador.
 
 ### `POST /api/houses/join` (ou `/api/house/join`)
 - Ingressa ou reingressa em uma residência existente.
-- **Payload:** `{ "houseName": "CASA-4892", "housePassword": "secretPassword123", "user_id": "uuid" }`
+- **Payload:** `{ "inviteCode": "CASA-4892", "user_id": "uuid" }`
 - **Regras:**
-  - O campo de identificação aceita prioritariamente o Código Único da Casa (`invite_code`, ex: `CASA-4892`) ou o nome da residência.
+  - Busca prioritariamente pelo Código Único da Casa (`invite_code`, ex: `CASA-4892`), tolerando maiúsculas e minúsculas.
+  - Não exige senha (Opção A).
   - **Reset Mandatório de Cargo:** Qualquer usuário que ingressar ou reingressar na residência recebe estritamente a role `MEMBER` (`Resident`), sem restauração de cargos administrativos anteriores.
 - **Resposta (200):** `{ "status": "success", "data": { "house": {...}, "user": {...} } }`
 

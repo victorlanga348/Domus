@@ -136,7 +136,7 @@ describe('Ciclo de Vida Completo da Aplicação (E2E)', () => {
     assert.equal(loginData.data.user.id, aliceId);
   });
 
-  it('3. Criação de Residência: Alice funda a casa e torna-se Arquiteta Principal (ADMIN)', async () => {
+  it('3. Criação de Residência: Alice funda a casa apenas com o nome e torna-se Arquiteta Principal (ADMIN)', async () => {
     const resCreate = await fetch(`${baseUrl}/house/create`, {
       method: 'POST',
       headers: {
@@ -146,7 +146,6 @@ describe('Ciclo de Vida Completo da Aplicação (E2E)', () => {
       },
       body: JSON.stringify({
         houseName: `Mansão DOMUS E2E ${timestamp}`,
-        housePassword,
         user_id: aliceId,
       }),
     });
@@ -161,8 +160,8 @@ describe('Ciclo de Vida Completo da Aplicação (E2E)', () => {
     inviteCode = createData.data.house.invite_code;
   });
 
-  it('4. Ingresso em Residência: Bob tenta senha errada e depois entra como MEMBER', async () => {
-    // Senha incorreta
+  it('4. Ingresso em Residência: Bob tenta código inválido e depois entra com código de convite como MEMBER', async () => {
+    // Código incorreto
     const resWrong = await fetch(`${baseUrl}/house/join`, {
       method: 'POST',
       headers: {
@@ -171,14 +170,13 @@ describe('Ciclo de Vida Completo da Aplicação (E2E)', () => {
         'x-user-id': bobId,
       },
       body: JSON.stringify({
-        houseName: `Mansão DOMUS E2E ${timestamp}`,
-        housePassword: 'senhaErrada',
+        inviteCode: 'CASA-9999-INEXISTENTE',
         user_id: bobId,
       }),
     });
-    assert.equal(resWrong.status, 401, 'Senha de casa incorreta deve retornar 401');
+    assert.equal(resWrong.status, 404, 'Código de convite incorreto deve retornar 404');
 
-    // Senha correta
+    // Código correto
     const resJoin = await fetch(`${baseUrl}/house/join`, {
       method: 'POST',
       headers: {
@@ -187,8 +185,7 @@ describe('Ciclo de Vida Completo da Aplicação (E2E)', () => {
         'x-user-id': bobId,
       },
       body: JSON.stringify({
-        houseName: `Mansão DOMUS E2E ${timestamp}`,
-        housePassword,
+        inviteCode,
         user_id: bobId,
       }),
     });

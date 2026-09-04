@@ -23,20 +23,23 @@ export const HouseSelectionView: React.FC<HouseSelectionViewProps> = ({
 
   // Create State
   const [createName, setCreateName] = useState('');
-  const [createPassword, setCreatePassword] = useState('');
   const [createLoading, setCreateLoading] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
 
   // Join State
-  const [joinName, setJoinName] = useState('');
-  const [joinPassword, setJoinPassword] = useState('');
+  const [joinCode, setJoinCode] = useState('');
   const [joinLoading, setJoinLoading] = useState(false);
   const [joinError, setJoinError] = useState<string | null>(null);
 
-  // Carregar residências salvas do usuário
+  // Carregar residências salvas do usuário apenas se possuir residência ativa
   useEffect(() => {
     let isMounted = true;
     async function loadMyHouses() {
+      if (!currentUser.house_id) {
+        setMyHouses([]);
+        setLoadingMyHouses(false);
+        return;
+      }
       try {
         setLoadingMyHouses(true);
         const list = await authApi.listMyHouses(currentUser.id, token);
@@ -53,7 +56,7 @@ export const HouseSelectionView: React.FC<HouseSelectionViewProps> = ({
     return () => {
       isMounted = false;
     };
-  }, [currentUser.id, token]);
+  }, [currentUser.id, currentUser.house_id, token]);
 
   const handleSelectExistingHouse = async (houseItem: any) => {
     try {
@@ -70,7 +73,7 @@ export const HouseSelectionView: React.FC<HouseSelectionViewProps> = ({
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!createName.trim() || !createPassword.trim()) return;
+    if (!createName.trim()) return;
 
     try {
       setCreateLoading(true);
@@ -79,7 +82,6 @@ export const HouseSelectionView: React.FC<HouseSelectionViewProps> = ({
       const result = await authApi.createHouse(
         {
           name: createName.trim(),
-          password: createPassword.trim(),
           user_id: currentUser.id,
         },
         token
@@ -96,7 +98,7 @@ export const HouseSelectionView: React.FC<HouseSelectionViewProps> = ({
 
   const handleJoin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!joinName.trim() || !joinPassword.trim()) return;
+    if (!joinCode.trim()) return;
 
     try {
       setJoinLoading(true);
@@ -104,8 +106,7 @@ export const HouseSelectionView: React.FC<HouseSelectionViewProps> = ({
 
       const result = await authApi.joinHouse(
         {
-          name: joinName.trim(),
-          password: joinPassword.trim(),
+          inviteCode: joinCode.trim().toUpperCase(),
           user_id: currentUser.id,
         },
         token
@@ -114,7 +115,7 @@ export const HouseSelectionView: React.FC<HouseSelectionViewProps> = ({
       onShowToast?.(`Você entrou na residência "${result.house.name}" como Morador!`);
       onHouseSelected(result);
     } catch (err: any) {
-      setJoinError(err.message || 'Credenciais da residência inválidas.');
+      setJoinError(err.message || 'Código de convite inválido ou residência não encontrada.');
     } finally {
       setJoinLoading(false);
     }
@@ -156,17 +157,17 @@ export const HouseSelectionView: React.FC<HouseSelectionViewProps> = ({
           </p>
         </div>
 
-        {/* Seção de Minhas Residências Salvas */}
-        {myHouses.length > 0 && (
+        {/* Seção de Minha Residência Salva (Apenas se o usuário estiver ativamente vinculado) */}
+        {Boolean(currentUser.house_id) && myHouses.length > 0 && (
           <div className="bg-white rounded-3xl p-6 sm:p-7 border border-[#d9e5e3] shadow-xs space-y-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2.5">
                 <span className="material-symbols-outlined text-xl text-[#7b5800]">apartment</span>
                 <h2 className="text-sm sm:text-base font-black text-[#16302e]">
-                  Minhas Residências Salvas ({myHouses.length})
+                  Minha Residência Atual ({myHouses.length})
                 </h2>
               </div>
-              <span className="text-xs text-[#727877]">Entrada direta em 1 clique</span>
+              <span className="text-xs text-[#727877]">Acesso seguro</span>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -180,9 +181,6 @@ export const HouseSelectionView: React.FC<HouseSelectionViewProps> = ({
                     <div className="flex items-start justify-between gap-2">
                       <div>
                         <h3 className="text-sm font-black text-[#16302e]">{houseItem.name}</h3>
-                        <span className="text-[11px] font-bold text-[#7b5800] bg-[#fff8e6] px-2 py-0.5 rounded-md border border-[#ffca5e] inline-block mt-1">
-                          {houseItem.invite_code}
-                        </span>
                       </div>
                       <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-[#16302e] text-white">
                         {houseItem.my_role === 'ADMIN' ? 'Arquiteto' : 'Morador'}
@@ -197,7 +195,7 @@ export const HouseSelectionView: React.FC<HouseSelectionViewProps> = ({
                         className="px-3.5 py-1.5 bg-[#7b5800] hover:bg-[#5d4200] text-white rounded-xl font-bold transition-all shadow-xs flex items-center gap-1.5 disabled:opacity-50"
                       >
                         <span className="material-symbols-outlined text-sm">login</span>
-                        <span>{isSelecting ? 'Entrando...' : 'Entrar na Casa'}</span>
+                        <span>{isSelecting ? 'Acessando...' : 'Acessar'}</span>
                       </button>
                     </div>
                   </div>
@@ -241,21 +239,9 @@ export const HouseSelectionView: React.FC<HouseSelectionViewProps> = ({
                     placeholder="ex: Casa Alameda, República Central..."
                     className="w-full p-3 bg-[#f0fcfa] border border-[#c1c8c6] rounded-xl text-xs font-medium focus:outline-none focus:border-[#7b5800]"
                   />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-[#16302e] mb-1">
-                    Senha de Entrada da Residência
-                  </label>
-                  <input
-                    type="password"
-                    required
-                    minLength={4}
-                    value={createPassword}
-                    onChange={(e) => setCreatePassword(e.target.value)}
-                    placeholder="Defina uma senha secreta (4+ chars)..."
-                    className="w-full p-3 bg-[#f0fcfa] border border-[#c1c8c6] rounded-xl text-xs font-medium focus:outline-none focus:border-[#7b5800]"
-                  />
+                  <p className="text-[11px] text-[#727877] mt-1.5">
+                    Um Código de Convite único será gerado automaticamente para novos membros.
+                  </p>
                 </div>
               </form>
             </div>
@@ -263,7 +249,7 @@ export const HouseSelectionView: React.FC<HouseSelectionViewProps> = ({
             <button
               type="submit"
               form="create-house-form"
-              disabled={createLoading || !createName.trim() || !createPassword.trim()}
+              disabled={createLoading || !createName.trim()}
               className="w-full py-3 bg-[#7b5800] hover:bg-[#5d4200] active:scale-98 text-white rounded-xl text-xs font-bold transition-all shadow-xs flex items-center justify-center gap-2 disabled:opacity-50 mt-4"
             >
               <span className="material-symbols-outlined text-base">add_home</span>
@@ -280,7 +266,7 @@ export const HouseSelectionView: React.FC<HouseSelectionViewProps> = ({
                 </div>
                 <div>
                   <h2 className="text-base font-black text-[#16302e]">Entrar em Residência</h2>
-                  <p className="text-xs text-[#727877]">Insira o código da casa (ex: CASA-4892) ou nome</p>
+                  <p className="text-xs text-[#727877]">Insira o Código de Convite da casa (ex: CASA-4892)</p>
                 </div>
               </div>
 
@@ -294,30 +280,19 @@ export const HouseSelectionView: React.FC<HouseSelectionViewProps> = ({
               <form onSubmit={handleJoin} id="join-house-form" className="space-y-3">
                 <div>
                   <label className="block text-xs font-bold text-[#16302e] mb-1">
-                    Código de Convite ou Nome da Residência
+                    Código de Convite da Residência
                   </label>
                   <input
                     type="text"
                     required
-                    value={joinName}
-                    onChange={(e) => setJoinName(e.target.value)}
-                    placeholder="ex: CASA-4892 ou Nome da Residência..."
-                    className="w-full p-3 bg-[#f0fcfa] border border-[#c1c8c6] rounded-xl text-xs font-medium focus:outline-none focus:border-[#7b5800]"
+                    value={joinCode}
+                    onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
+                    placeholder="ex: CASA-4892"
+                    className="w-full p-3 bg-[#f0fcfa] border border-[#c1c8c6] rounded-xl text-xs font-bold tracking-wider focus:outline-none focus:border-[#16302e]"
                   />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-[#16302e] mb-1">
-                    Senha da Residência
-                  </label>
-                  <input
-                    type="password"
-                    required
-                    value={joinPassword}
-                    onChange={(e) => setJoinPassword(e.target.value)}
-                    placeholder="Digite a senha de entrada..."
-                    className="w-full p-3 bg-[#f0fcfa] border border-[#c1c8c6] rounded-xl text-xs font-medium focus:outline-none focus:border-[#7b5800]"
-                  />
+                  <p className="text-[11px] text-[#727877] mt-1.5">
+                    Solicite o código a qualquer morador ou ao Administrador Geral da casa.
+                  </p>
                 </div>
               </form>
             </div>
@@ -325,11 +300,11 @@ export const HouseSelectionView: React.FC<HouseSelectionViewProps> = ({
             <button
               type="submit"
               form="join-house-form"
-              disabled={joinLoading || !joinName.trim() || !joinPassword.trim()}
+              disabled={joinLoading || !joinCode.trim()}
               className="w-full py-3 bg-[#16302e] hover:bg-[#2d4644] active:scale-98 text-white rounded-xl text-xs font-bold transition-all shadow-xs flex items-center justify-center gap-2 disabled:opacity-50 mt-4"
             >
               <span className="material-symbols-outlined text-base">login</span>
-              <span>{joinLoading ? 'Autenticando...' : 'Validar & Entrar na Casa'}</span>
+              <span>{joinLoading ? 'Validando...' : 'Entrar na Residência'}</span>
             </button>
           </div>
         </div>

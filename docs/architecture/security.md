@@ -56,16 +56,16 @@ Para atender a dispositivos compartilhados (ex: tablet fixo na cozinha) e celula
 
 ---
 
-## 6. Rotação de Código de Convite, Esvaziamento e Reset de Papéis
+## 6. Rotação de Código de Convite, Esvaziamento e Reset de Papéis (Opção A)
 
-### 6.1 Rotação e Regeneração Segura de Código de Entrada (`invite_code`)
-- O código de convite da casa (`invite_code`, ex: `CASA-4892`) possui restrição `@unique` no banco de dados.
-- O código atua apenas como identificador para solicitação de ingresso via API (nunca como credencial de banco ou token de sessão).
-- O `Admin Geral` tem o poder de rotacionar o código a qualquer momento via `POST /api/houses/:id/regenerate-code`. O código antigo é invalidado imediatamente, protegendo a residência em caso de vazamento sem desconectar quem já é morador ativo.
+### 6.1 Acesso Exclusivo por Código Único Rotativo (`invite_code`)
+- **Eliminação de Senhas de Residência (Opção A):** Residências utilizam o Código de Convite determinístico (`invite_code`, ex: `CASA-4892`, `@unique`) como chave de acesso comunitário. Não há senha secundária de casa, minimizando fricção e falhas de memorização.
+- **Proteção por Rotação:** O `Admin Geral` possui autoridade exclusiva para rotacionar o código via `POST /api/houses/:id/regenerate-code`. A rotação invalida o código anterior instantaneamente e notifica os clientes conectados via WebSocket (`house:code_regenerated`), garantindo controle rigoroso em caso de compartilhamento indevido.
+- **Proteção Contra Vazamento de Código para Ex-Membros:** Ao sair da residência (`leaveHouse`), o usuário perde o vínculo (`house_id = null`), o código da casa deixa de ser acessível em qualquer tela do aplicativo e a seção de casas salvas é ocultada. Para retornar, o usuário é estritamente obrigado a redigitar o código de convite atual da residência.
 
 ### 6.2 Prevenção de Registros Órfãos (Exclusão Automática de Casa Vazia)
 - Ao desvincular o último morador de uma residência (`otherMembersCount === 0`), o backend executa transação atômica que apaga o registro da casa e dispara exclusão em cascata (`onDelete: Cascade`) de tarefas, logs e configurações associadas, impedindo residências órfãs no PostgreSQL.
 
 ### 6.3 Princípio do Menor Privilégio & Reset de Papel no Reingresso
 - Ao sair da residência (`leaveHouse`), o vínculo do usuário é desfeito (`house_id = null`) e sua role é redefinida para `MEMBER`.
-- Ao reingressar via submissão do código e senha (`joinHouse`), qualquer usuário (mesmo que tenha sido Admin anteriormente) ingressa estritamente como **Morador** (`role: 'MEMBER'`). Privilégios administrativos só podem ser restabelecidos por ação deliberada do novo `Admin Geral`.
+- Ao reingressar via submissão do código de convite (`joinHouse`), qualquer usuário (mesmo que tenha sido Admin anteriormente) ingressa estritamente como **Morador** (`role: 'MEMBER'`). Privilégios administrativos só podem ser restabelecidos por ação deliberada do `Admin Geral` ativo.
