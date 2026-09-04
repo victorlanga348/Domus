@@ -189,4 +189,23 @@ export const authApi = {
       throw new Error(json.message || 'Erro ao sair da residência');
     }
   },
+
+  async regenerateHouseCode(houseId: string, userId: string, token?: string): Promise<{ invite_code: string }> {
+    const response = await fetch(`${APP_CONFIG.API_BASE_URL}/house/${houseId}/regenerate-code`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-user-id': userId,
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify({ userId }),
+    });
+
+    const json = await response.json();
+    if (!response.ok) {
+      throw new Error(json.message || 'Erro ao regenerar código da residência');
+    }
+
+    return json.data;
+  },
 };

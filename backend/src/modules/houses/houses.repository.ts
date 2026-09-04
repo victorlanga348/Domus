@@ -41,6 +41,19 @@ export class HouseRepository {
     });
   }
 
+  async updateInviteCode(id: string, newInviteCode: string): Promise<House> {
+    return prisma.house.update({
+      where: { id },
+      data: { invite_code: newInviteCode },
+    });
+  }
+
+  async delete(id: string): Promise<House> {
+    return prisma.house.delete({
+      where: { id },
+    });
+  }
+
   async listMyHouses(userId: string): Promise<any[]> {
     const user = await prisma.user.findUnique({
       where: { id: userId },

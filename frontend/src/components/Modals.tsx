@@ -1169,8 +1169,8 @@ export const LeaveHouseModal: React.FC<{
               <p>
                 Você é o <strong>único morador</strong> restante nesta residência.
               </p>
-              <p className="text-rose-300">
-                Ao sair, a casa ficará desocupada e você precisará de um novo convite caso deseje retornar no futuro.
+              <p className="text-rose-300 font-semibold">
+                ⚠️ Ao confirmar sua saída, esta residência será excluída definitivamente do sistema para evitar registros órfãos.
               </p>
             </div>
           ) : (
@@ -1216,6 +1216,95 @@ export const LeaveHouseModal: React.FC<{
             </button>
           </div>
         </form>
+      </div>
+    </div>
+  );
+};
+
+/* --- Unified Action Confirmation Modal --- */
+export const ConfirmActionModal: React.FC<{
+  isOpen: boolean;
+  onClose: () => void;
+  onConfirm: () => void;
+  title: string;
+  description: string;
+  confirmText?: string;
+  cancelText?: string;
+  variant?: 'danger' | 'warning' | 'primary';
+  icon?: string;
+  loading?: boolean;
+}> = ({
+  isOpen,
+  onClose,
+  onConfirm,
+  title,
+  description,
+  confirmText = 'Confirmar',
+  cancelText = 'Cancelar',
+  variant = 'danger',
+  icon,
+  loading = false,
+}) => {
+  if (!isOpen) return null;
+
+  const defaultIcon = variant === 'danger' ? 'warning' : variant === 'warning' ? 'info' : 'check_circle';
+  const displayIcon = icon || defaultIcon;
+
+  return (
+    <div
+      onClick={onClose}
+      className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-150"
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="bg-[#16302e] text-white rounded-3xl max-w-sm w-full p-6 shadow-2xl border border-[#2d4644] relative overflow-hidden"
+      >
+        <div className="flex items-center gap-3 mb-4">
+          <div
+            className={`w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 border ${
+              variant === 'danger'
+                ? 'bg-rose-500/20 text-rose-400 border-rose-500/30'
+                : variant === 'warning'
+                ? 'bg-amber-500/20 text-[#ffca5e] border-amber-500/30'
+                : 'bg-[#ffca5e]/20 text-[#ffca5e] border-[#ffca5e]/30'
+            }`}
+          >
+            <span className="material-symbols-outlined text-2xl">{displayIcon}</span>
+          </div>
+          <div>
+            <h3 className="text-base font-bold text-white leading-snug">{title}</h3>
+          </div>
+        </div>
+
+        <p className="text-xs text-[#b0ccc9] leading-relaxed mb-6">{description}</p>
+
+        <div className="flex justify-end gap-2.5">
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={loading}
+            className="px-4 py-2.5 rounded-xl text-xs font-bold text-[#b0ccc9] hover:bg-[#234441] hover:text-white transition-colors cursor-pointer border border-transparent"
+          >
+            {cancelText}
+          </button>
+          <button
+            type="button"
+            onClick={onConfirm}
+            disabled={loading}
+            className={`px-4 py-2.5 rounded-xl text-xs font-black transition-all cursor-pointer shadow-md flex items-center gap-1.5 disabled:opacity-50 ${
+              variant === 'danger'
+                ? 'bg-rose-600 hover:bg-rose-500 text-white'
+                : variant === 'warning'
+                ? 'bg-[#ffca5e] hover:bg-[#e0b04a] text-[#755400]'
+                : 'bg-white hover:bg-zinc-100 text-[#16302e]'
+            }`}
+          >
+            {loading ? (
+              <span className="material-symbols-outlined text-sm animate-spin">progress_activity</span>
+            ) : null}
+            <span>{confirmText}</span>
+          </button>
+        </div>
       </div>
     </div>
   );

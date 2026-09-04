@@ -18,6 +18,7 @@ interface SocketCallbacks {
   onRuleCreated?: (rule: any) => void;
   onRuleDeleted?: (data: { ruleId: string }) => void;
   onRotationAdvanced?: (data: { rotationId: string }) => void;
+  onCodeRegenerated?: (data: { houseId: string; invite_code: string }) => void;
 }
 
 export function useHouseSocket(
@@ -54,6 +55,7 @@ export function useHouseSocket(
     const handleRuleCreated = (rule: any) => callbacksRef.current?.onRuleCreated?.(rule);
     const handleRuleDeleted = (data: any) => callbacksRef.current?.onRuleDeleted?.(data);
     const handleRotationAdvanced = (data: any) => callbacksRef.current?.onRotationAdvanced?.(data);
+    const handleCodeRegenerated = (data: any) => callbacksRef.current?.onCodeRegenerated?.(data);
 
     socket.on('task:locked', handleTaskLocked);
     socket.on('task:unlocked', handleTaskUnlocked);
@@ -72,6 +74,7 @@ export function useHouseSocket(
     socket.on('house:rule_created', handleRuleCreated);
     socket.on('house:rule_deleted', handleRuleDeleted);
     socket.on('house:rotation_advanced', handleRotationAdvanced);
+    socket.on('house:code_regenerated', handleCodeRegenerated);
 
     return () => {
       socket.off('task:locked', handleTaskLocked);
@@ -91,6 +94,7 @@ export function useHouseSocket(
       socket.off('house:rule_created', handleRuleCreated);
       socket.off('house:rule_deleted', handleRuleDeleted);
       socket.off('house:rotation_advanced', handleRotationAdvanced);
+      socket.off('house:code_regenerated', handleCodeRegenerated);
 
       leaveHouseRoom(houseId);
     };

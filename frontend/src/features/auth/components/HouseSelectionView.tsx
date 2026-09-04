@@ -111,7 +111,7 @@ export const HouseSelectionView: React.FC<HouseSelectionViewProps> = ({
         token
       );
 
-      onShowToast?.(`Você entrou na residência "${result.house.name}" como Membro!`);
+      onShowToast?.(`Você entrou na residência "${result.house.name}" como Morador!`);
       onHouseSelected(result);
     } catch (err: any) {
       setJoinError(err.message || 'Credenciais da residência inválidas.');
@@ -280,7 +280,7 @@ export const HouseSelectionView: React.FC<HouseSelectionViewProps> = ({
                 </div>
                 <div>
                   <h2 className="text-base font-black text-[#16302e]">Entrar em Residência</h2>
-                  <p className="text-xs text-[#727877]">Insira os dados fornecidos pelo Arquiteto</p>
+                  <p className="text-xs text-[#727877]">Insira o código da casa (ex: CASA-4892) ou nome</p>
                 </div>
               </div>
 
@@ -294,14 +294,14 @@ export const HouseSelectionView: React.FC<HouseSelectionViewProps> = ({
               <form onSubmit={handleJoin} id="join-house-form" className="space-y-3">
                 <div>
                   <label className="block text-xs font-bold text-[#16302e] mb-1">
-                    Nome Exato da Residência
+                    Código de Convite ou Nome da Residência
                   </label>
                   <input
                     type="text"
                     required
                     value={joinName}
                     onChange={(e) => setJoinName(e.target.value)}
-                    placeholder="Digite o nome da residência..."
+                    placeholder="ex: CASA-4892 ou Nome da Residência..."
                     className="w-full p-3 bg-[#f0fcfa] border border-[#c1c8c6] rounded-xl text-xs font-medium focus:outline-none focus:border-[#7b5800]"
                   />
                 </div>

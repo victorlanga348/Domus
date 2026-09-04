@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { SystemPreferences, HouseRule, FamilyMember } from '../../../types';
+import { SystemPreferences, HouseRule, FamilyMember } from '../../../types.js';
+import { MemberActionDropdown } from './MemberActionDropdown.js';
 
 interface SettingsViewProps {
   preferences: SystemPreferences;
@@ -17,6 +18,10 @@ interface SettingsViewProps {
   onTransferGeneralAdmin?: (member: FamilyMember) => void;
   onRemoveMember?: (memberId: string, memberName: string) => void;
   onLeaveHouse?: () => void;
+  houseInviteCode?: string;
+  houseName?: string;
+  onRegenerateCode?: () => void;
+  onShowToast?: (msg: string) => void;
 }
 
 export const SettingsView: React.FC<SettingsViewProps> = ({
@@ -35,8 +40,39 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   onTransferGeneralAdmin,
   onRemoveMember,
   onLeaveHouse,
+  houseInviteCode,
+  houseName,
+  onRegenerateCode,
+  onShowToast,
 }) => {
   const [nightMode, setNightMode] = useState(preferences.nightMode);
+  const [isCopied, setIsCopied] = useState(false);
+
+  const handleCopyCode = async () => {
+    if (!houseInviteCode) return;
+    try {
+      await navigator.clipboard.writeText(houseInviteCode);
+      setIsCopied(true);
+      setTimeout(() => setIsCopied(false), 2000);
+      onShowToast?.(`Código "${houseInviteCode}" copiado para a área de transferência!`);
+    } catch {
+      onShowToast?.(`Código: ${houseInviteCode}`);
+    }
+  };
+
+  const handleShareCode = async () => {
+    if (!houseInviteCode) return;
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: `Convite para ${houseName || 'DOMUS'}`,
+          text: `Acesse nossa residência no DOMUS usando o código: ${houseInviteCode}`,
+        });
+      } catch {}
+    } else {
+      handleCopyCode();
+    }
+  };
 
   const handleToggleNightMode = () => {
     const updated = { ...nightMode, enabled: !nightMode.enabled };
@@ -70,6 +106,75 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       {/* Coluna Esquerda: Preferências do Sistema & Regras da Casa */}
       <div className="lg:col-span-8 flex flex-col gap-6">
         <h2 className="text-2xl font-bold text-[#16302e]">Preferências da Residência</h2>
+
+        {/* Card Código de Acesso da Residência */}
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-[#d9e5e3] flex flex-col justify-between">
+          <div>
+            <div className="flex justify-between items-start mb-2">
+              <div className="flex items-center gap-2 text-[#16302e]">
+                <span className="material-symbols-outlined text-2xl text-[#7b5800]">key</span>
+                <h3 className="text-lg font-bold">Código de Acesso da Residência</h3>
+              </div>
+              <span className="text-[10px] font-extrabold uppercase px-2.5 py-1 rounded-lg bg-[#e4f0ee] text-[#16302e] tracking-wider">
+                Exclusivo & Único
+              </span>
+            </div>
+
+            <p className="text-xs text-[#414847] leading-relaxed mb-4">
+              Quem sair da casa ou desejar ingressar precisa deste código exclusivo para entrar. Ninguém fica trancado para fora enquanto um morador puder consultá-lo aqui.
+            </p>
+
+            <div className="bg-[#f0fcfa] border border-[#c1c8c6] rounded-2xl p-4 flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-[#16302e] text-[#ffca5e] flex items-center justify-center font-bold">
+                  <span className="material-symbols-outlined text-xl">tag</span>
+                </div>
+                <div>
+                  <span className="text-[10px] font-bold uppercase text-[#727877] block">Código de Convite</span>
+                  <span className="text-xl font-black text-[#16302e] font-mono tracking-wider select-all">
+                    {houseInviteCode || 'CASA-....'}
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 w-full sm:w-auto">
+                <button
+                  type="button"
+                  onClick={handleCopyCode}
+                  className="flex-1 sm:flex-none px-3.5 py-2 bg-[#16302e] hover:bg-[#213836] text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-xs"
+                  title="Copiar Código"
+                >
+                  <span className="material-symbols-outlined text-sm">
+                    {isCopied ? 'check' : 'content_copy'}
+                  </span>
+                  <span>{isCopied ? 'Copiado!' : 'Copiar'}</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleShareCode}
+                  className="flex-1 sm:flex-none px-3.5 py-2 bg-[#e4f0ee] hover:bg-[#d0dddb] text-[#16302e] rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+                  title="Compartilhar Código"
+                >
+                  <span className="material-symbols-outlined text-sm">share</span>
+                  <span>Compartilhar</span>
+                </button>
+
+                {isGeneralAdmin && onRegenerateCode && (
+                  <button
+                    type="button"
+                    onClick={onRegenerateCode}
+                    className="flex-1 sm:flex-none px-3.5 py-2 bg-amber-50 hover:bg-amber-100 text-[#7b5800] border border-[#ffca5e] rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+                    title="Invalidar código atual e gerar um novo"
+                  >
+                    <span className="material-symbols-outlined text-sm">autorenew</span>
+                    <span>Regenerar</span>
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
 
         {/* Card Modo Noturno */}
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-[#d9e5e3] flex flex-col justify-between">
@@ -258,71 +363,30 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                       </div>
                     </div>
 
-                    <span
-                      className={`text-[10px] font-extrabold px-2 py-0.5 rounded uppercase tracking-wider shrink-0 ${
-                        isTargetGeneralAdmin
-                          ? 'bg-[#ffca5e] text-[#755400]'
-                          : isTargetAdmin
-                          ? 'bg-[#16302e] text-white border border-[#486b68]'
-                          : 'bg-[#213836] text-[#b0ccc9]'
-                      }`}
-                    >
-                      {isTargetGeneralAdmin ? '👑 Admin Geral' : isTargetAdmin ? 'Admin' : 'Morador'}
-                    </span>
-                  </div>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <span
+                        className={`text-[10px] font-extrabold px-2 py-0.5 rounded uppercase tracking-wider ${
+                          isTargetGeneralAdmin
+                            ? 'bg-[#ffca5e] text-[#755400]'
+                            : isTargetAdmin
+                            ? 'bg-[#16302e] text-white border border-[#486b68]'
+                            : 'bg-[#213836] text-[#b0ccc9]'
+                        }`}
+                      >
+                        {isTargetGeneralAdmin ? '👑 Admin Geral' : isTargetAdmin ? 'Admin' : 'Morador'}
+                      </span>
 
-                  {/* Ações Administrativas Exclusivas do Admin Geral e Remoção */}
-                  {((isGeneralAdmin && !isTargetGeneralAdmin) || canRemoveThisMember) && !isSelf && (
-                    <div className="pt-2 border-t border-[#3d5c5a] flex items-center justify-end gap-1.5 flex-wrap">
-                      {isGeneralAdmin && isTargetResident && onPromoteToAdmin && (
-                        <button
-                          type="button"
-                          onClick={() => onPromoteToAdmin(member.id)}
-                          className="px-2 py-1 bg-[#16302e] hover:bg-[#213836] text-white rounded-lg text-[10px] font-bold flex items-center gap-1 transition-all border border-[#486b68]"
-                          title="Promover a Administrador Normal"
-                        >
-                          <span className="material-symbols-outlined text-xs">shield_person</span>
-                          <span>Tornar Admin</span>
-                        </button>
-                      )}
-
-                      {isGeneralAdmin && isTargetAdmin && onDemoteToResident && (
-                        <button
-                          type="button"
-                          onClick={() => onDemoteToResident(member.id)}
-                          className="px-2 py-1 bg-white hover:bg-amber-50 text-[#7b5800] border border-[#ffca5e] rounded-lg text-[10px] font-bold flex items-center gap-1 transition-all"
-                          title="Destituir para Morador"
-                        >
-                          <span className="material-symbols-outlined text-xs">arrow_downward</span>
-                          <span>Despromover</span>
-                        </button>
-                      )}
-
-                      {isGeneralAdmin && onTransferGeneralAdmin && (
-                        <button
-                          type="button"
-                          onClick={() => onTransferGeneralAdmin(member)}
-                          className="px-2 py-1 bg-[#ffca5e] hover:bg-[#e0b04a] text-[#755400] rounded-lg text-[10px] font-black flex items-center gap-1 transition-all"
-                          title="Transferir Liderança da Residência"
-                        >
-                          <span className="material-symbols-outlined text-xs">crown</span>
-                          <span>Passar Admin Geral</span>
-                        </button>
-                      )}
-
-                      {canRemoveThisMember && onRemoveMember && (
-                        <button
-                          type="button"
-                          onClick={() => onRemoveMember(member.id, member.name)}
-                          className="px-2 py-1 bg-rose-950/40 hover:bg-rose-900/60 text-rose-300 border border-rose-800/60 rounded-lg text-[10px] font-bold flex items-center gap-1 transition-all"
-                          title="Remover Morador"
-                        >
-                          <span className="material-symbols-outlined text-xs">person_remove</span>
-                          <span>Remover</span>
-                        </button>
-                      )}
+                      <MemberActionDropdown
+                        member={member}
+                        currentUserRole={currentUserRole}
+                        currentUserId={currentUserId}
+                        onPromoteToAdmin={onPromoteToAdmin}
+                        onDemoteToResident={onDemoteToResident}
+                        onTransferGeneralAdmin={onTransferGeneralAdmin}
+                        onRemoveMember={onRemoveMember}
+                      />
                     </div>
-                  )}
+                  </div>
                 </div>
               );
             })}

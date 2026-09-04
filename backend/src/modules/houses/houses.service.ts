@@ -72,11 +72,11 @@ export class HouseService {
 
   /**
    * 2. joinHouse:
-   * Busca a casa pelo nome, compara a senha via Bcrypt e vincula o usuário como MEMBER.
+   * Busca a casa prioritariamente pelo Código de Convite (@unique) ou nome, compara a senha via Bcrypt e vincula o usuário estritamente como MEMBER (Morador).
    */
-  async joinHouse(userId: string, houseName: string, housePassword: string) {
-    if (!houseName || !housePassword) {
-      throw new AppError('Nome e senha da residência são obrigatórios.', 400, 'CREDENTIALS_REQUIRED');
+  async joinHouse(userId: string, houseIdentifier: string, housePassword: string) {
+    if (!houseIdentifier || !housePassword) {
+      throw new AppError('Código ou nome e senha da residência são obrigatórios.', 400, 'CREDENTIALS_REQUIRED');
     }
 
     const user = await prisma.user.findUnique({
@@ -91,13 +91,22 @@ export class HouseService {
       throw new AppError('Usuário já pertence a uma residência ativa.', 400, 'USER_ALREADY_IN_HOUSE');
     }
 
-    const house = await prisma.house.findFirst({
-      where: {
-        name: {
-          equals: houseName.trim(),
-        },
-      },
+    const trimmedIdentifier = houseIdentifier.trim();
+    // Prioriza busca pelo Código Único de Entrada (invite_code), evitando colisão com nomes repetidos
+    let house = await prisma.house.findUnique({
+      where: { invite_code: trimmedIdentifier },
     });
+
+    if (!house) {
+      house = await prisma.house.findFirst({
+        where: {
+          name: {
+            equals: trimmedIdentifier,
+            mode: 'insensitive',
+          },
+        },
+      });
+    }
 
     if (!house) {
       throw new AppError('Residência não encontrada ou senha incorreta.', 401, 'INVALID_HOUSE_CREDENTIALS');
@@ -108,6 +117,7 @@ export class HouseService {
       throw new AppError('Residência não encontrada ou senha incorreta.', 401, 'INVALID_HOUSE_CREDENTIALS');
     }
 
+    // Regra mandatória: Qualquer usuário que ingressa ou reingressa na residência assume cargo de Morador (MEMBER)
     const updatedUser = await prisma.user.update({
       where: { id: userId },
       data: {
@@ -296,7 +306,45 @@ export class HouseService {
       }
     }
 
-    // Caso não seja ADMIN ou seja o único morador na residência
+    // Contar outros moradores na residência para checar se a casa ficou 100% vazia
+    const remainingCount = await prisma.user.count({
+      where: {
+        house_id: houseId,
+        id: { not: userId },
+      },
+    });
+
+    if (remainingCount === 0) {
+      return prisma.$transaction(async (tx) => {
+        // 1. Desvincular o usuário e resetar cargo para MEMBER
+        const updatedUser = await tx.user.update({
+          where: { id: userId },
+          data: {
+            house_id: null,
+            role: 'MEMBER',
+          },
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            role: true,
+            house_id: true,
+          },
+        });
+
+        // 2. Casa 100% vazia (0 moradores): Excluir automaticamente do banco para evitar registros órfãos
+        await tx.house.delete({
+          where: { id: houseId },
+        });
+
+        return {
+          user: updatedUser,
+          houseDeleted: true,
+        };
+      });
+    }
+
+    // Caso não seja ADMIN, mas ainda restem outros moradores na casa
     const updatedUser = await prisma.user.update({
       where: { id: userId },
       data: {
@@ -322,6 +370,63 @@ export class HouseService {
 
     return {
       user: updatedUser,
+    };
+  }
+
+  /**
+   * 6. regenerateInviteCode:
+   * Gera um novo código determinístico para a residência, garantindo unicidade (@unique).
+   * Ação exclusiva para o ADMIN (Admin Geral) da residência.
+   */
+  async regenerateInviteCode(houseId: string, userId: string) {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user || user.house_id !== houseId) {
+      throw new AppError('Usuário não pertence a esta residência.', 403, 'FORBIDDEN');
+    }
+
+    if (user.role !== 'ADMIN') {
+      throw new AppError('Apenas o Administrador Geral pode regenerar o código da residência.', 403, 'ADMIN_REQUIRED');
+    }
+
+    let newInviteCode = '';
+    let isUnique = false;
+    let attempts = 0;
+
+    while (!isUnique && attempts < 10) {
+      attempts++;
+      const randomCode = Math.floor(1000 + Math.random() * 9000);
+      newInviteCode = `CASA-${randomCode}`;
+
+      const existing = await prisma.house.findUnique({
+        where: { invite_code: newInviteCode },
+      });
+
+      if (!existing) {
+        isUnique = true;
+      }
+    }
+
+    if (!isUnique) {
+      newInviteCode = `CASA-${Date.now().toString().slice(-4)}`;
+    }
+
+    const updatedHouse = await this.houseRepo.updateInviteCode(houseId, newInviteCode);
+
+    try {
+      const { emitToHouse } = await import('../../shared/socket/socketServer.js');
+      emitToHouse(houseId, 'house:code_regenerated', {
+        houseId,
+        invite_code: newInviteCode,
+      });
+    } catch {}
+
+    return {
+      id: updatedHouse.id,
+      name: updatedHouse.name,
+      invite_code: updatedHouse.invite_code,
     };
   }
 }

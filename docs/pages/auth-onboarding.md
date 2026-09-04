@@ -53,12 +53,14 @@ Permitir que novos e recorrentes moradores criem suas contas, acessem o sistema 
   - **Código da Residência:** Input com ícone `vpn_key`/`tag` (Placeholder: "Ex: DOMUS-8924") com gerador automático de código de convite.
 - **Ações:** "Criar Residência ->", "Voltar para opções".
 
-### 2.5 Entrar em Residência (`JoinHouseholdView`)
+### 2.5 Entrar em Residência (`JoinHouseholdView` / `HouseSelectionView`)
 - **Layout:** Card refinado centralizado na moldura DOMUS.
 - **Campos:**
-  - **Nome da Residência:** Input com ícone `home` (Placeholder: "Ex: Residência Alameda").
-  - **Código de Convite:** Input com ícone `vpn_key` (Placeholder: "Ex: DOMUS-789X ou CASA-1234").
-- **Ações:** "Entrar na Residência ->", "Voltar para opções".
+  - **Código de Convite ou Nome da Residência:** Input com ícone `key`/`home` (Placeholder: "ex: CASA-4892 ou Nome da Residência..."). Prioriza o Código Único para resolução inequívoca sem colisão de nomes.
+  - **Senha da Residência:** Input com senha secreta definida no momento da fundação da casa.
+- **Regras:**
+  - **Reset de Cargo:** Qualquer usuário que ingressar ou reingressar entra estritamente com cargo de **Morador** (`Resident` / `MEMBER`), sem retenção de privilégios de liderança anteriores.
+- **Ações:** "Entrar em Residência ->".
 
 ---
 

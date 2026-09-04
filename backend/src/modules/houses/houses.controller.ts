@@ -81,4 +81,15 @@ export class HouseController {
       next(error);
     }
   };
+
+  regenerateCode = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const houseId = String(req.params.id);
+      const userId = req.userId || (req.headers['x-user-id'] as string) || req.body.userId || req.body.user_id;
+      const result = await this.houseService.regenerateInviteCode(houseId, userId);
+      res.status(200).json({ status: 'success', data: result });
+    } catch (error) {
+      next(error);
+    }
+  };
 }

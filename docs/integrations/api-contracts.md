@@ -146,6 +146,14 @@
 - **Headers:** `x-user-id`, `Authorization: Bearer <jwt>`
 - **Resposta (200):** Array de residências com contadores de membros e papel do morador.
 
+### `POST /api/houses/join` (ou `/api/house/join`)
+- Ingressa ou reingressa em uma residência existente.
+- **Payload:** `{ "houseName": "CASA-4892", "housePassword": "secretPassword123", "user_id": "uuid" }`
+- **Regras:**
+  - O campo de identificação aceita prioritariamente o Código Único da Casa (`invite_code`, ex: `CASA-4892`) ou o nome da residência.
+  - **Reset Mandatório de Cargo:** Qualquer usuário que ingressar ou reingressar na residência recebe estritamente a role `MEMBER` (`Resident`), sem restauração de cargos administrativos anteriores.
+- **Resposta (200):** `{ "status": "success", "data": { "house": {...}, "user": {...} } }`
+
 ### `POST /api/houses/switch`
 - Alterna a residência ativa do usuário sem destruir a sessão de autenticação.
 - **Payload:** `{ "targetHouseId": "uuid-house" }`
@@ -153,11 +161,29 @@
 - **Resposta (200):** `{ "house": {...}, "user": {...} }`
 
 ### `POST /api/houses/leave` (ou `/api/house/leave`)
-- Desvincula o morador da residência atual mantendo o login ativo.
+- Desvincula o morador da residência atual mantendo o login ativo (`house_id = null`, `role = 'MEMBER'`).
 - **Payload:** `{ "userId": "uuid-user", "newAdminId": "uuid-sucessor-opcional" }`
-- **Regra Obrigatória:** Se o morador for o `Admin Geral` e houver outros moradores na residência, o campo `newAdminId` é mandatório. Caso contrário, a API rejeita a operação retornando `400 Bad Request` (`ADMIN_TRANSFER_REQUIRED`).
-- **Resposta (200):** `{ "status": "success", "data": { "user": {...}, "newAdmin": {...} } }`
+- **Regras Obrigatórias:**
+  - Se for o `Admin Geral` e houver outros moradores, `newAdminId` é obrigatório (`ADMIN_TRANSFER_REQUIRED`).
+  - **Exclusão de Casa Vazia:** Se o solicitante for o único morador na residência (0 membros restantes), a residência e todos os seus registros são excluídos em definitivo do banco de dados de forma atômica para evitar registros órfãos.
+- **Resposta (200):** `{ "status": "success", "data": { "user": {...}, "newAdmin": {...}, "houseDeleted": boolean } }`
 
+### `POST /api/houses/:id/regenerate-code` (ou `PATCH /api/houses/:id/code`)
+- Invalida o código de convite anterior e gera um novo código no padrão `CASA-XXXX` garantindo unicidade `@unique`.
+- **Autorização:** Apenas o `Admin Geral` (`ADMIN`) ativo da residência pode executar esta operação.
+- **Headers:** `x-user-id` ou `Authorization: Bearer <jwt>`
+- **Resposta (200):**
+  ```json
+  {
+    "status": "success",
+    "data": {
+      "id": "uuid-house",
+      "name": "Residência Alameda",
+      "invite_code": "CASA-9821"
+    }
+  }
+  ```
+- **Broadcast:** Emite evento WebSocket `house:code_regenerated` para sincronização instantânea de todos os clientes conectados.
 
 ---
 
@@ -165,5 +191,6 @@
 - **`house:join`:** Entrada na sala da residência com payload `{ houseId, user: { id, name, avatar } }`.
 - **`house:leave`:** Saída da sala da residência com `{ houseId }`.
 - **`house:presence`:** Broadcast emitido para todos os dispositivos conectados à residência contendo `onlineCount`, `onlineUserIds` e lista de usuários.
+- **`house:code_regenerated`:** Broadcast emitido quando o Admin Geral regenera o código de convite da casa (`{ houseId, invite_code }`).
 - **`task:locked` / `task:unlocked`:** Sincronização em tempo real de travas de tarefas entre aparelhos.
 - **`room:join` / `room:leave` / `room:presence` / `room:new_message`:** Sincronização em tempo real de mensagens e presenças em salas privadas.

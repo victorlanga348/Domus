@@ -32,6 +32,7 @@ import {
   FamilyMembersDrawer,
   LeadershipTransferModal,
   LeaveHouseModal,
+  ConfirmActionModal,
 } from './components/index.js';
 import { AuthView, HouseSelectionView, authApi, type AuthUser, type HouseResponse } from './features/auth/index.js';
 import {
@@ -379,6 +380,10 @@ export default function App() {
             return rot;
           })
         );
+      },
+      onCodeRegenerated: ({ invite_code }: { invite_code: string }) => {
+        setCurrentHouse((prev) => (prev ? { ...prev, invite_code } : prev));
+        showToast(`O código de convite da casa foi atualizado para: ${invite_code}`);
       },
     },
     authUser
@@ -751,6 +756,26 @@ export default function App() {
     setTransferTarget(null);
   };
 
+  // Regeneração de Código de Convite da Residência
+  const [isRegenerateCodeModalOpen, setIsRegenerateCodeModalOpen] = useState(false);
+  const [regenerateCodeLoading, setRegenerateCodeLoading] = useState(false);
+
+  const handleConfirmRegenerateCode = async () => {
+    if (!currentHouse?.id || !authUser?.id) return;
+    try {
+      setRegenerateCodeLoading(true);
+      const res = await authApi.regenerateHouseCode(currentHouse.id, authUser.id, authToken || undefined);
+      setCurrentHouse((prev) => (prev ? { ...prev, invite_code: res.invite_code } : prev));
+      setIsRegenerateCodeModalOpen(false);
+      showToast(`Novo código gerado com sucesso: ${res.invite_code}`);
+      recordHouseActivity(`Código de acesso da residência foi regenerado pelo Administrador Geral.`);
+    } catch (err: any) {
+      showToast(err.message || 'Erro ao regenerar código da residência.');
+    } finally {
+      setRegenerateCodeLoading(false);
+    }
+  };
+
   const handleUpdateMemberStatus = (memberId: string, newLocation: string, newIcon?: string) => {
     const member = familyMembers.find((m) => m.id === memberId);
     const memberName = member?.name || authUser?.name || 'Morador';
@@ -931,6 +956,10 @@ export default function App() {
               onTransferGeneralAdmin={handleInitiateTransferGeneralAdmin}
               onRemoveMember={handleRemoveMember}
               onLeaveHouse={() => setIsLeaveHouseOpen(true)}
+              houseInviteCode={currentHouse?.invite_code}
+              houseName={currentHouse?.name}
+              onRegenerateCode={() => setIsRegenerateCodeModalOpen(true)}
+              onShowToast={showToast}
             />
           )}
 
@@ -1033,6 +1062,19 @@ export default function App() {
         availableSuccessors={familyMembers.filter((m) => m.id !== authUser?.id)}
         houseName={currentHouse?.name || 'Residência Atual'}
         loading={leaveHouseLoading}
+      />
+
+      <ConfirmActionModal
+        isOpen={isRegenerateCodeModalOpen}
+        onClose={() => setIsRegenerateCodeModalOpen(false)}
+        onConfirm={handleConfirmRegenerateCode}
+        title="Regenerar Código da Residência"
+        description="Ao confirmar, o código anterior será invalidado imediatamente. Novos membros precisarão do novo código gerado para ingressar nesta casa."
+        confirmText="Regenerar Código"
+        cancelText="Cancelar"
+        variant="warning"
+        icon="autorenew"
+        loading={regenerateCodeLoading}
       />
     </div>
   );

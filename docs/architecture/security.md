@@ -53,3 +53,19 @@ Para atender a dispositivos compartilhados (ex: tablet fixo na cozinha) e celula
   - O backend permite requisições originadas de `localhost`, `127.0.0.1` e faixas de IP privadas locais (`192.168.0.0/16`, `10.0.0.0/8`, `172.16.0.0/12`) em qualquer porta, refletindo o cabeçalho `Origin` na resposta com `Access-Control-Allow-Credentials: true`.
   - O servidor HTTP e Socket.io realizam bind em `0.0.0.0` para responder a conexões de smartphones e tablets conectados ao mesmo Wi-Fi.
   - O frontend resolve `API_BASE_URL` e `SOCKET_URL` dinamicamente baseado no `window.location.hostname`, mantendo sincronização de dados transparente entre desktop e mobile.
+
+---
+
+## 6. Rotação de Código de Convite, Esvaziamento e Reset de Papéis
+
+### 6.1 Rotação e Regeneração Segura de Código de Entrada (`invite_code`)
+- O código de convite da casa (`invite_code`, ex: `CASA-4892`) possui restrição `@unique` no banco de dados.
+- O código atua apenas como identificador para solicitação de ingresso via API (nunca como credencial de banco ou token de sessão).
+- O `Admin Geral` tem o poder de rotacionar o código a qualquer momento via `POST /api/houses/:id/regenerate-code`. O código antigo é invalidado imediatamente, protegendo a residência em caso de vazamento sem desconectar quem já é morador ativo.
+
+### 6.2 Prevenção de Registros Órfãos (Exclusão Automática de Casa Vazia)
+- Ao desvincular o último morador de uma residência (`otherMembersCount === 0`), o backend executa transação atômica que apaga o registro da casa e dispara exclusão em cascata (`onDelete: Cascade`) de tarefas, logs e configurações associadas, impedindo residências órfãs no PostgreSQL.
+
+### 6.3 Princípio do Menor Privilégio & Reset de Papel no Reingresso
+- Ao sair da residência (`leaveHouse`), o vínculo do usuário é desfeito (`house_id = null`) e sua role é redefinida para `MEMBER`.
+- Ao reingressar via submissão do código e senha (`joinHouse`), qualquer usuário (mesmo que tenha sido Admin anteriormente) ingressa estritamente como **Morador** (`role: 'MEMBER'`). Privilégios administrativos só podem ser restabelecidos por ação deliberada do novo `Admin Geral`.

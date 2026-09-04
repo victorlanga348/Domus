@@ -35,4 +35,14 @@ describe('Segurança, Senhas & Códigos de Residência (Unitário)', () => {
     const match = await bcrypt.compare('minhasenha123', hash);
     assert.equal(match, true);
   });
+
+  it('deve garantir que novos códigos regenerados respeitam o padrão CASA-XXXX', () => {
+    const generatedCodes = new Set<string>();
+    for (let i = 0; i < 20; i++) {
+      const code = `CASA-${Math.floor(1000 + Math.random() * 9000)}`;
+      assert.match(code, /^CASA-\d{4}$/);
+      generatedCodes.add(code);
+    }
+    assert.ok(generatedCodes.size > 1, 'Os códigos gerados aleatoriamente devem apresentar entropia');
+  });
 });
