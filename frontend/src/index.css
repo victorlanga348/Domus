@@ -1,0 +1,135 @@
+@import "tailwindcss";
+
+@layer base {
+  *, *::before, *::after {
+    box-sizing: border-box;
+  }
+
+  html, body, #root {
+    max-width: 100%;
+    overflow-x: hidden;
+    min-height: 100%;
+    min-height: 100dvh;
+    box-sizing: border-box;
+  }
+
+  /* Previne auto-zoom no iOS Safari (mínimo de 16px para campos focáveis no mobile) */
+  input,
+  textarea,
+  select {
+    font-size: 16px;
+  }
+  @media (min-width: 640px) {
+    input,
+    textarea,
+    select {
+      font-size: inherit;
+    }
+  }
+
+  :root {
+    --color-domus-primary: #16302e;
+    --color-domus-primary-container: #2d4644;
+    --color-domus-on-primary-container: #98b3b0;
+    --color-domus-primary-fixed-dim: #b0ccc9;
+    --color-domus-secondary: #7b5800;
+    --color-domus-secondary-container: #ffca5e;
+    --color-domus-on-secondary-container: #755400;
+    --color-domus-surface: #f0fcfa;
+    --color-domus-surface-container: #e4f0ee;
+    --color-domus-surface-container-low: #eaf6f4;
+    --color-domus-surface-lowest: #ffffff;
+    --color-domus-surface-dim: #d0dddb;
+  }
+}
+
+/* Viewport Stabilization Utilities */
+.h-dvh {
+  height: 100vh;
+  height: 100dvh;
+}
+.min-h-dvh {
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+.max-h-dvh {
+  max-height: 100vh;
+  max-height: 100dvh;
+}
+
+/* Força contenção estrita do botão do Google Identity Services */
+#google-btn-container {
+  width: 100% !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+  overflow: hidden !important;
+  display: flex !important;
+  justify-content: center !important;
+}
+
+#google-btn-container > div,
+#google-btn-container iframe {
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+.material-symbols-outlined {
+  font-family: 'Material Symbols Outlined';
+  font-weight: normal;
+  font-style: normal;
+  font-size: 24px;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  display: inline-block;
+  white-space: nowrap;
+  word-wrap: normal;
+  direction: ltr;
+  -webkit-font-smoothing: antialiased;
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+}
+
+.material-symbols-outlined.filled {
+  font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+}
+
+/* Sidebar Inverted Border Radius Curves */
+.sidebar-curve-top {
+  position: absolute;
+  top: -20px;
+  right: 0;
+  width: 20px;
+  height: 20px;
+  background: transparent;
+  border-bottom-right-radius: 20px;
+  box-shadow: 6px 6px 0 6px #f0fcfa;
+  pointer-events: none;
+}
+
+.sidebar-curve-bottom {
+  position: absolute;
+  bottom: -20px;
+  right: 0;
+  width: 20px;
+  height: 20px;
+  background: transparent;
+  border-top-right-radius: 20px;
+  box-shadow: 6px -6px 0 6px #f0fcfa;
+  pointer-events: none;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #d0dddb;
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #98b3b0;
+}

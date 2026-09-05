@@ -1,0 +1,15 @@
+export const TASK_LOCK_TIMEOUT_MINUTES = 45;
+export const TASK_LOCK_TIMEOUT_MS = TASK_LOCK_TIMEOUT_MINUTES * 60 * 1000;
+
+export const TASK_STATUS = {
+  OPEN: 'OPEN',
+  LOCKED: 'LOCKED',
+  BLOCKED: 'BLOCKED',
+  COMPLETED: 'COMPLETED',
+} as const;
+
+export const SHIFTS = {
+  MORNING: 'MORNING',
+  AFTERNOON: 'AFTERNOON',
+  NIGHT: 'NIGHT',
+} as const;

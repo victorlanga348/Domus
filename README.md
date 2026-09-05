@@ -32,7 +32,7 @@
 | ✅ **Tarefas & Rodízios** | Gestão de tarefas domésticas com sistema de rotação entre membros |
 | 💰 **Carteira** | Controlo de despesas partilhadas e finanças da casa |
 | 📈 **Relatórios** | Estatísticas e histórico de atividade doméstica |
-| ⚙️ **Definições** | Night Mode, Vacation Triggers, membros da família e regras da casa |
+| ⚙️ **Definições** | Modo Noturno, membros da família e regras de convivência |
 | 🤖 **IA Integrada** | Assistente inteligente com Gemini AI para sugestões e automação |
 
 ---

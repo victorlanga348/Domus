@@ -1,0 +1,205 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// --- ENUMS ---
+
+enum UserRole {
+  ADMIN   // O "Arquiteto" que fundou a casa/sala
+  MEMBER  // Membro comum da família
+}
+
+enum Shift {
+  MORNING
+  AFTERNOON
+  NIGHT
+}
+
+enum Frequency {
+  DAILY
+  WEEKLY
+  MONTHLY
+  ONCE
+}
+
+enum TaskStatus {
+  OPEN
+  LOCKED
+  BLOCKED
+  COMPLETED
+}
+
+enum ActionType {
+  COMPLETED
+  FAILED
+  BLOCKED
+  LOCKED
+  ROTATED
+}
+
+enum Role {
+  MEMBER
+  ARCHITECT
+}
+
+// --- MODELS ---
+
+model House {
+  id            String   @id @default(uuid())
+  name          String   // Nome da residência / sala principal
+  invite_code   String   @unique // Código ex: CASA-1234
+  password_hash String   @default("") // Hash Bcrypt da senha de entrada da casa
+  created_at    DateTime @default(now())
+  updated_at    DateTime @updatedAt
+
+  users          User[]
+  tasks          Task[]
+  activity_logs  ActivityLog[]
+  bulletin_posts BulletinBoard[]
+  rooms          Room[]
+
+  @@map("houses")
+}
+
+model User {
+  id            String    @id @default(uuid())
+  name          String
+  email         String    @unique
+  password_hash String
+  pin_hash      String    // PIN de 4-6 dígitos para ações rápidas
+  role          UserRole  @default(MEMBER)
+  vacation_mode Boolean   @default(false)
+  house_id      String?
+  avatar_url    String?
+  google_id     String?   @unique
+  created_at    DateTime  @default(now())
+  updated_at    DateTime  @updatedAt
+
+  house               House?            @relation(fields: [house_id], references: [id], onDelete: Cascade)
+  created_tasks       Task[]            @relation("TaskCreator")
+  locked_tasks        Task[]            @relation("TaskLockedBy")
+  task_participations TaskParticipant[]
+  activity_logs       ActivityLog[]
+  bulletin_posts      BulletinBoard[]
+  room_memberships    Participant[]
+  messages            Message[]
+
+  @@map("users")
+}
+
+model Room {
+  id         String   @id @default(uuid())
+  title      String
+  password   String   // Hash Bcrypt da senha da sala
+  house_id   String?
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  house        House?        @relation(fields: [house_id], references: [id], onDelete: Cascade)
+  participants Participant[]
+  messages     Message[]
+
+  @@map("rooms")
+}
+
+model Participant {
+  id        String   @id @default(uuid())
+  role      Role     @default(MEMBER)
+  joined_at DateTime @default(now())
+
+  user_id String
+  room_id String
+
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  room Room @relation(fields: [room_id], references: [id], onDelete: Cascade)
+
+  @@unique([user_id, room_id])
+  @@map("participants")
+}
+
+model Message {
+  id         String   @id @default(uuid())
+  text       String
+  created_at DateTime @default(now())
+
+  user_id String
+  room_id String
+
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  room Room @relation(fields: [room_id], references: [id], onDelete: Cascade)
+
+  @@map("messages")
+}
+
+model Task {
+  id                String     @id @default(uuid())
+  title             String
+  description       String?
+  shift             Shift      @default(MORNING)
+  frequency         Frequency  @default(DAILY)
+  status            TaskStatus @default(OPEN)
+  last_block_reason String?
+  locked_at         DateTime?
+  locked_by_id      String?
+  rotation_index    Int        @default(0) // Índice do próximo participante no pool
+  creator_id        String
+  house_id          String
+  created_at        DateTime   @default(now())
+  updated_at        DateTime   @updatedAt
+
+  house         House             @relation(fields: [house_id], references: [id], onDelete: Cascade)
+  creator       User              @relation("TaskCreator", fields: [creator_id], references: [id], onDelete: Restrict)
+  locked_by     User?             @relation("TaskLockedBy", fields: [locked_by_id], references: [id], onDelete: SetNull)
+  participants  TaskParticipant[]
+  activity_logs ActivityLog[]
+
+  @@map("tasks")
+}
+
+model TaskParticipant {
+  id         String   @id @default(uuid())
+  task_id    String
+  user_id    String
+  created_at DateTime @default(now())
+
+  task Task @relation(fields: [task_id], references: [id], onDelete: Cascade)
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@unique([task_id, user_id])
+  @@map("task_participants")
+}
+
+model ActivityLog {
+  id          String     @id @default(uuid())
+  task_id     String?
+  user_id     String
+  house_id    String
+  action_type ActionType
+  comment     String?
+  created_at  DateTime   @default(now())
+
+  task  Task? @relation(fields: [task_id], references: [id], onDelete: SetNull)
+  user  User  @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  house House @relation(fields: [house_id], references: [id], onDelete: Cascade)
+
+  @@map("activity_logs")
+}
+
+model BulletinBoard {
+  id         String   @id @default(uuid())
+  content    String
+  author_id  String
+  house_id   String
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  author User  @relation(fields: [author_id], references: [id], onDelete: Cascade)
+  house  House @relation(fields: [house_id], references: [id], onDelete: Cascade)
+
+  @@map("bulletin_board")
+}
