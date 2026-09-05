@@ -23,6 +23,22 @@ if (typeof window !== 'undefined') {
   };
 }
 
+// Registro do Service Worker para suporte a PWA (App Shell em produção)
+if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
+  if (import.meta.env.PROD || localStorage.getItem('domus_enable_sw_dev') === 'true') {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker
+        .register('/sw.js')
+        .then((registration) => {
+          console.log('[DOMUS PWA] Service Worker registrado com sucesso no escopo:', registration.scope);
+        })
+        .catch((error) => {
+          console.warn('[DOMUS PWA] Falha ao registrar Service Worker:', error);
+        });
+    });
+  }
+}
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <ErrorBoundary>

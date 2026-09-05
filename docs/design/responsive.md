@@ -57,3 +57,12 @@
   - Configuração obrigatória: `<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover" />`.
 - **Containers de Autenticação com Teclado:**
   - A tela de autenticação deve operar sob `min-h-[100dvh]` com `overflow-y-auto`, permitindo rolagem vertical suave para que os campos e o botão de ação continuem acessíveis quando o teclado virtual estiver aberto.
+
+---
+
+## 7. Experiência PWA & Instalação em Tela Cheia (Standalone)
+- **Modo de Exibição:** `display: "standalone"`, eliminando barras de navegação do browser (Safari e Chrome) para sensação de aplicativo nativo.
+- **Área Segura (Safe Area):** Respeitar variáveis de ambiente `env(safe-area-inset-top)` e `env(safe-area-inset-bottom)` com `viewport-fit=cover` ativo.
+- **Cor de Tema da Barra de Notificações:** Sincronizada com a marca institucional (`#16302e`) para continuidade visual com o topo da aplicação.
+- **Service Worker de App Shell:** Garante renderização ultra-rápida do shell inicial, enquanto o fluxo de tempo real (WebSockets) e endpoints de API (`/api/*`) operam sem intermediação de cache, prevenindo divergências de sincronização entre moradores.
+
