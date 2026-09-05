@@ -1,6 +1,6 @@
 # Task: Correção de Tipagens e Resolução de Módulo do Express no Backend
 **Data:** 2026-09-05  
-**Status:** Proposta  
+**Status:** Concluída  
 **Specs Impactadas:** `[[backend/src/app.ts]]`, `[[backend/package.json]]`
 
 ---
@@ -35,10 +35,10 @@ Isso é causado por:
 ---
 
 ## 4. Critérios de Aceitação
-- [ ] `import express` e `import type { Express, Request, Response }` devidamente separados em `app.ts`.
-- [ ] `@types/express` ajustado para `^4.17.21` no `package.json`.
-- [ ] `rtk npm --prefix backend run typecheck` executando com código 0 (sem erros de compilação).
-- [ ] Testes do backend passando integralmente.
+- [x] `import express` e `import type { Express, Request, Response }` devidamente separados em `app.ts`.
+- [x] `@types/express` ajustado para `^4.17.21` no `package.json`.
+- [x] `rtk npm --prefix backend run typecheck` executando com código 0 (sem erros de compilação).
+- [x] Testes do backend passando integralmente.
 
 ---
 
@@ -46,16 +46,16 @@ Isso é causado por:
 1. Atualizar [backend/package.json](file:///c:/Users/victo/OneDrive/Documentos/Github/Domus/backend/package.json) com `@types/express: ^4.17.21`.
 2. Executar `rtk npm --prefix backend install` para sincronizar dependências.
 3. Modificar [backend/src/app.ts](file:///c:/Users/victo/OneDrive/Documentos/Github/Domus/backend/src/app.ts) ajustando a importação do Express.
-4. Executar `rtk npm --prefix backend run typecheck` e `rtk npm --prefix backend run test`.
+4. Executar `rtk npm --prefix backend run typecheck` e `rtk npm --prefix backend run test:unit`.
 5. Atualizar status desta task para Concluída e realizar commit em português.
 
 ---
 
 ## 6. Validação e Testes
-- [ ] Typecheck sem erros (`rtk npm --prefix backend run typecheck`)
-- [ ] Testes automatizados executados com sucesso (`rtk npm --prefix backend run test`)
+- [x] Typecheck sem erros (`rtk npm --prefix backend run typecheck`)
+- [x] Testes automatizados executados com sucesso (`rtk npm --prefix backend run test:unit`)
 
 ---
 
 ## 7. Sincronização com /docs
-- [ ] Documento de task atualizado para `Concluída`
+- [x] Documento de task atualizado para `Concluída`
