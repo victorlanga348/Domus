@@ -81,7 +81,26 @@ export const tasksApi = {
 
     const json = await response.json();
     if (!response.ok) {
-      throw new Error(json.message || 'Erro ao concluir tarefa');
+      throw new Error(json.message || json.error || 'Erro ao concluir tarefa');
+    }
+
+    return json.data;
+  },
+
+  async revertTask(taskId: string, userId: string, userRole?: string) {
+    const response = await fetch(`${APP_CONFIG.API_BASE_URL}/tasks/${taskId}/revert`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-user-id': userId,
+        ...(userRole ? { 'x-user-role': userRole } : {}),
+      },
+      body: JSON.stringify({ user_id: userId, user_role: userRole }),
+    });
+
+    const json = await response.json();
+    if (!response.ok) {
+      throw new Error(json.message || json.error || 'Erro ao reverter tarefa');
     }
 
     return json.data;

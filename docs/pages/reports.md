@@ -15,3 +15,8 @@ Apresentar métricas consolidadas sobre o cumprimento das rotinas domésticas, �
 
 ### 2.3 Registro de Impedimentos Frequentes
 - Tabela analítica dos motivos de bloqueio mais recorrentes para apoiar a reposição de insumos.
+
+### 2.4 Histórico de Tarefas & Governança de Reversão
+- Lista cronológica de tarefas finalizadas com filtros por membro, status e busca textual.
+- **Governança de Reversão:** Ação de reverter tarefa para pendente disponível exclusivamente para o **Admin Geral** e **Sub-Admins**, exigindo modal de confirmação antes da chamada à API.
+- **Moradores Comuns:** Visualizam os itens com o selo `"Concluída"` sem botões de reversão.

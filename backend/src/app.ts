@@ -1,4 +1,5 @@
-import express, { type Express } from 'express';
+import express from 'express';
+import type { Express, Request, Response } from 'express';
 import cors from 'cors';
 import { env } from './config/env.js';
 import { errorHandler } from './shared/middlewares/errorHandler.js';
@@ -33,7 +34,7 @@ app.use(
 app.use(express.json());
 
 // Rotas da API
-app.get('/api/health', (_req, res) => {
+app.get('/api/health', (_req: Request, res: Response) => {
   res.status(200).json({
     status: 'ok',
     service: 'domus-backend',
@@ -49,6 +50,8 @@ app.use('/api/statistics', statisticsRoutes);
 app.use('/api/house', houseRoutes);
 app.use('/api/houses', houseRoutes);
 app.use('/api/tasks', taskRoutes);
+app.use('/api/tarefas', taskRoutes);
+app.use('/tarefas', taskRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/activity-logs', activityLogRoutes);
 app.use('/api/rooms', roomRoutes);

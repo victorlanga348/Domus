@@ -37,8 +37,21 @@ export class TaskController {
   completeTask = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const id = String(req.params.id);
-      const { user_id, pin } = req.body;
-      const result = await this.taskService.completeTask(id, user_id, pin);
+      const userId = req.userId || (req.headers['x-user-id'] as string) || req.body.user_id;
+      const { pin } = req.body;
+      const result = await this.taskService.completeTask(id, userId, pin);
+      res.status(200).json({ status: 'success', data: result });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  revertTask = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const id = String(req.params.id);
+      const userId = req.userId || (req.headers['x-user-id'] as string) || req.body.user_id;
+      const userRole = req.user?.role || (req.headers['x-user-role'] as string) || req.body.user_role;
+      const result = await this.taskService.revertTask(id, userId, userRole);
       res.status(200).json({ status: 'success', data: result });
     } catch (error) {
       next(error);

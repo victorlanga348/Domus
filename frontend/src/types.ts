@@ -35,6 +35,7 @@ export interface HouseTask {
   title: string;
   period: 'morning' | 'afternoon' | 'night';
   nextMember: string;
+  nextMemberId?: string;
   nextMemberAvatar?: string;
   status: 'pending' | 'completed' | 'skipped' | 'cancelled' | 'alert';
   timeLabel?: string;

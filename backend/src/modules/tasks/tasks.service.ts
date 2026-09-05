@@ -70,17 +70,37 @@ export class TaskService {
 
   /**
    * 1. completeTask (Sistema de 3 Vias):
-   * Valida o PIN do usuário, registra ActivityLog COMPLETED e chama advanceRotation.
+   * Valida autorização (apenas morador designado ou da vez no rodízio),
+   * valida PIN caso fornecido, registra ActivityLog COMPLETED e atualiza o status.
    */
   async completeTask(
     taskId: string,
     userId: string,
     pin?: string
-  ): Promise<{ task: Task; nextAssignee: User }> {
+  ): Promise<{ task: Task; nextAssignee?: User | null }> {
     const task = await this.getTaskById(taskId);
 
     if (task.status === 'COMPLETED') {
       throw new AppError('Tarefa já foi concluída.', 400, 'TASK_ALREADY_COMPLETED');
+    }
+
+    // Trava de segurança: apenas a pessoa designada para esta tarefa pode marcá-la como concluída
+    let idResponsavelValido: string;
+    if (task.participants && task.participants.length > 1) {
+      const responsible = await this.rotationService.getCurrentResponsible(taskId);
+      idResponsavelValido = responsible.id;
+    } else if (task.participants && task.participants.length === 1) {
+      idResponsavelValido = task.participants[0].user_id;
+    } else {
+      idResponsavelValido = task.creator_id;
+    }
+
+    if (idResponsavelValido !== userId) {
+      throw new AppError(
+        'Apenas a pessoa designada para esta tarefa pode marcá-la como concluída.',
+        403,
+        'FORBIDDEN_TASK_COMPLETION'
+      );
     }
 
     // Validação de PIN caso fornecido
@@ -108,8 +128,75 @@ export class TaskService {
       },
     });
 
-    // Chama o RotationService para avançar o índice e resetar o status da tarefa
-    return this.rotationService.rotateTask(taskId);
+    // Se for tarefa de rodízio, avança o índice para a próxima rodada
+    let nextAssignee: User | null = null;
+    let nextRotationIndex = task.rotation_index;
+
+    if (task.participants && task.participants.length > 1) {
+      const nextResult = await this.rotationService.getNextParticipant(taskId);
+      const poolSize = nextResult.poolSize;
+      nextRotationIndex = (nextResult.effectiveIndex + 1) % poolSize;
+    }
+
+    const updatedTask = await prisma.task.update({
+      where: { id: taskId },
+      data: {
+        status: 'COMPLETED',
+        rotation_index: nextRotationIndex,
+        locked_by_id: userId,
+        locked_at: new Date(),
+      },
+    });
+
+    if (task.participants && task.participants.length > 1) {
+      try {
+        const subsequent = await this.rotationService.getNextParticipant(taskId);
+        nextAssignee = subsequent.assignee;
+      } catch {}
+    }
+
+    return {
+      task: updatedTask,
+      nextAssignee,
+    };
+  }
+
+  /**
+   * revertTask:
+   * Reverte uma tarefa concluída para status OPEN.
+   * Trava de segurança: apenas o Admin Geral e Sub-Admins têm permissão para reverter.
+   */
+  async revertTask(taskId: string, userId: string, userRole?: string): Promise<Task> {
+    const task = await this.getTaskById(taskId);
+
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) {
+      throw new AppError('Usuário não encontrado.', 404, 'USER_NOT_FOUND');
+    }
+
+    const role = userRole || user.role;
+    const isGeneralAdmin = user.role === 'ADMIN' || role === 'ADMIN_GERAL' || role === 'Admin Geral';
+    const isSubAdmin = role === 'SUB_ADMIN' || role === 'Admin';
+
+    if (!isGeneralAdmin && !isSubAdmin) {
+      throw new AppError(
+        'Apenas administradores e o Admin Geral têm permissão para reverter uma tarefa concluída.',
+        403,
+        'FORBIDDEN_TASK_REVERT'
+      );
+    }
+
+    await prisma.activityLog.create({
+      data: {
+        task_id: taskId,
+        user_id: userId,
+        house_id: task.house_id,
+        action_type: 'ROTATED',
+        comment: `Tarefa "${task.title}" foi revertida para pendente por ${user.name}`,
+      },
+    });
+
+    return this.taskRepo.revertStatus(taskId);
   }
 
   /**

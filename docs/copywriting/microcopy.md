@@ -10,7 +10,10 @@ Proibido inventar textos, mensagens de erro ou rótulos soltos no código. Todo 
 | Ação no Código | Rótulo em Português | Contexto |
 | :--- | :--- | :--- |
 | `LOCK_TASK` | **Iniciar Tarefa** | Quando a tarefa está `OPEN` |
-| `COMPLETE_TASK`| **Concluir Tarefa** | Quando a tarefa está `LOCKED` |
+| `COMPLETE_TASK`| **Concluir** | Botão verde ativo para o responsável da vez |
+| `WAITING_CONFIRMATION` | **Aguardando confirmação de [Nome]** | Tooltip no botão desabilitado para terceiros |
+| `STATUS_COMPLETED` | **Concluída** | Selo verde de status da tarefa |
+| `REVERT_TASK` | **Reverter para Pendente** | Botão discreto para Admin Geral e Sub-Admin |
 | `BLOCK_TASK` | **Reportar Impedimento** | Para registrar que a tarefa não pode ser feita |
 | `UNBLOCK_TASK` | **Resolver Impedimento** | Para liberar uma tarefa `BLOCKED` |
 | `ADD_TASK` | **Nova Tarefa** | Botão primário do quadro |
@@ -19,13 +22,17 @@ Proibido inventar textos, mensagens de erro ou rótulos soltos no código. Todo 
 
 ---
 
-## 3. Mensagens de Notificação & Toasts
+## 3. Mensagens de Notificação, Toasts & Erros
 
 - **Lock Iniciado:** *"Tarefa bloqueada para sua execução. Você tem 45 minutos."*
 - **Tarefa Concluída:** *"Tarefa concluída! Rodízio avançado para [Nome do Próximo]."*
+- **Tarefa Revertida:** *"Tarefa [Título] revertida para pendente."*
 - **Impedimento Registrado:** *"Impedimento reportado com sucesso. A casa foi notificada."*
 - **Férias Ativadas:** *"Modo férias ativado. Você será temporariamente saltado dos rodízios."*
 - **Erro de PIN:** *"PIN incorreto. Verifique seus dígitos e tente novamente."*
+- **Erro 403 (Concluir Tarefa de Outro):** *"Apenas a pessoa designada para esta tarefa pode marcá-la como concluída."*
+- **Erro 403 (Reverter Tarefa sem Privilégio):** *"Apenas administradores e o Admin Geral têm permissão para reverter uma tarefa concluída."*
+- **Erro de Permissão (Adicionar Membros):** *"Apenas administradores ou o Admin Geral podem adicionar novos membros."*
 
 ---
 

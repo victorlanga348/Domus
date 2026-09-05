@@ -25,6 +25,7 @@ Gerenciamento de membros da casa, governança de cargos administrativos, remoç�
   - Substitui o alinhamento horizontal de botões em linha por um menu suspenso flutuante acionado por `...` (`more_vert`), fechando em clique externo ou tecla `Escape`.
   - Contém ações dinâmicas segundo o RBAC: "Promover a Admin", "Despromover a Morador", "Passar Admin Geral" e "Remover da Casa".
 - **Botão Convidar Membro (`+`):** Visível exclusivamente para quem possui cargo `Admin Geral` ou `Admin`.
+- **Trava de Segurança:** A adição de membros é bloqueada para moradores comuns tanto no visual (botões e drawers ocultos) quanto no handler da aplicação (`handleAddFamilyMember`), emitindo mensagem explicativa caso tentada.
 
 ### 2.3 Troca de Residência
 - Ação de troca rápida de casa ("Trocar Residência") sem deslogar a conta de usuário.

@@ -1,10 +1,14 @@
 import React, { useState } from 'react';
 import { HouseTask, TaskRotation, FamilyMember } from '../../../types';
+import { ConfirmActionModal } from '../../../components/index.js';
 
 interface TasksRotationsViewProps {
   tasks: HouseTask[];
   rotations: TaskRotation[];
   familyMembers: FamilyMember[];
+  currentUserId?: string;
+  currentUserRole?: string;
+  currentUserName?: string;
   onAddTask?: (task: Omit<HouseTask, 'id' | 'status'>) => void;
   onTaskStatusChange: (taskId: string, newStatus: HouseTask['status']) => void;
   onDeleteTask?: (taskId: string) => void;
@@ -16,6 +20,9 @@ export const TasksRotationsView: React.FC<TasksRotationsViewProps> = ({
   tasks,
   rotations,
   familyMembers,
+  currentUserId,
+  currentUserRole = 'Resident',
+  currentUserName,
   onAddTask,
   onTaskStatusChange,
   onDeleteTask,
@@ -24,6 +31,14 @@ export const TasksRotationsView: React.FC<TasksRotationsViewProps> = ({
 }) => {
   const [activeTab, setActiveTab] = useState<'all_tasks' | 'rotations'>('all_tasks');
   const [selectedPeriod, setSelectedPeriod] = useState<'all' | 'morning' | 'afternoon' | 'night'>('all');
+  const [statusFilter, setStatusFilter] = useState<'pending' | 'completed' | 'all'>('pending');
+  const [taskToRevert, setTaskToRevert] = useState<HouseTask | null>(null);
+
+  const isGeneralAdmin = currentUserRole === 'Admin Geral';
+  const isAdmin = currentUserRole === 'Admin';
+  const canRevert = isGeneralAdmin || isAdmin;
+  const currentMember = familyMembers.find((m) => m.id === currentUserId);
+  const effectiveUserName = currentUserName || currentMember?.name;
 
   // New Task Modal state
   const [isAddTaskModalOpen, setIsAddTaskModalOpen] = useState(false);
@@ -52,7 +67,10 @@ export const TasksRotationsView: React.FC<TasksRotationsViewProps> = ({
 
   const pendingTasks = tasks.filter((t) => !t.status || t.status === 'pending');
 
-  const filteredTasks = pendingTasks.filter((t) => {
+  const filteredTasks = tasks.filter((t) => {
+    const isCompleted = t.status === 'completed';
+    if (statusFilter === 'pending' && isCompleted) return false;
+    if (statusFilter === 'completed' && !isCompleted) return false;
     if (selectedPeriod !== 'all' && t.period !== selectedPeriod) return false;
     return true;
   });
@@ -292,11 +310,21 @@ export const TasksRotationsView: React.FC<TasksRotationsViewProps> = ({
         </div>
 
         {activeTab === 'all_tasks' && (
-          <div className="flex items-center gap-1.5 shrink-0 w-full sm:w-auto">
+          <div className="flex flex-wrap sm:flex-nowrap items-center gap-1.5 shrink-0 w-full sm:w-auto">
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value as any)}
+              className="bg-[#f0fcfa] border border-[#d0dddb] text-[#16302e] text-xs font-bold px-2.5 py-1.5 rounded-lg focus:outline-none cursor-pointer flex-1 sm:flex-initial"
+            >
+              <option value="pending">Pendentes ({tasks.filter((t) => t.status !== 'completed').length})</option>
+              <option value="completed">Concluídas ({tasks.filter((t) => t.status === 'completed').length})</option>
+              <option value="all">Todas ({tasks.length})</option>
+            </select>
+
             <select
               value={selectedPeriod}
               onChange={(e) => setSelectedPeriod(e.target.value as any)}
-              className="bg-[#f0fcfa] border border-[#d0dddb] text-[#16302e] text-xs font-bold px-2.5 py-1.5 rounded-lg focus:outline-none cursor-pointer w-full sm:w-auto"
+              className="bg-[#f0fcfa] border border-[#d0dddb] text-[#16302e] text-xs font-bold px-2.5 py-1.5 rounded-lg focus:outline-none cursor-pointer flex-1 sm:flex-initial"
             >
               <option value="all">Todos os Turnos</option>
               <option value="morning">Manhã</option>
@@ -389,34 +417,78 @@ export const TasksRotationsView: React.FC<TasksRotationsViewProps> = ({
 
                     {/* Footer Actions */}
                     <div className="flex items-center justify-between gap-2 pt-2 border-t border-[#f0fcfa]">
-                      <div className="flex items-center gap-1.5">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            onTaskStatusChange(task.id, 'completed');
-                            if (task.isRotation && rotations.length > 0) {
-                              onRotateNext(rotations[0].id);
-                            }
-                          }}
-                          className="px-2.5 py-1 bg-[#16302e] hover:bg-[#2d4644] active:scale-98 text-white text-[11px] font-bold rounded-lg transition-all shadow-2xs flex items-center gap-1"
-                        >
-                          <span className="material-symbols-outlined text-xs">check_circle</span>
-                          <span>Concluir</span>
-                        </button>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        {task.status === 'completed' ? (
+                          <>
+                            <span className="px-2 py-0.5 rounded-md text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1">
+                              <span className="material-symbols-outlined text-xs text-emerald-600">check_circle</span>
+                              <span>Concluída</span>
+                            </span>
+                            {canRevert && (
+                              <button
+                                type="button"
+                                onClick={() => setTaskToRevert(task)}
+                                className="px-2 py-0.5 text-slate-500 hover:text-[#7b5800] hover:bg-amber-50 text-[11px] font-bold rounded-md transition-all flex items-center gap-1"
+                                title="Reverter para Pendente"
+                              >
+                                <span className="material-symbols-outlined text-xs">undo</span>
+                                <span>Reverter p/ Pendente</span>
+                              </button>
+                            )}
+                          </>
+                        ) : (
+                          <>
+                            {Boolean(
+                              (currentUserId && task.nextMemberId && task.nextMemberId === currentUserId) ||
+                              (effectiveUserName && task.nextMember && task.nextMember.trim().toLowerCase() === effectiveUserName.trim().toLowerCase())
+                            ) ? (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  onTaskStatusChange(task.id, 'completed');
+                                  if (task.isRotation && rotations.length > 0) {
+                                    onRotateNext(rotations[0].id);
+                                  }
+                                }}
+                                className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 active:scale-98 text-white text-[11px] font-bold rounded-lg transition-all shadow-2xs flex items-center gap-1 cursor-pointer"
+                              >
+                                <span className="material-symbols-outlined text-xs">check_circle</span>
+                                <span>Concluir</span>
+                              </button>
+                            ) : (
+                              <div className="relative group inline-block">
+                                <button
+                                  type="button"
+                                  disabled
+                                  className="px-2.5 py-1 bg-slate-100 text-slate-400 border border-slate-200 text-[11px] font-bold rounded-lg flex items-center gap-1 cursor-not-allowed opacity-80"
+                                >
+                                  <span className="material-symbols-outlined text-xs text-slate-400">lock</span>
+                                  <span>Concluir</span>
+                                </button>
+                                <div className="hidden group-hover:block absolute bottom-full left-0 mb-1.5 z-30 px-2 py-1 bg-[#16302e] text-white text-[10px] font-medium rounded-md shadow-md whitespace-nowrap pointer-events-none">
+                                  Aguardando confirmação de {task.nextMember || 'outro morador'}
+                                </div>
+                              </div>
+                            )}
 
-                        {isRotation && rotations.length > 0 && (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              onRotateNext(rotations[0].id);
-                              onTaskStatusChange(task.id, 'skipped');
-                            }}
-                            className="px-2 py-1 bg-white border border-[#c1c8c6] text-[#7b5800] hover:bg-amber-50 text-[11px] font-bold rounded-lg transition-all flex items-center gap-1"
-                            title="Pular vez para a próxima pessoa da fila"
-                          >
-                            <span className="material-symbols-outlined text-xs">skip_next</span>
-                            <span>Pular</span>
-                          </button>
+                            {isRotation && rotations.length > 0 && Boolean(
+                              (currentUserId && task.nextMemberId && task.nextMemberId === currentUserId) ||
+                              (effectiveUserName && task.nextMember && task.nextMember.trim().toLowerCase() === effectiveUserName.trim().toLowerCase())
+                            ) && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  onRotateNext(rotations[0].id);
+                                  onTaskStatusChange(task.id, 'skipped');
+                                }}
+                                className="px-2 py-1 bg-white border border-[#c1c8c6] text-[#7b5800] hover:bg-amber-50 text-[11px] font-bold rounded-lg transition-all flex items-center gap-1"
+                                title="Pular vez para a próxima pessoa da fila"
+                              >
+                                <span className="material-symbols-outlined text-xs">skip_next</span>
+                                <span>Pular</span>
+                              </button>
+                            )}
+                          </>
                         )}
                       </div>
 
@@ -821,6 +893,24 @@ export const TasksRotationsView: React.FC<TasksRotationsViewProps> = ({
           </div>
         </div>
       )}
+
+      {/* Modal de Confirmação para Reversão de Tarefa */}
+      <ConfirmActionModal
+        isOpen={Boolean(taskToRevert)}
+        onClose={() => setTaskToRevert(null)}
+        onConfirm={() => {
+          if (taskToRevert) {
+            onTaskStatusChange(taskToRevert.id, 'pending');
+            setTaskToRevert(null);
+          }
+        }}
+        title="Reverter Tarefa para Pendente"
+        description={`Deseja realmente reverter a tarefa "${taskToRevert?.title}"? Ela retornará para a lista de tarefas pendentes.`}
+        confirmText="Reverter Tarefa"
+        cancelText="Cancelar"
+        variant="warning"
+        icon="undo"
+      />
     </div>
   );
 };

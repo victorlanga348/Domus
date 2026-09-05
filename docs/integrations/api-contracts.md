@@ -72,9 +72,22 @@
 - Bloqueia a tarefa para execução imediata (45 min).
 - **Resposta (200):** Tarefa com status `LOCKED`, `lockedById` e `lockedAt`.
 
-### `POST /api/tasks/:id/complete`
-- Conclui a tarefa e roda o algoritmo de rodízio A-Z com salto de férias.
-- **Resposta (200):** Tarefa com status `COMPLETED` e novo `currentAssigneeId`.
+### `POST /api/tasks/:id/complete` (ou `PATCH /api/tasks/:id/complete`, alias `/api/tasks/:id/concluir`)
+- **Autorização:** Apenas o morador designado (tarefa direcionada) ou o membro da vez no rodízio.
+- **Headers:** `x-user-id`
+- **Payload:** `{ "user_id": "uuid-user", "pin": "opcional" }`
+- **Resposta (200):** Tarefa com status `COMPLETED`, `locked_by_id` atualizado e novo `nextAssignee` (se rodízio).
+- **Erros:**
+  - `403 Forbidden`: `"Apenas a pessoa designada para esta tarefa pode marcá-la como concluída."` caso chamado por terceiro.
+  - `400 Bad Request`: `"Tarefa já foi concluída."` caso já esteja finalizada.
+
+### `POST /api/tasks/:id/revert` (ou `PATCH /api/tasks/:id/revert`, alias `/api/tasks/:id/reverter`)
+- **Autorização:** Exclusivo para o **Admin Geral** e **Sub-Admins** (`ADMIN`, `SUB_ADMIN`, `Admin`, `Admin Geral`).
+- **Headers:** `x-user-id`, `x-user-role`
+- **Payload:** `{ "user_id": "uuid-user", "user_role": "ADMIN" }`
+- **Resposta (200):** Tarefa restaurada para o status `OPEN`, com `locked_by_id: null`, `locked_at: null`.
+- **Erros:**
+  - `403 Forbidden`: `"Apenas administradores e o Admin Geral têm permissão para reverter uma tarefa concluída."` para moradores comuns (`MEMBER`, `Resident`).
 
 ### `POST /api/tasks/:id/block`
 - **Payload:** `{ "reason": "Falta de produto de limpeza" }`

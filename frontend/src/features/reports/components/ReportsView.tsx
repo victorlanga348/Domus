@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import { HouseTask, FamilyMember, ActivityLog } from '../../../types';
+import { ConfirmActionModal } from '../../../components/index.js';
 
 interface ReportsViewProps {
   tasks?: HouseTask[];
   familyMembers?: FamilyMember[];
   activityLogs?: ActivityLog[];
+  currentUserRole?: string;
   onTaskStatusChange?: (taskId: string, newStatus: HouseTask['status']) => void;
   onDeleteTask?: (taskId: string) => void;
 }
@@ -12,6 +14,7 @@ interface ReportsViewProps {
 export const ReportsView: React.FC<ReportsViewProps> = ({
   tasks = [],
   familyMembers = [],
+  currentUserRole = 'Resident',
   onTaskStatusChange,
   onDeleteTask,
 }) => {
@@ -20,6 +23,11 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [taskToRevert, setTaskToRevert] = useState<HouseTask | null>(null);
+
+  const isGeneralAdmin = currentUserRole === 'Admin Geral';
+  const isAdmin = currentUserRole === 'Admin';
+  const canRevert = isGeneralAdmin || isAdmin;
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -196,13 +204,10 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
 
                 {/* Right Actions: Reverter / Excluir */}
                 <div className="flex items-center justify-end gap-2 shrink-0 border-t sm:border-t-0 border-[#e4f0ee] pt-2 sm:pt-0">
-                  {onTaskStatusChange && (
+                  {canRevert && onTaskStatusChange ? (
                     <button
                       type="button"
-                      onClick={() => {
-                        onTaskStatusChange(item.id, 'pending');
-                        showToast(`Tarefa "${item.title}" revertida para pendente.`);
-                      }}
+                      onClick={() => setTaskToRevert(item)}
                       className="px-3 py-1.5 bg-[#16302e] hover:bg-[#2d4644] active:scale-98 text-white text-xs font-bold rounded-xl transition-all shadow-2xs flex items-center gap-1.5"
                       title="Reverter para lista de tarefas pendentes"
                     >
@@ -210,9 +215,14 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
                       <span className="sm:hidden">Reverter</span>
                       <span className="hidden sm:inline">Reverter p/ Pendente</span>
                     </button>
+                  ) : (
+                    <span className="px-2.5 py-1 rounded-lg text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1">
+                      <span className="material-symbols-outlined text-xs text-emerald-600">check_circle</span>
+                      <span>Concluída</span>
+                    </span>
                   )}
 
-                  {onDeleteTask && (
+                  {canRevert && onDeleteTask && (
                     <button
                       type="button"
                       onClick={() => onDeleteTask(item.id)}
@@ -267,6 +277,25 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
           </button>
         </div>
       )}
+
+      {/* Modal de Confirmação para Reversão de Tarefa */}
+      <ConfirmActionModal
+        isOpen={Boolean(taskToRevert)}
+        onClose={() => setTaskToRevert(null)}
+        onConfirm={() => {
+          if (taskToRevert && onTaskStatusChange) {
+            onTaskStatusChange(taskToRevert.id, 'pending');
+            showToast(`Tarefa "${taskToRevert.title}" revertida para pendente.`);
+            setTaskToRevert(null);
+          }
+        }}
+        title="Reverter Tarefa para Pendente"
+        description={`Deseja realmente reverter a tarefa "${taskToRevert?.title}"? Ela retornará para a lista de tarefas pendentes.`}
+        confirmText="Reverter Tarefa"
+        cancelText="Cancelar"
+        variant="warning"
+        icon="undo"
+      />
 
       {/* Toast Notification */}
       {toastMessage && (

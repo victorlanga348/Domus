@@ -14,6 +14,7 @@ export const errorHandler: ErrorRequestHandler = (
       status: 'error',
       code: err.code,
       message: err.message,
+      error: err.message,
     });
     return;
   }

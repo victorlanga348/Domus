@@ -60,8 +60,30 @@ function mapBackendTaskToHouseTask(task: any, currentMembers: FamilyMember[]): H
   else if (task.status === 'BLOCKED') status = 'alert';
   else status = 'pending';
 
-  const assignee = task.current_assignee || task.participants?.[0]?.user || task.creator;
+  let assignee: any = null;
+  const isRotation = Boolean(task.participants && task.participants.length > 1);
+
+  if (isRotation) {
+    const sorted = [...task.participants].map((p: any) => p.user || p).sort((a: any, b: any) =>
+      (a?.name || '').localeCompare(b?.name || '', 'pt-BR', { sensitivity: 'base' })
+    );
+    const poolSize = sorted.length;
+    const baseIndex = (((task.rotation_index || 0) % poolSize) + poolSize) % poolSize;
+    let chosen = null;
+    for (let i = 0; i < poolSize; i++) {
+      const cand = sorted[(baseIndex + i) % poolSize];
+      if (!cand?.vacation_mode) {
+        chosen = cand;
+        break;
+      }
+    }
+    assignee = chosen || sorted[0];
+  } else {
+    assignee = task.current_assignee || task.participants?.[0]?.user || task.creator;
+  }
+
   const assigneeName = assignee?.name || 'Morador';
+  const assigneeId = assignee?.id;
   const assigneeAvatar =
     assignee?.avatar_url ||
     currentMembers.find((m) => m.id === assignee?.id)?.avatar ||
@@ -73,8 +95,10 @@ function mapBackendTaskToHouseTask(task: any, currentMembers: FamilyMember[]): H
     period,
     status,
     nextMember: assigneeName,
+    nextMemberId: assigneeId,
     nextMemberAvatar: assigneeAvatar,
     icon: 'task_alt',
+    isRotation,
     frequency:
       task.frequency === 'DAILY'
         ? 'Diária'
@@ -788,6 +812,8 @@ export default function App() {
     }
 
     const taskObj = tasks.find((t) => t.id === taskId);
+    const wasCompleted = taskObj?.status === 'completed';
+
     if (newStatus === 'completed') {
       recordHouseActivity(
         `Tarefa "${taskObj?.title || 'Tarefa'}" foi concluída por ${completedByName}.`,
@@ -796,8 +822,31 @@ export default function App() {
         taskId
       );
       if (authUser?.id) {
-        tasksApi.completeTask(taskId, authUser.id).catch(() => {});
+        tasksApi.completeTask(taskId, authUser.id).catch((err: any) => {
+          showToast(err.message || 'Erro ao concluir tarefa.');
+          // Reverte o estado visual caso o backend recuse (ex: 403)
+          setTasks((prev) =>
+            prev.map((t) => (t.id === taskId ? { ...t, status: taskObj?.status || 'pending' } : t))
+          );
+        });
       }
+    } else if (newStatus === 'pending' && wasCompleted) {
+      recordHouseActivity(
+        `Tarefa "${taskObj?.title || 'Tarefa'}" foi revertida para pendente por ${completedByName}.`,
+        completedByName,
+        'ROTATED',
+        taskId
+      );
+      if (authUser?.id) {
+        tasksApi.revertTask(taskId, authUser.id, currentUser.role).catch((err: any) => {
+          showToast(err.message || 'Erro ao reverter tarefa.');
+          // Reverte o estado visual caso o backend recuse (ex: 403)
+          setTasks((prev) =>
+            prev.map((t) => (t.id === taskId ? { ...t, status: 'completed' } : t))
+          );
+        });
+      }
+      showToast(`Tarefa "${taskObj?.title || 'Tarefa'}" revertida para pendente.`);
     } else if (newStatus === 'alert') {
       recordHouseActivity(
         `Tarefa "${taskObj?.title || 'Tarefa'}" reportou impedimento.`,
@@ -872,6 +921,10 @@ export default function App() {
   const [isTransferModalOpen, setIsTransferModalOpen] = useState(false);
 
   const handleAddFamilyMember = (member: Omit<FamilyMember, 'id'>) => {
+    if (currentUser.role !== 'Admin Geral' && currentUser.role !== 'Admin') {
+      showToast('Apenas administradores ou o Admin Geral podem adicionar novos membros.');
+      return;
+    }
     const newMember: FamilyMember = { ...member, id: `m_${Date.now()}` };
     setFamilyMembers((prev) => [...prev, newMember]);
     recordHouseActivity(`Novo membro adicionado: ${member.name} (${member.role})`);
@@ -1135,6 +1188,9 @@ export default function App() {
               tasks={tasks}
               rotations={rotations}
               familyMembers={familyMembers}
+              currentUserId={authUser?.id}
+              currentUserRole={currentUser.role}
+              currentUserName={authUser?.name}
               onAddTask={handleAddTask}
               onTaskStatusChange={handleTaskStatusChange}
               onDeleteTask={handleDeleteTask}
@@ -1172,6 +1228,7 @@ export default function App() {
               tasks={tasks}
               familyMembers={familyMembers}
               activityLogs={activityLogs}
+              currentUserRole={currentUser.role}
               onTaskStatusChange={handleTaskStatusChange}
               onDeleteTask={handleDeleteTask}
             />

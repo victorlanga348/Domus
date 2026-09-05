@@ -25,9 +25,12 @@ Cada cartão exibe:
 - Badge de status (`OPEN`, `LOCKED [Tempo Restante]`, `BLOCKED [Motivo]`, `COMPLETED`).
 - Fila de próximos participantes no rodízio (ordem alfabética).
 - Botões de ação contextuais:
-  - Se `OPEN`: Botão `[ Iniciar ]` e `[ Reportar Impedimento ]`.
-  - Se `LOCKED`: Botão `[ Concluir ]` e cronômetro regressivo dos 45 minutos.
-  - Se `BLOCKED`: Botão `[ Resolver / Desbloquear ]`.
+  - Se `OPEN`:
+    - **Para o Morador Responsável:** Botão `[ Concluir ]` verde ativo.
+    - **Para Outros Moradores / Sub-Admin:** Botão desabilitado em cinza com tooltip: `"Aguardando confirmação de [Nome do Responsável]"`.
+  - Se `COMPLETED`:
+    - **Para Moradores Comuns:** Apenas o selo verde `"Concluída"` (sem botões de ação).
+    - **Para Admin Geral e Sub-Admins:** Selo `"Concluída"` acompanhado de botão discreto `[ Reverter para Pendente ]`, abrindo modal de confirmação.
 
 ---
 
@@ -36,6 +39,7 @@ Cada cartão exibe:
 - **Fluxos Centralizados:**
   - `GET /api/tasks?houseId=...`: Lista todas as tarefas ativas da residência na montagem da tela.
   - `POST /api/tasks`: Criação persistente no banco de dados vinculada aos membros e emissão imediata de evento `task:created` via WebSocket.
-  - `PATCH /api/tasks/:id/complete`: Conclusão persistente no banco e emissão de `task:status_changed`.
+  - `PATCH /api/tasks/:id/complete` (alias `/api/tasks/:id/concluir`): Conclusão com validação restrita do morador responsável da vez e emissão de `task:status_changed`.
+  - `PATCH /api/tasks/:id/revert` (alias `/api/tasks/:id/reverter`): Reversão de status exclusiva para Admin Geral e Sub-Admin com emissão de `task:status_changed`.
   - `DELETE /api/tasks/:id`: Exclusão persistente no banco e emissão de `task:deleted`.
-  - `POST /api/activity-logs`: Registro oficial de conclusões, bloqueios e rotações, garantindo que o histórico e as notificações sejam idênticos em todos os aparelhos da mesma residência.
+  - `POST /api/activity-logs`: Registro oficial de conclusões, bloqueios, reversões e rotações, garantindo que o histórico e as notificações sejam idênticos em todos os aparelhos da mesma residência.

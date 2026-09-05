@@ -146,4 +146,16 @@ export class TaskRepository {
       data: { rotation_index },
     });
   }
+
+  async revertStatus(id: string): Promise<Task> {
+    return prisma.task.update({
+      where: { id },
+      data: {
+        status: 'OPEN',
+        locked_by_id: null,
+        locked_at: null,
+        last_block_reason: null,
+      },
+    });
+  }
 }

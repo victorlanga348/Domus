@@ -69,3 +69,21 @@ Para atender a dispositivos compartilhados (ex: tablet fixo na cozinha) e celula
 ### 6.3 Princípio do Menor Privilégio & Reset de Papel no Reingresso
 - Ao sair da residência (`leaveHouse`), o vínculo do usuário é desfeito (`house_id = null`) e sua role é redefinida para `MEMBER`.
 - Ao reingressar via submissão do código de convite (`joinHouse`), qualquer usuário (mesmo que tenha sido Admin anteriormente) ingressa estritamente como **Morador** (`role: 'MEMBER'`). Privilégios administrativos só podem ser restabelecidos por ação deliberada do `Admin Geral` ativo.
+
+---
+
+## 7. Controle de Acesso Baseado em Papéis (RBAC): Tarefas & Membros
+
+### 7.1 Blindagem de Conclusão de Tarefas
+- **Propriedade da Execução:** Apenas o morador expressamente atribuído à tarefa direcionada ou o residente ativo no turno de rodízio possui autorização para dar baixa.
+- **Validação de Backend:** A API intercepta tentativas de terceiros com `403 Forbidden` (`FORBIDDEN_TASK_COMPLETION`).
+- **Defesa em Profundidade no Frontend:** A interface orienta o usuário renderizando o botão em cinza inativo com tooltip explicativo, prevenindo frustrações.
+
+### 7.2 Governança de Reversão de Tarefas Concluídas
+- **Autoridade Restrita:** Apenas o **Admin Geral** e os **Sub-Admins** possuem permissão para cancelar ou reverter tarefas concluídas (`PATCH /api/tasks/:id/revert`).
+- **Bloqueio de Moradores:** Moradores comuns não visualizam opções de reversão e são bloqueados pelo backend com `403 Forbidden` (`FORBIDDEN_TASK_REVERT`).
+- **Auditoria Permanente:** Toda reversão gera registro imutável em `ActivityLog`.
+
+### 7.3 Restrição de Adição de Novos Moradores
+- **Proibição a Moradores Comuns:** Membros regulares (`Resident`, `Guest`) não têm acesso a botões, formulários ou rotas de inclusão de novos usuários na residência.
+- **Permissão Exclusiva:** Apenas **Admin Geral** e **Sub-Admins** podem convidar ou cadastrar novos integrantes.
