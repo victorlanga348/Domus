@@ -7,6 +7,9 @@ interface DashboardViewProps {
   currentUserId?: string;
   currentUserName?: string;
   currentHouseId?: string;
+  houseName?: string;
+  houseInviteCode?: string;
+  onSyncHouse?: (house: any) => void;
   subTab?: string;
   vacationMode?: boolean;
   onShowToast?: (msg: string) => void;
@@ -21,6 +24,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   currentUserId = 'user-1',
   currentUserName,
   currentHouseId = 'house-1',
+  houseName,
+  houseInviteCode,
+  onSyncHouse,
   vacationMode = false,
   onShowToast,
   muralNotes = [],
@@ -47,6 +53,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       const data = await dashboardApi.getDashboardData(currentHouseId, currentUserId);
       if (data) {
         setDashboardData(data);
+        if (data.house) {
+          onSyncHouse?.(data.house);
+        }
         if (data.members && data.members.length > 0) {
           onSyncMembers?.(data.members);
         }
@@ -56,7 +65,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     } finally {
       setLoading(false);
     }
-  }, [currentHouseId, currentUserId, onSyncMembers]);
+  }, [currentHouseId, currentUserId, onSyncHouse, onSyncMembers]);
 
   useEffect(() => {
     fetchDashboard();
@@ -68,6 +77,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       onShowToast?.(`${data.name} alterou o modo férias.`);
     },
     onMembersUpdated: () => {
+      fetchDashboard();
+    },
+    onCodeRegenerated: () => {
       fetchDashboard();
     },
   });
@@ -115,10 +127,10 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           <div>
             <div className="flex items-center gap-2">
               <h1 className="text-lg sm:text-xl font-black text-[#16302e]">
-                {dashboardData?.house.name || 'Minha Residência'}
+                {houseName || dashboardData?.house.name || 'Minha Residência'}
               </h1>
               <span className="text-xs font-bold text-[#7b5800] bg-[#fff8e6] px-2.5 py-0.5 rounded-full border border-[#ffca5e]">
-                {dashboardData?.house.invite_code || 'CASA-DOMUS'}
+                {houseInviteCode || dashboardData?.house.invite_code || 'CASA-DOMUS'}
               </span>
             </div>
             <p className="text-xs text-[#727877] mt-0.5 flex items-center gap-1.5">

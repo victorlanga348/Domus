@@ -178,6 +178,17 @@ export default function App() {
   const [subTab, setSubTab] = useState<string>('bulletin');
   const [vacationMode, setVacationMode] = useState<boolean>(() => authUser?.vacation_mode || false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [deferredInstallPrompt, setDeferredInstallPrompt] = useState<any>(null);
+
+  // Captura o evento nativo de instalação do PWA para uso nas Configurações
+  useEffect(() => {
+    const handleBeforeInstallPrompt = (e: Event) => {
+      e.preventDefault();
+      setDeferredInstallPrompt(e);
+    };
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    return () => window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+  }, []);
 
   // 4. Estados Reais por Residência
   const houseKey = currentHouse ? `domus_house_${currentHouse.id}` : null;
@@ -391,6 +402,14 @@ export default function App() {
       dashboardApi
         .getDashboardData(currentHouse.id, authUser.id)
         .then((data) => {
+          if (data?.house) {
+            setCurrentHouse((prev) => ({
+              ...(prev || {}),
+              id: data.house.id,
+              name: data.house.name,
+              invite_code: data.house.invite_code,
+            }));
+          }
           if (data?.members && data.members.length > 0) {
             handleSyncMembers(data.members);
           }
@@ -551,7 +570,7 @@ export default function App() {
       setCurrentHouse({
         id: user.house_id,
         name: 'Minha Residência',
-        invite_code: 'CASA-DOMUS',
+        invite_code: '',
       });
     }
   };
@@ -1172,6 +1191,8 @@ export default function App() {
               currentUserId={authUser.id}
               currentUserName={authUser.name}
               currentHouseId={currentHouse.id}
+              houseName={currentHouse?.name}
+              houseInviteCode={currentHouse?.invite_code}
               subTab={subTab}
               vacationMode={vacationMode}
               onShowToast={showToast}
@@ -1180,6 +1201,14 @@ export default function App() {
               onDeleteMuralNote={handleDeleteMuralNote}
               familyMembers={familyMembers}
               onSyncMembers={handleSyncMembers}
+              onSyncHouse={(house) => {
+                setCurrentHouse((prev) => ({
+                  ...(prev || {}),
+                  id: house.id,
+                  name: house.name,
+                  invite_code: house.invite_code,
+                }));
+              }}
             />
           )}
 
@@ -1220,6 +1249,8 @@ export default function App() {
               houseName={currentHouse?.name}
               onRegenerateCode={() => setIsRegenerateCodeModalOpen(true)}
               onShowToast={showToast}
+              installPromptEvent={deferredInstallPrompt}
+              onInstallAccepted={() => setDeferredInstallPrompt(null)}
             />
           )}
 
