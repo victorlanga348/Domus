@@ -23,21 +23,22 @@ if (typeof window !== 'undefined') {
   };
 }
 
-// Registro do Service Worker para suporte a PWA (App Shell em produção)
+// Desregistro e limpeza preventiva de Service Worker e Caches residuais
 if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
-  if (import.meta.env.PROD || localStorage.getItem('domus_enable_sw_dev') === 'true') {
-    window.addEventListener('load', () => {
-      navigator.serviceWorker
-        .register('/sw.js')
-        .then((registration) => {
-          console.log('[DOMUS PWA] Service Worker registrado com sucesso no escopo:', registration.scope);
-        })
-        .catch((error) => {
-          console.warn('[DOMUS PWA] Falha ao registrar Service Worker:', error);
-        });
+  navigator.serviceWorker.getRegistrations().then((registrations) => {
+    for (const registration of registrations) {
+      registration.unregister();
+    }
+  });
+  if ('caches' in window) {
+    caches.keys().then((names) => {
+      for (const name of names) {
+        caches.delete(name);
+      }
     });
   }
 }
+
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

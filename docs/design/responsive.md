@@ -64,5 +64,5 @@
 - **Modo de Exibição:** `display: "standalone"`, eliminando barras de navegação do browser (Safari e Chrome) para sensação de aplicativo nativo.
 - **Área Segura (Safe Area):** Respeitar variáveis de ambiente `env(safe-area-inset-top)` e `env(safe-area-inset-bottom)` com `viewport-fit=cover` ativo.
 - **Cor de Tema da Barra de Notificações:** Sincronizada com a marca institucional (`#16302e`) para continuidade visual com o topo da aplicação.
-- **Service Worker de App Shell:** Garante renderização ultra-rápida do shell inicial, enquanto o fluxo de tempo real (WebSockets) e endpoints de API (`/api/*`) operam sem intermediação de cache, prevenindo divergências de sincronização entre moradores.
+- **Arquitetura de Instalação Sem Bloqueio de Cache:** A experiência instalável opera via `manifest.webmanifest` e meta tags nativas de tela cheia. O Service Worker atua exclusivamente com rotina de bypass e auto-desregistro, garantindo conexão direta e imediata de rede sem retenção indevida de cache ou interferência em WebSockets e rotas de API em tempo real.
 
