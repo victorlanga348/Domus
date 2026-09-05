@@ -116,7 +116,3 @@ Domus/
 Este projeto é de uso pessoal e educacional.
 
 ---
-
-<div align="center">
-  Feito com ❤️ por <a href="https://github.com/victorlanga348">victorlanga348</a>
-</div>
