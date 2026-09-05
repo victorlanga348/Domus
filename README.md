@@ -190,7 +190,3 @@ Desenvolvido por **Victor Langa** como um sistema completo, altamente seguro e p
 Este projecto é público apenas para fins de demonstração e avaliação.
 
 O código, design, documentação, arquitectura e lógica de negócio do Domus estão protegidos por direitos autorais.
-
-Não é permitido copiar, reutilizar, modificar, vender, distribuir ou usar este projecto, total ou parcialmente, sem autorização prévia e por escrito dos autores.
-
-Todos os direitos reservados.
