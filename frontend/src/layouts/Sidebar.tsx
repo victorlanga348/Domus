@@ -65,24 +65,27 @@ export const Sidebar: React.FC<SidebarProps> = ({
   return (
     <>
       {/* Mobile Slide-Over Sidebar Drawer */}
-      {isMobileOpen && (
-        <div className="md:hidden fixed inset-0 z-50 flex h-[100dvh] max-h-[100dvh] overflow-hidden animate-in fade-in duration-200">
-          {/* Backdrop Overlay */}
-          <div
-            className="fixed inset-0 bg-black/60 backdrop-blur-xs"
-            onClick={onCloseMobile}
-          />
+      <div className="md:hidden fixed inset-0 z-50 pointer-events-none overflow-hidden">
+        {/* Backdrop Overlay */}
+        <div
+          className={`fixed inset-0 bg-black/60 backdrop-blur-xs transition-opacity duration-300 ease-out ${
+            isMobileOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
+          }`}
+          onClick={onCloseMobile}
+        />
 
-          {/* Slide-In Drawer */}
-          <aside
-            className="relative w-72 max-w-[80%] bg-[#16302e] h-full h-[100dvh] max-h-[100dvh] shadow-2xl flex flex-col justify-between px-4 z-50 overflow-y-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden animate-in slide-in-from-left duration-200"
-            style={{
-              paddingTop: 'calc(1.25rem + env(safe-area-inset-top, 0px))',
-              paddingBottom: 'calc(1.25rem + env(safe-area-inset-bottom, 0px))',
-            }}
-          >
+        {/* Slide-In Drawer */}
+        <aside
+          className={`fixed inset-y-0 left-0 w-72 max-w-[80%] bg-[#16302e] h-full h-[100dvh] max-h-[100dvh] shadow-2xl flex flex-col justify-between px-4 z-50 overflow-y-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden transition-transform duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] will-change-transform ${
+            isMobileOpen ? 'translate-x-0 pointer-events-auto' : '-translate-x-full pointer-events-none'
+          }`}
+          style={{
+            paddingTop: 'calc(1.25rem + env(safe-area-inset-top, 0px))',
+            paddingBottom: 'calc(1.25rem + env(safe-area-inset-bottom, 0px))',
+          }}
+        >
           {/* Top Bar with Brand & Close Button */}
-          <div className="flex items-center justify-between border-b border-[#2d4644] pb-4 mb-4">
+          <div className="flex items-center justify-between border-b border-[#2d4644] pb-4 mb-4 shrink-0">
             <div className="flex items-center gap-2">
               <span className="material-symbols-outlined text-[#ffca5e] text-2xl font-black">
                 roofing
@@ -107,7 +110,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               onTabChange('settings');
               onCloseMobile?.();
             }}
-            className="flex items-center gap-3 px-2 mb-6 cursor-pointer group"
+            className="flex items-center gap-3 px-2 mb-6 cursor-pointer group shrink-0"
           >
             <img
               className="w-12 h-12 rounded-full object-cover border-2 border-[#ffca5e] shadow-md group-hover:scale-105 transition-transform"
@@ -124,9 +127,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </div>
           </div>
 
-          {/* Mobile Navigation Tabs */}
+          {/* Mobile Navigation Tabs with Stagger */}
           <nav className="flex-1 space-y-1">
-            {navItems.map((item) => {
+            {navItems.map((item, index) => {
               const isActive = currentTab === item.id;
               return (
                 <button
@@ -135,7 +138,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     onTabChange(item.id);
                     onCloseMobile?.();
                   }}
-                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-xs font-bold transition-all active:scale-[0.96] cursor-pointer ${
+                  style={{
+                    transitionDelay: isMobileOpen ? `${60 + index * 30}ms` : '0ms',
+                  }}
+                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-xs font-bold transition-all duration-200 active:scale-[0.98] cursor-pointer transform ${
+                    isMobileOpen ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-2'
+                  } ${
                     isActive
                       ? 'bg-[#F4F9F7] text-[#16302e] shadow-md'
                       : 'text-[#98b3b0] hover:text-white hover:bg-[#2d4644]/50'
@@ -157,7 +165,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </nav>
 
           {/* Active Members & Logout */}
-          <div className="border-t border-[#2d4644] pt-4 mt-6">
+          <div className="border-t border-[#2d4644] pt-4 mt-6 shrink-0">
             <div className="flex items-center justify-between mb-2 px-1">
               <h3 className="text-[10px] font-bold text-[#98b3b0] opacity-70 uppercase tracking-widest">
                 MEMBROS ONLINE (<span className="tabular-nums">{activeUsers.length}</span>)
@@ -189,7 +197,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     onSwitchHouseClick();
                     onCloseMobile?.();
                   }}
-                  className="text-[#98b3b0] hover:text-[#ffca5e] flex items-center gap-2.5 px-2 py-2 text-xs font-semibold w-full transition-all rounded-xl hover:bg-[#2d4644]/40 active:scale-[0.96] cursor-pointer"
+                  className="text-[#98b3b0] hover:text-[#ffca5e] flex items-center gap-2.5 px-2 py-2 text-xs font-semibold w-full transition-all rounded-xl hover:bg-[#2d4644]/40 active:scale-[0.98] cursor-pointer"
                   aria-label="Trocar Residência"
                 >
                   <span className="material-symbols-outlined text-base text-[#ffca5e]">apartment</span>
@@ -201,7 +209,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   onLogoutClick();
                   onCloseMobile?.();
                 }}
-                className="text-[#98b3b0] hover:text-rose-300 flex items-center gap-2.5 px-2 py-2 text-xs font-semibold w-full transition-all rounded-xl hover:bg-[#2d4644]/40 active:scale-[0.96] cursor-pointer"
+                className="text-[#98b3b0] hover:text-rose-300 flex items-center gap-2.5 px-2 py-2 text-xs font-semibold w-full transition-all rounded-xl hover:bg-[#2d4644]/40 active:scale-[0.98] cursor-pointer"
                 aria-label="Sair da Conta"
               >
                 <span className="material-symbols-outlined text-base">logout</span>
@@ -211,7 +219,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </div>
         </aside>
       </div>
-    )}
     {/* Desktop Sidebar (hidden on mobile, fixed no scroll on desktop) */}
       <aside className="hidden md:flex fixed left-0 top-0 h-[100dvh] w-[250px] lg:w-[280px] bg-[#16302e] shadow-none flex-col justify-between py-4 lg:py-6 z-50 transition-all duration-300 overflow-hidden [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
         {/* Profile Area */}

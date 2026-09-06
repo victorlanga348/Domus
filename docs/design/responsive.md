@@ -90,6 +90,11 @@
   - Botões de ação e itens interativos recebem compressão suave ao toque (`active:scale-[0.97] transition-all`).
 - **Modais Mobile (Bottom Sheet):**
   - Em smartphones (`< 640px`), modais abrem alinhados à base (`items-end sm:items-center`), com cantos arredondados no topo (`rounded-t-3xl sm:rounded-3xl`), animação elástica de subida (`animate-sheet-slide-up`), altura máxima de `90dvh` e barra tátil indicadora superior (*grab handle*). Em tablets e desktops, comportam-se como modais flutuantes centralizados (`sm:items-center`).
+- **Menu Lateral / Drawer Mobile:**
+  - Persistente na árvore sem desmonte abrupto, com backdrop progressivo (`transition-opacity duration-300 ease-out` com `backdrop-blur-xs`).
+  - Painel lateral desliza pela esquerda via hardware GPU (`will-change-transform`, `translate-x-0` vs `-translate-x-full`) com curva de desaceleração suave de app nativo (`cubic-bezier(0.32, 0.72, 0, 1)`).
+  - Links de navegação entram em cascata (*stagger* progressivo de 30ms com `opacity` e deslocamento lateral `translate-x-2` -> `translate-x-0`) e feedback tátil `active:scale-[0.98]`.
+  - Respeito integral a Safe Area física superior (`env(safe-area-inset-top)`) e inferior (`env(safe-area-inset-bottom)`).
 - **Acessibilidade Motora & Redução de Movimento:**
   - Todas as animações e transições respeitam `@media (prefers-reduced-motion: reduce)`, desativando efeitos para evitar desconforto em usuários com sensibilidade vestibular.
 
