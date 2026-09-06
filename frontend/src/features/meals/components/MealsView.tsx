@@ -406,6 +406,7 @@ export const MealsView: React.FC<MealsViewProps> = ({
           initialMeal={editingMeal}
           defaultDay={modalDay}
           defaultPeriod={modalPeriod}
+          lockPeriod={true}
           schedules={mealPlan.schedules}
         />
       )}

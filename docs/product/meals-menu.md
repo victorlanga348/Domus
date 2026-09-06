@@ -61,3 +61,8 @@ O cardápio opera em ciclo semanal contínuo de 7 dias (Segunda a Domingo) divid
 - **Estado Vazio (Sem Prato Cadastrado):** Exibe exclusivamente uma ação central clara (`+ Adicionar`), eliminando botões `+` duplicados no cabeçalho do card.
 - **Estado Preenchido:** Exibe o botão de edição (`edit`) no canto superior direito do card.
 - **Ação de Horário no Card:** O horário do turno possui feedback hover e dispara diretamente o modal de ajuste de turnos para usuários com permissão de edição.
+
+### 4.5 Bloqueio Contextual de Turno no Cadastro/Edição (`EditMealModal`)
+- Ao acionar `+ Adicionar` ou `Editar` a partir de um card de refeição específico, o campo de turno no modal permanece rigidamente travado em modo somente leitura (`lockPeriod: true`), exibindo um badge visual com o ícone, nome do turno e faixa de horário correspondente (ex: *Café da Manhã (06:00 - 10:00)*).
+- Evita alterações acidentais de turno e elimina poluição visual de dropdown quando o contexto já foi fixado pelo card clicado.
+- Caso o modal seja acionado por um gatilho global genérico sem turno pré-determinado (`lockPeriod: false`), o seletor `<select>` permanece desbloqueado para escolha livre.

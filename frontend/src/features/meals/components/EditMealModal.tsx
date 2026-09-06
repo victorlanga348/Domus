@@ -11,6 +11,7 @@ interface EditMealModalProps {
   initialMeal?: MealItem | null;
   defaultDay: DayOfWeek;
   defaultPeriod: MealType;
+  lockPeriod?: boolean;
   schedules?: Record<MealType, MealPeriodSchedule>;
 }
 
@@ -22,6 +23,7 @@ export const EditMealModal: React.FC<EditMealModalProps> = ({
   initialMeal,
   defaultDay,
   defaultPeriod,
+  lockPeriod = true,
   schedules,
 }) => {
   useBodyScrollLock(isOpen);
@@ -33,6 +35,9 @@ export const EditMealModal: React.FC<EditMealModalProps> = ({
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
 
   const mealPeriods = useMemo(() => getMealPeriods(schedules), [schedules]);
+  const currentPeriodMeta = useMemo(() => {
+    return mealPeriods.find((p) => p.type === mealType) || mealPeriods[0];
+  }, [mealPeriods, mealType]);
 
   useEffect(() => {
     if (initialMeal) {
@@ -140,17 +145,35 @@ export const EditMealModal: React.FC<EditMealModalProps> = ({
                 <label className="block text-[11px] sm:text-xs font-black text-[#16302e] mb-1 truncate">
                   Horário / Turno
                 </label>
-                <select
-                  value={mealType}
-                  onChange={(e) => setMealType(e.target.value as MealType)}
-                  className="w-full min-w-0 max-w-full bg-[#f0fcfa] border border-[#d0dddb] text-[#16302e] rounded-xl px-3 py-2 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-[#16302e]"
-                >
-                  {mealPeriods.map((p) => (
-                    <option key={p.type} value={p.type}>
-                      {p.label} ({p.timeRange})
-                    </option>
-                  ))}
-                </select>
+                {lockPeriod ? (
+                  <div className="w-full min-w-0 max-w-full bg-[#f0fcfa] border border-[#d0dddb] text-[#16302e] rounded-xl px-3 py-2 flex items-center justify-between gap-2 min-h-[38px] box-border">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="w-5 h-5 rounded-md bg-[#16302e] text-[#ffca5e] flex items-center justify-center shrink-0">
+                        <span className="material-symbols-outlined text-xs">
+                          {currentPeriodMeta?.icon || 'restaurant'}
+                        </span>
+                      </span>
+                      <span className="text-xs font-bold text-[#16302e] truncate">
+                        {currentPeriodMeta?.label}
+                      </span>
+                    </div>
+                    <span className="text-[10px] sm:text-[11px] font-semibold text-[#727877] bg-white px-2 py-0.5 rounded-md border border-[#d0dddb] shrink-0">
+                      {currentPeriodMeta?.timeRange}
+                    </span>
+                  </div>
+                ) : (
+                  <select
+                    value={mealType}
+                    onChange={(e) => setMealType(e.target.value as MealType)}
+                    className="w-full min-w-0 max-w-full bg-[#f0fcfa] border border-[#d0dddb] text-[#16302e] rounded-xl px-3 py-2 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-[#16302e]"
+                  >
+                    {mealPeriods.map((p) => (
+                      <option key={p.type} value={p.type}>
+                        {p.label} ({p.timeRange})
+                      </option>
+                    ))}
+                  </select>
+                )}
               </div>
             </div>
 
