@@ -78,3 +78,18 @@
 - **Estabilidade ao Despertar (Wake from Sleep & Reativação Instantânea):**
   - O estado do painel principal é hidratado imediatamente a partir do cache local (`${houseKey}_dashboard_cache`). Quando a tela do celular é ligada ou reaberta, o conteúdo real é renderizado em < 16ms sem exibição de skeletons transitórios e sem saltos de layout ("pulada"). A sincronização com a API e WebSocket acontece em segundo plano de forma silenciosa.
 
+---
+
+## 8. Micro-interações Nativas, Animações e Modais Bottom Sheet
+- **Transição de Telas/Abas:**
+  - Alternância de visões em `App.tsx` via `motion` (`AnimatePresence mode="wait" initial={false}`) com curva cinematográfica rápida (`duration: 0.22s, ease: [0.16, 1, 0.3, 1]`) e leve elevação (`y: 8 -> 0`), prevenindo layout shifts.
+- **Efeito Cascata (Stagger):**
+  - Carregamento de cards em lote (pratos do dia em `MealsView`, recados no mural em `DashboardView`) com atraso sequencial progressivo (`delay: index * 0.04s`), evitando aparições em bloco abruptas.
+- **Feedback Tátil Universal:**
+  - Remoção de flash de toque nativo do WebKit (`-webkit-tap-highlight-color: transparent`).
+  - Botões de ação e itens interativos recebem compressão suave ao toque (`active:scale-[0.97] transition-all`).
+- **Modais Mobile (Bottom Sheet):**
+  - Em smartphones (`< 640px`), modais abrem alinhados à base (`items-end sm:items-center`), com cantos arredondados no topo (`rounded-t-3xl sm:rounded-3xl`), animação elástica de subida (`animate-sheet-slide-up`), altura máxima de `90dvh` e barra tátil indicadora superior (*grab handle*). Em tablets e desktops, comportam-se como modais flutuantes centralizados (`sm:items-center`).
+- **Acessibilidade Motora & Redução de Movimento:**
+  - Todas as animações e transições respeitam `@media (prefers-reduced-motion: reduce)`, desativando efeitos para evitar desconforto em usuários com sensibilidade vestibular.
+

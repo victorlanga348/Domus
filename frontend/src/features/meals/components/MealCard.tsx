@@ -81,7 +81,7 @@ export const MealCard: React.FC<MealCardProps> = ({
           {canEdit && hasMeal ? (
             <button
               onClick={onEdit}
-              className="p-1.5 sm:p-2 text-[#16302e] hover:text-[#7b5800] hover:bg-[#fff8e6] rounded-xl transition-colors min-h-[36px] min-w-[36px] sm:min-h-[40px] sm:min-w-[40px] flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-[#7b5800]/40 cursor-pointer"
+              className="p-1.5 sm:p-2 text-[#16302e] hover:text-[#7b5800] hover:bg-[#fff8e6] active:scale-[0.96] rounded-xl transition-all min-h-[36px] min-w-[36px] sm:min-h-[40px] sm:min-w-[40px] flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-[#7b5800]/40 cursor-pointer"
               title="Editar refeição"
               aria-label={`Editar ${periodMeta.label}`}
             >
@@ -128,7 +128,7 @@ export const MealCard: React.FC<MealCardProps> = ({
             {canEdit && (
               <button
                 onClick={onEdit}
-                className="mt-1.5 text-[11px] font-bold text-[#7b5800] hover:underline inline-flex items-center gap-0.5 cursor-pointer"
+                className="mt-1.5 text-[11px] font-bold text-[#7b5800] hover:underline active:scale-[0.96] transition-transform inline-flex items-center gap-0.5 cursor-pointer"
               >
                 <span className="material-symbols-outlined text-[13px]">add</span>
                 <span>Adicionar</span>

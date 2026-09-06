@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { motion } from 'motion/react';
 import { dashboardApi, type DashboardData } from '../api/dashboardApi.js';
 import { useHouseSocket } from '../../../shared/socket/useHouseSocket.js';
 import { MuralNote, FamilyMember } from '../../../types';
@@ -225,11 +226,14 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               </button>
             </div>
           ) : (
-            muralNotes.map((note) => {
+            muralNotes.map((note, index) => {
               const bgClass = getNoteBgColor(note.color);
               return (
-                <div
+                <motion.div
                   key={note.id}
+                  initial={{ opacity: 0, y: 12 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.22, delay: index * 0.04, ease: 'easeOut' }}
                   className={`p-5 rounded-3xl border shadow-2xs relative flex flex-col justify-between transition-all hover:shadow-md hover:-translate-y-0.5 ${bgClass}`}
                 >
                   <div>
@@ -261,7 +265,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                       {note.dateStr}
                     </span>
                   </div>
-                </div>
+                </motion.div>
               );
             })
           )}

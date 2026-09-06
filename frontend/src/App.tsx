@@ -4,6 +4,7 @@
  */
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
 import {
   TabType,
   FamilyMember,
@@ -1817,110 +1818,121 @@ export default function App() {
           className="flex-1 min-w-0 max-w-full pb-6 md:pb-12"
           style={{ paddingBottom: 'calc(1.5rem + env(safe-area-inset-bottom, 0px))' }}
         >
-          {currentTab === 'dashboard' && (
-            <DashboardView
-              currentUserId={authUser.id}
-              currentUserName={authUser.name}
-              currentHouseId={currentHouse.id}
-              houseName={currentHouse?.name}
-              houseInviteCode={currentHouse?.invite_code}
-              subTab={subTab}
-              vacationMode={vacationMode}
-              onShowToast={showToast}
-              muralNotes={muralNotes}
-              onAddMuralNote={handleAddMuralNote}
-              onDeleteMuralNote={handleDeleteMuralNote}
-              familyMembers={familyMembers}
-              onSyncMembers={handleSyncMembers}
-              onSyncHouse={(house) => {
-                setCurrentHouse((prev) => ({
-                  ...(prev || {}),
-                  id: house.id,
-                  name: house.name,
-                  invite_code: house.invite_code,
-                }));
-              }}
-            />
-          )}
+          <AnimatePresence mode="wait" initial={false}>
+            <motion.div
+              key={currentTab}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -6 }}
+              transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+              className="w-full min-w-0 max-w-full"
+            >
+              {currentTab === 'dashboard' && (
+                <DashboardView
+                  currentUserId={authUser.id}
+                  currentUserName={authUser.name}
+                  currentHouseId={currentHouse.id}
+                  houseName={currentHouse?.name}
+                  houseInviteCode={currentHouse?.invite_code}
+                  subTab={subTab}
+                  vacationMode={vacationMode}
+                  onShowToast={showToast}
+                  muralNotes={muralNotes}
+                  onAddMuralNote={handleAddMuralNote}
+                  onDeleteMuralNote={handleDeleteMuralNote}
+                  familyMembers={familyMembers}
+                  onSyncMembers={handleSyncMembers}
+                  onSyncHouse={(house) => {
+                    setCurrentHouse((prev) => ({
+                      ...(prev || {}),
+                      id: house.id,
+                      name: house.name,
+                      invite_code: house.invite_code,
+                    }));
+                  }}
+                />
+              )}
 
-          {currentTab === 'tasks' && (
-            <TasksRotationsView
-              tasks={tasks}
-              rotations={rotations}
-              familyMembers={familyMembers}
-              currentUserId={authUser?.id}
-              currentUserRole={currentUser.role}
-              currentUserName={authUser?.name}
-              onAddTask={handleAddTask}
-              onUpdateTask={handleUpdateTask}
-              onTaskStatusChange={handleTaskStatusChange}
-              onDeleteTask={handleDeleteTask}
-              onRotateNext={handleRotateNext}
-              onUpdateRotations={setRotations}
-            />
-          )}
+              {currentTab === 'tasks' && (
+                <TasksRotationsView
+                  tasks={tasks}
+                  rotations={rotations}
+                  familyMembers={familyMembers}
+                  currentUserId={authUser?.id}
+                  currentUserRole={currentUser.role}
+                  currentUserName={authUser?.name}
+                  onAddTask={handleAddTask}
+                  onUpdateTask={handleUpdateTask}
+                  onTaskStatusChange={handleTaskStatusChange}
+                  onDeleteTask={handleDeleteTask}
+                  onRotateNext={handleRotateNext}
+                  onUpdateRotations={setRotations}
+                />
+              )}
 
-          {currentTab === 'meals' && (
-            <MealsView
-              mealPlan={mealPlan}
-              familyMembers={familyMembers}
-              currentUserRole={currentUser.role}
-              currentUserId={authUser?.id}
-              currentUserName={authUser?.name}
-              onUpdateMeal={handleUpdateMeal}
-              onDeleteMeal={handleDeleteMeal}
-              onToggleLock={handleToggleMealLock}
-              onClearMeals={handleClearMeals}
-              onUpdateSchedules={handleUpdateMealSchedules}
-            />
-          )}
+              {currentTab === 'meals' && (
+                <MealsView
+                  mealPlan={mealPlan}
+                  familyMembers={familyMembers}
+                  currentUserRole={currentUser.role}
+                  currentUserId={authUser?.id}
+                  currentUserName={authUser?.name}
+                  onUpdateMeal={handleUpdateMeal}
+                  onDeleteMeal={handleDeleteMeal}
+                  onToggleLock={handleToggleMealLock}
+                  onClearMeals={handleClearMeals}
+                  onUpdateSchedules={handleUpdateMealSchedules}
+                />
+              )}
 
-          {currentTab === 'settings' && (
-            <SettingsView
-              preferences={preferences}
-              onUpdatePreferences={setPreferences}
-              houseRules={houseRules}
-              onUpdateHouseRules={setHouseRules}
-              familyMembers={familyMembers}
-              onOpenAddMemberModal={() => setIsAddMemberOpen(true)}
-              onOpenAddRuleModal={() => setIsAddRuleOpen(true)}
-              onSwitchHouse={handleSwitchHouse}
-              currentUserRole={currentUser.role}
-              currentUserId={authUser.id}
-              onPromoteToAdmin={handlePromoteToAdmin}
-              onDemoteToResident={handleDemoteToResident}
-              onTransferGeneralAdmin={handleInitiateTransferGeneralAdmin}
-              onRemoveMember={handleRemoveMember}
-              onLeaveHouse={() => setIsLeaveHouseOpen(true)}
-              houseInviteCode={currentHouse?.invite_code}
-              houseName={currentHouse?.name}
-              onRegenerateCode={() => setIsRegenerateCodeModalOpen(true)}
-              onShowToast={showToast}
-              installPromptEvent={deferredInstallPrompt}
-              onInstallAccepted={() => setDeferredInstallPrompt(null)}
-            />
-          )}
+              {currentTab === 'settings' && (
+                <SettingsView
+                  preferences={preferences}
+                  onUpdatePreferences={setPreferences}
+                  houseRules={houseRules}
+                  onUpdateHouseRules={setHouseRules}
+                  familyMembers={familyMembers}
+                  onOpenAddMemberModal={() => setIsAddMemberOpen(true)}
+                  onOpenAddRuleModal={() => setIsAddRuleOpen(true)}
+                  onSwitchHouse={handleSwitchHouse}
+                  currentUserRole={currentUser.role}
+                  currentUserId={authUser.id}
+                  onPromoteToAdmin={handlePromoteToAdmin}
+                  onDemoteToResident={handleDemoteToResident}
+                  onTransferGeneralAdmin={handleInitiateTransferGeneralAdmin}
+                  onRemoveMember={handleRemoveMember}
+                  onLeaveHouse={() => setIsLeaveHouseOpen(true)}
+                  houseInviteCode={currentHouse?.invite_code}
+                  houseName={currentHouse?.name}
+                  onRegenerateCode={() => setIsRegenerateCodeModalOpen(true)}
+                  onShowToast={showToast}
+                  installPromptEvent={deferredInstallPrompt}
+                  onInstallAccepted={() => setDeferredInstallPrompt(null)}
+                />
+              )}
 
-          {currentTab === 'reports' && (
-            <ReportsView
-              tasks={tasks}
-              familyMembers={familyMembers}
-              activityLogs={activityLogs}
-              currentUserRole={currentUser.role}
-              onTaskStatusChange={handleTaskStatusChange}
-              onDeleteTask={handleDeleteTask}
-            />
-          )}
+              {currentTab === 'reports' && (
+                <ReportsView
+                  tasks={tasks}
+                  familyMembers={familyMembers}
+                  activityLogs={activityLogs}
+                  currentUserRole={currentUser.role}
+                  onTaskStatusChange={handleTaskStatusChange}
+                  onDeleteTask={handleDeleteTask}
+                />
+              )}
 
-          {currentTab === 'statistics' && (
-            <StatisticsView
-              currentHouseId={currentHouse.id}
-              currentUserId={authUser.id}
-              familyMembers={familyMembers}
-              tasks={tasks}
-              activityLogs={activityLogs}
-            />
-          )}
+              {currentTab === 'statistics' && (
+                <StatisticsView
+                  currentHouseId={currentHouse.id}
+                  currentUserId={authUser.id}
+                  familyMembers={familyMembers}
+                  tasks={tasks}
+                  activityLogs={activityLogs}
+                />
+              )}
+            </motion.div>
+          </AnimatePresence>
         </div>
       </main>
 

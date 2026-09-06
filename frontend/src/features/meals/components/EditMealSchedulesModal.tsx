@@ -95,15 +95,18 @@ export const EditMealSchedulesModal: React.FC<EditMealSchedulesModalProps> = ({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-[#131e1d]/60 backdrop-blur-xs animate-in fade-in duration-200"
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-[#131e1d]/60 backdrop-blur-xs animate-in fade-in duration-200"
       role="dialog"
       aria-modal="true"
       aria-labelledby="schedule-modal-title"
     >
       <div
-        className="bg-white w-full max-w-lg rounded-2xl sm:rounded-3xl border border-[#d0dddb] shadow-2xl overflow-hidden flex flex-col max-h-[88dvh] sm:max-h-[90vh]"
+        className="bg-white w-full max-w-lg rounded-t-3xl sm:rounded-3xl border-t sm:border border-[#d0dddb] shadow-2xl overflow-hidden flex flex-col max-h-[90dvh] sm:max-h-[90vh] animate-sheet-slide-up sm:animate-none"
         onClick={(e) => e.stopPropagation()}
       >
+        {/* Mobile Grab Indicator Handle */}
+        <div className="w-10 h-1 rounded-full bg-[#d0dddb] mx-auto mt-2.5 sm:hidden shrink-0" />
+
         {/* Header (Fixo no Topo) */}
         <div className="px-3.5 sm:px-5 py-3 sm:py-4 border-b border-[#e4f0ee] flex items-center justify-between bg-[#F4F9F7] shrink-0">
           <div className="flex items-center gap-2 sm:gap-2.5 min-w-0">
@@ -209,13 +212,13 @@ export const EditMealSchedulesModal: React.FC<EditMealSchedulesModalProps> = ({
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 rounded-xl text-xs font-bold text-[#727877] hover:bg-[#f0fcfa] transition-colors min-h-[44px] cursor-pointer"
+              className="px-4 py-2 rounded-xl text-xs font-bold text-[#727877] hover:bg-[#f0fcfa] active:scale-[0.97] transition-all min-h-[44px] cursor-pointer"
             >
               Cancelar
             </button>
             <button
               type="submit"
-              className="px-5 py-2 rounded-xl text-xs font-black bg-[#16302e] text-[#ffca5e] hover:bg-[#204542] transition-colors shadow-xs flex items-center gap-1.5 min-h-[44px] cursor-pointer"
+              className="px-5 py-2 rounded-xl text-xs font-black bg-[#16302e] text-[#ffca5e] hover:bg-[#204542] active:scale-[0.97] transition-all shadow-xs flex items-center gap-1.5 min-h-[44px] cursor-pointer"
             >
               <span className="material-symbols-outlined text-base">check</span>
               <span>Salvar Horários</span>

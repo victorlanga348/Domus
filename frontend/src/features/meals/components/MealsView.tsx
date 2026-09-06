@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { motion } from 'motion/react';
 import { MealItem, DayOfWeek, MealType } from '../../../types.js';
 import {
   MealsViewProps,
@@ -133,7 +134,7 @@ export const MealsView: React.FC<MealsViewProps> = ({
           {isGeneralAdmin && (
             <button
               onClick={onToggleLock}
-              className="w-full sm:w-auto px-3.5 py-2 rounded-xl text-xs font-black bg-[#16302e] text-[#ffca5e] hover:bg-[#204542] transition-colors flex items-center justify-center gap-1.5 shadow-xs shrink-0 min-h-[40px] cursor-pointer"
+              className="w-full sm:w-auto px-3.5 py-2 rounded-xl text-xs font-black bg-[#16302e] text-[#ffca5e] hover:bg-[#204542] active:scale-[0.97] transition-all flex items-center justify-center gap-1.5 shadow-xs shrink-0 min-h-[40px] cursor-pointer"
             >
               <span className="material-symbols-outlined text-base">lock_open</span>
               <span>Destrancar Cardápio</span>
@@ -164,7 +165,7 @@ export const MealsView: React.FC<MealsViewProps> = ({
           <div className="hidden sm:flex bg-[#f0fcfa] p-1 rounded-xl border border-[#d0dddb] items-center">
             <button
               onClick={() => setViewMode('daily')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer active:scale-[0.97] ${
                 viewMode === 'daily'
                   ? 'bg-white text-[#16302e] shadow-xs'
                   : 'text-[#727877] hover:text-[#16302e]'
@@ -175,7 +176,7 @@ export const MealsView: React.FC<MealsViewProps> = ({
             </button>
             <button
               onClick={() => setViewMode('weekly')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer active:scale-[0.97] ${
                 viewMode === 'weekly'
                   ? 'bg-white text-[#16302e] shadow-xs'
                   : 'text-[#727877] hover:text-[#16302e]'
@@ -190,7 +191,7 @@ export const MealsView: React.FC<MealsViewProps> = ({
           {canEdit && onUpdateSchedules && (
             <button
               onClick={() => setIsSchedulesModalOpen(true)}
-              className="px-3.5 py-2 rounded-xl text-xs font-black bg-[#f0fcfa] text-[#16302e] hover:bg-[#e4f0ee] transition-colors flex items-center gap-1.5 border border-[#d0dddb] min-h-[40px] cursor-pointer"
+              className="px-3.5 py-2 rounded-xl text-xs font-black bg-[#f0fcfa] text-[#16302e] hover:bg-[#e4f0ee] active:scale-[0.97] transition-all flex items-center gap-1.5 border border-[#d0dddb] min-h-[40px] cursor-pointer"
               title="Ajustar horários de início e término das refeições"
             >
               <span className="material-symbols-outlined text-base text-[#7b5800]">schedule</span>
@@ -202,7 +203,7 @@ export const MealsView: React.FC<MealsViewProps> = ({
           {isGeneralAdmin && (
             <button
               onClick={onToggleLock}
-              className={`px-3.5 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 border min-h-[40px] cursor-pointer ${
+              className={`px-3.5 py-2 rounded-xl text-xs font-black active:scale-[0.97] transition-all flex items-center gap-1.5 border min-h-[40px] cursor-pointer ${
                 isLocked
                   ? 'bg-amber-100 text-amber-900 border-amber-300 hover:bg-amber-200'
                   : 'bg-[#f0fcfa] text-[#16302e] border-[#d0dddb] hover:bg-[#e4f0ee]'
@@ -220,7 +221,7 @@ export const MealsView: React.FC<MealsViewProps> = ({
           {canEdit && (mealPlan.meals?.length || 0) > 0 && onClearMeals && (
             <button
               onClick={() => setIsClearConfirmOpen(true)}
-              className="px-3 py-2 rounded-xl text-xs font-bold text-red-600 bg-red-50 hover:bg-red-100 transition-colors flex items-center gap-1.5 border border-red-200 min-h-[40px] cursor-pointer"
+              className="px-3 py-2 rounded-xl text-xs font-bold text-red-600 bg-red-50 hover:bg-red-100 active:scale-[0.97] transition-all flex items-center gap-1.5 border border-red-200 min-h-[40px] cursor-pointer"
               title="Esvaziar todos os pratos cadastrados da semana"
             >
               <span className="material-symbols-outlined text-base">delete_sweep</span>
@@ -252,7 +253,7 @@ export const MealsView: React.FC<MealsViewProps> = ({
                 <button
                   key={day.key}
                   onClick={() => setSelectedDay(day.key)}
-                  className={`flex flex-col items-center justify-center p-3 rounded-2xl border transition-all shrink-0 min-w-[76px] sm:min-w-0 cursor-pointer ${
+                  className={`flex flex-col items-center justify-center p-3 rounded-2xl border transition-all active:scale-[0.96] shrink-0 min-w-[76px] sm:min-w-0 cursor-pointer ${
                     isSelected
                       ? 'bg-[#16302e] text-[#ffca5e] border-[#16302e] shadow-md scale-100'
                       : 'bg-white text-[#16302e] border-[#d9e5e3] hover:border-[#98b3b0] hover:bg-[#f0fcfa]'
@@ -309,22 +310,29 @@ export const MealsView: React.FC<MealsViewProps> = ({
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-            {mealPeriods.map((period) => {
+            {mealPeriods.map((period, index) => {
               const meal = mealsByDayAndPeriod.get(`${selectedDay}_${period.type}`);
               return (
-                <MealCard
+                <motion.div
                   key={period.type}
-                  periodMeta={period}
-                  meal={meal}
-                  canEdit={canEdit}
-                  isLocked={isLocked}
-                  isSubAdmin={isAdmin}
-                  onEdit={() => {
-                    if (meal) handleOpenEditMeal(meal);
-                    else handleOpenAddMeal(selectedDay, period.type);
-                  }}
-                  onEditSchedule={() => setIsSchedulesModalOpen(true)}
-                />
+                  initial={{ opacity: 0, y: 12 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.22, delay: index * 0.04, ease: 'easeOut' }}
+                  className="h-full flex flex-col"
+                >
+                  <MealCard
+                    periodMeta={period}
+                    meal={meal}
+                    canEdit={canEdit}
+                    isLocked={isLocked}
+                    isSubAdmin={isAdmin}
+                    onEdit={() => {
+                      if (meal) handleOpenEditMeal(meal);
+                      else handleOpenAddMeal(selectedDay, period.type);
+                    }}
+                    onEditSchedule={() => setIsSchedulesModalOpen(true)}
+                  />
+                </motion.div>
               );
             })}
           </div>
