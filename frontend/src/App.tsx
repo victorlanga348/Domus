@@ -394,16 +394,26 @@ export default function App() {
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        const cleanMeals = (parsed.meals || []).filter(
-          (m: any) =>
-            !m.id?.startsWith('meal_mon_') &&
-            !m.id?.startsWith('meal_tue_') &&
-            !m.id?.startsWith('meal_wed_') &&
-            !m.id?.startsWith('meal_thu_') &&
-            !m.id?.startsWith('meal_fri_') &&
-            !m.id?.startsWith('meal_sat_') &&
-            !m.id?.startsWith('meal_sun_')
-        );
+        const cleanMeals = (parsed.meals || [])
+          .filter(
+            (m: any) =>
+              !m.id?.startsWith('meal_mon_') &&
+              !m.id?.startsWith('meal_tue_') &&
+              !m.id?.startsWith('meal_wed_') &&
+              !m.id?.startsWith('meal_thu_') &&
+              !m.id?.startsWith('meal_fri_') &&
+              !m.id?.startsWith('meal_sat_') &&
+              !m.id?.startsWith('meal_sun_')
+          )
+          .map((m: any) => {
+            const chefs =
+              Array.isArray(m.chefs) && m.chefs.length > 0
+                ? m.chefs
+                : m.chefName
+                ? [{ id: m.chefId || '', name: m.chefName, avatar: m.chefAvatar }]
+                : [];
+            return { ...m, chefs };
+          });
         return { ...parsed, meals: cleanMeals };
       } catch {}
     }
@@ -892,16 +902,26 @@ export default function App() {
     if (cachedMealsRaw) {
       try {
         const parsed = JSON.parse(cachedMealsRaw);
-        const cleanMeals = (parsed.meals || []).filter(
-          (m: any) =>
-            !m.id?.startsWith('meal_mon_') &&
-            !m.id?.startsWith('meal_tue_') &&
-            !m.id?.startsWith('meal_wed_') &&
-            !m.id?.startsWith('meal_thu_') &&
-            !m.id?.startsWith('meal_fri_') &&
-            !m.id?.startsWith('meal_sat_') &&
-            !m.id?.startsWith('meal_sun_')
-        );
+        const cleanMeals = (parsed.meals || [])
+          .filter(
+            (m: any) =>
+              !m.id?.startsWith('meal_mon_') &&
+              !m.id?.startsWith('meal_tue_') &&
+              !m.id?.startsWith('meal_wed_') &&
+              !m.id?.startsWith('meal_thu_') &&
+              !m.id?.startsWith('meal_fri_') &&
+              !m.id?.startsWith('meal_sat_') &&
+              !m.id?.startsWith('meal_sun_')
+          )
+          .map((m: any) => {
+            const chefs =
+              Array.isArray(m.chefs) && m.chefs.length > 0
+                ? m.chefs
+                : m.chefName
+                ? [{ id: m.chefId || '', name: m.chefName, avatar: m.chefAvatar }]
+                : [];
+            return { ...m, chefs };
+          });
         setMealPlan({ ...parsed, meals: cleanMeals });
       } catch {
         setMealPlan(createDefaultMealPlan(houseData.house.id));

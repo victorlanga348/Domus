@@ -144,6 +144,12 @@ export type DayOfWeek =
   | 'saturday'
   | 'sunday';
 
+export interface MealChef {
+  id: string;
+  name: string;
+  avatar?: string;
+}
+
 export interface MealItem {
   id: string;
   dayOfWeek: DayOfWeek;
@@ -151,6 +157,7 @@ export interface MealItem {
   title: string;
   description?: string;
   tags?: string[];
+  chefs?: MealChef[];
   chefId?: string;
   chefName?: string;
   chefAvatar?: string;
@@ -166,3 +173,4 @@ export interface HouseMealPlan {
   lockedAt?: string;
   meals: MealItem[];
 }
+

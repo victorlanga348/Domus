@@ -28,7 +28,7 @@ export const EditMealModal: React.FC<EditMealModalProps> = ({
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
-  const [selectedChefId, setSelectedChefId] = useState<string>('');
+  const [selectedChefIds, setSelectedChefIds] = useState<string[]>([]);
 
   useEffect(() => {
     if (initialMeal) {
@@ -37,14 +37,20 @@ export const EditMealModal: React.FC<EditMealModalProps> = ({
       setTitle(initialMeal.title);
       setDescription(initialMeal.description || '');
       setSelectedTags(initialMeal.tags || []);
-      setSelectedChefId(initialMeal.chefId || '');
+      const initialChefs =
+        initialMeal.chefs && initialMeal.chefs.length > 0
+          ? initialMeal.chefs.map((c) => c.id)
+          : initialMeal.chefId
+          ? [initialMeal.chefId]
+          : [];
+      setSelectedChefIds(initialChefs);
     } else {
       setDayOfWeek(defaultDay);
       setMealType(defaultPeriod);
       setTitle('');
       setDescription('');
       setSelectedTags([]);
-      setSelectedChefId('');
+      setSelectedChefIds([]);
     }
   }, [initialMeal, defaultDay, defaultPeriod, isOpen]);
 
@@ -58,11 +64,21 @@ export const EditMealModal: React.FC<EditMealModalProps> = ({
     );
   };
 
+  const handleChefToggle = (memberId: string) => {
+    setSelectedChefIds((prev) =>
+      prev.includes(memberId)
+        ? prev.filter((id) => id !== memberId)
+        : [...prev, memberId]
+    );
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim()) return;
 
-    const assignedChef = familyMembers.find((m) => m.id === selectedChefId);
+    const assignedChefs = familyMembers
+      .filter((m) => selectedChefIds.includes(m.id))
+      .map((m) => ({ id: m.id, name: m.name, avatar: m.avatar }));
 
     const updatedMeal: MealItem = {
       id: initialMeal?.id || `meal_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
@@ -71,9 +87,10 @@ export const EditMealModal: React.FC<EditMealModalProps> = ({
       title: title.trim(),
       description: description.trim() || undefined,
       tags: selectedTags,
-      chefId: assignedChef?.id,
-      chefName: assignedChef?.name,
-      chefAvatar: assignedChef?.avatar,
+      chefs: assignedChefs,
+      chefId: assignedChefs[0]?.id,
+      chefName: assignedChefs[0]?.name,
+      chefAvatar: assignedChefs[0]?.avatar,
       updatedAt: new Date().toISOString(),
     };
 
@@ -214,23 +231,81 @@ export const EditMealModal: React.FC<EditMealModalProps> = ({
             </div>
           </div>
 
-          {/* Chef / Responsible Member */}
+          {/* Chef / Responsible Members (Multi-Chef Selection) */}
           <div>
-            <label className="block text-xs font-black text-[#16302e] mb-1.5">
-              Cozinheiro(a) Responsável
-            </label>
-            <select
-              value={selectedChefId}
-              onChange={(e) => setSelectedChefId(e.target.value)}
-              className="w-full bg-[#f0fcfa] border border-[#d0dddb] text-[#16302e] rounded-xl px-3 py-2 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-[#16302e]"
-            >
-              <option value="">Nenhum cozinheiro definido (Geral)</option>
-              {familyMembers.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.name} ({m.role})
-                </option>
-              ))}
-            </select>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="text-xs font-black text-[#16302e] flex items-center gap-1.5">
+                <span className="material-symbols-outlined text-sm text-[#7b5800]">skillet</span>
+                <span>Cozinheiro(s) Responsável(is)</span>
+                {selectedChefIds.length > 0 && (
+                  <span className="text-[10px] font-bold bg-[#fff8e6] text-[#7b5800] px-1.5 py-0.5 rounded-md border border-[#ffca5e]/60">
+                    {selectedChefIds.length} {selectedChefIds.length === 1 ? 'selecionado' : 'selecionados'}
+                  </span>
+                )}
+              </label>
+
+              {selectedChefIds.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setSelectedChefIds([])}
+                  className="text-[10px] font-bold text-[#727877] hover:text-red-600 transition-colors"
+                >
+                  Limpar seleção
+                </button>
+              )}
+            </div>
+
+            <p className="text-[11px] text-[#727877] font-medium mb-2">
+              Selecione uma ou mais pessoas que vão cozinhar ou ajudar nesta refeição.
+            </p>
+
+            {familyMembers.length === 0 ? (
+              <p className="text-xs text-[#98b3b0] italic">Nenhum morador cadastrado na casa.</p>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-40 overflow-y-auto p-1 bg-[#f0fcfa] rounded-xl border border-[#d0dddb]">
+                {familyMembers.map((m) => {
+                  const isSelected = selectedChefIds.includes(m.id);
+                  return (
+                    <button
+                      key={m.id}
+                      type="button"
+                      onClick={() => handleChefToggle(m.id)}
+                      aria-pressed={isSelected}
+                      className={`flex items-center gap-2 p-2 rounded-lg border text-left transition-all min-h-[44px] cursor-pointer ${
+                        isSelected
+                          ? 'bg-white border-[#16302e] shadow-xs ring-1 ring-[#16302e]'
+                          : 'bg-white/60 border-transparent hover:bg-white hover:border-[#d0dddb]'
+                      }`}
+                    >
+                      {m.avatar ? (
+                        <img
+                          src={m.avatar}
+                          alt={m.name}
+                          className="w-7 h-7 rounded-full object-cover border border-[#d0dddb] shrink-0"
+                        />
+                      ) : (
+                        <span className="w-7 h-7 rounded-full bg-[#16302e] text-white flex items-center justify-center text-[10px] font-black shrink-0">
+                          {m.name.charAt(0).toUpperCase()}
+                        </span>
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-bold text-[#16302e] truncate">{m.name}</p>
+                        <p className="text-[10px] text-[#727877] font-medium truncate">{m.role}</p>
+                      </div>
+                      <span
+                        className={`w-4 h-4 rounded flex items-center justify-center text-[11px] transition-colors shrink-0 ${
+                          isSelected
+                            ? 'bg-[#16302e] text-[#ffca5e]'
+                            : 'border border-[#d0dddb] text-transparent'
+                        }`}
+                      >
+                        <span className="material-symbols-outlined text-xs">check</span>
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           {/* Actions Footer */}

@@ -31,6 +31,13 @@ export const MealCard: React.FC<MealCardProps> = ({
     return found || { label: tagLabel, icon: 'restaurant_menu', color: 'bg-[#f0fcfa] text-[#16302e] border-[#d0dddb]' };
   };
 
+  const chefs =
+    meal?.chefs && meal.chefs.length > 0
+      ? meal.chefs
+      : meal?.chefName
+      ? [{ id: meal.chefId || '', name: meal.chefName, avatar: meal.chefAvatar }]
+      : [];
+
   return (
     <div
       className={`bg-white rounded-2xl border transition-all duration-200 flex flex-col justify-between ${
@@ -145,28 +152,46 @@ export const MealCard: React.FC<MealCardProps> = ({
         </div>
       )}
 
-      {/* Footer: Chef info */}
-      {hasMeal && meal!.chefName && (
+      {/* Footer: Multi-Chef info & Avatar Stack */}
+      {hasMeal && chefs.length > 0 && (
         <div className="pt-2 border-t border-[#f0f4f3] flex items-center justify-between gap-2 text-[11px]">
           <div className="flex items-center gap-1.5 min-w-0">
-            {meal!.chefAvatar ? (
-              <img
-                src={meal!.chefAvatar}
-                alt={meal!.chefName}
-                className="w-5 h-5 rounded-full object-cover border border-[#d0dddb] shrink-0"
-              />
-            ) : (
-              <span className="w-5 h-5 rounded-full bg-[#16302e] text-white flex items-center justify-center text-[9px] font-bold shrink-0">
-                {meal!.chefName.charAt(0).toUpperCase()}
-              </span>
-            )}
+            {/* Avatar Stack */}
+            <div className="flex -space-x-1.5 overflow-hidden shrink-0">
+              {chefs.slice(0, 3).map((c, idx) =>
+                c.avatar ? (
+                  <img
+                    key={c.id || idx}
+                    src={c.avatar}
+                    alt={c.name}
+                    title={c.name}
+                    className="inline-block w-5 h-5 rounded-full object-cover ring-1.5 ring-white bg-white shrink-0"
+                  />
+                ) : (
+                  <span
+                    key={c.id || idx}
+                    title={c.name}
+                    className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-[#16302e] text-white ring-1.5 ring-white text-[9px] font-bold shrink-0"
+                  >
+                    {c.name.charAt(0).toUpperCase()}
+                  </span>
+                )
+              )}
+            </div>
+
             <span className="text-[#16302e] font-bold truncate">
-              {compact ? meal!.chefName.split(' ')[0] : `Chef: ${meal!.chefName}`}
+              {chefs.length === 1
+                ? compact
+                  ? chefs[0].name.split(' ')[0]
+                  : `Chef: ${chefs[0].name}`
+                : chefs.length === 2
+                ? `${chefs[0].name.split(' ')[0]} & ${chefs[1].name.split(' ')[0]}`
+                : `${chefs[0].name.split(' ')[0]} +${chefs.length - 1}`}
             </span>
           </div>
 
           <span className="text-[10px] font-bold text-[#7b5800] bg-[#fff8e6] px-1.5 py-0.2 rounded border border-[#ffca5e]/60 shrink-0">
-            Responsável
+            {chefs.length > 1 ? 'Cozinheiros' : 'Responsável'}
           </span>
         </div>
       )}
