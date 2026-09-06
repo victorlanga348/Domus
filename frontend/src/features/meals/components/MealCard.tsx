@@ -9,6 +9,7 @@ interface MealCardProps {
   isLocked: boolean;
   isSubAdmin: boolean;
   onEdit: () => void;
+  onEditSchedule?: () => void;
   compact?: boolean;
 }
 
@@ -19,6 +20,7 @@ export const MealCard: React.FC<MealCardProps> = ({
   isLocked,
   isSubAdmin,
   onEdit,
+  onEditSchedule,
   compact = false,
 }) => {
   const hasMeal = Boolean(meal && meal.title.trim());
@@ -53,24 +55,38 @@ export const MealCard: React.FC<MealCardProps> = ({
             <h4 className="text-xs sm:text-sm font-black text-[#16302e] truncate leading-tight">
               {periodMeta.label}
             </h4>
-            <p className="text-[10px] text-[#727877] font-semibold flex items-center gap-1">
-              <span className="material-symbols-outlined text-[11px]">schedule</span>
-              <span>{periodMeta.timeRange}</span>
-            </p>
+            {canEdit && onEditSchedule ? (
+              <button
+                type="button"
+                onClick={onEditSchedule}
+                className="text-[10px] text-[#727877] hover:text-[#7b5800] font-semibold flex items-center gap-1 mt-0.5 rounded px-1 -mx-1 py-0.5 hover:bg-[#fff8e6] transition-colors cursor-pointer group"
+                title="Clique para ajustar horário desta refeição"
+                aria-label={`Ajustar horário de ${periodMeta.label}`}
+              >
+                <span className="material-symbols-outlined text-[11px] group-hover:text-[#7b5800]">schedule</span>
+                <span className="underline decoration-dotted decoration-[#98b3b0] group-hover:decoration-[#7b5800]">{periodMeta.timeRange}</span>
+                <span className="material-symbols-outlined text-[9px] opacity-0 group-hover:opacity-100 transition-opacity text-[#7b5800]">edit</span>
+              </button>
+            ) : (
+              <p className="text-[10px] text-[#727877] font-semibold flex items-center gap-1 mt-0.5">
+                <span className="material-symbols-outlined text-[11px]">schedule</span>
+                <span>{periodMeta.timeRange}</span>
+              </p>
+            )}
           </div>
         </div>
 
-        {/* Edit / Lock Action */}
+        {/* Edit / Lock Action (Only displayed when meal exists or locked) */}
         <div>
-          {canEdit ? (
+          {canEdit && hasMeal ? (
             <button
               onClick={onEdit}
               className="p-1.5 sm:p-2 text-[#16302e] hover:text-[#7b5800] hover:bg-[#fff8e6] rounded-xl transition-colors min-h-[36px] min-w-[36px] sm:min-h-[40px] sm:min-w-[40px] flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-[#7b5800]/40 cursor-pointer"
-              title={hasMeal ? 'Editar refeição' : 'Definir prato'}
-              aria-label={hasMeal ? `Editar ${periodMeta.label}` : `Definir ${periodMeta.label}`}
+              title="Editar refeição"
+              aria-label={`Editar ${periodMeta.label}`}
             >
               <span className="material-symbols-outlined text-base sm:text-lg">
-                {hasMeal ? 'edit' : 'add'}
+                edit
               </span>
             </button>
           ) : isLocked && isSubAdmin ? (

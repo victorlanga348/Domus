@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { MealType, MealPeriodSchedule } from '../../../types.js';
 import { DEFAULT_MEAL_SCHEDULES } from '../types.js';
+import { useBodyScrollLock } from '../../../shared/hooks/index.js';
 
 interface EditMealSchedulesModalProps {
   isOpen: boolean;
@@ -54,6 +55,8 @@ export const EditMealSchedulesModal: React.FC<EditMealSchedulesModalProps> = ({
   schedules,
   onSave,
 }) => {
+  useBodyScrollLock(isOpen);
+
   const [formSchedules, setFormSchedules] = useState<Record<MealType, MealPeriodSchedule>>({
     ...DEFAULT_MEAL_SCHEDULES,
     ...(schedules || {}),

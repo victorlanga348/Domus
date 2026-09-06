@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { MealItem, DayOfWeek, MealType, MealPeriodSchedule } from '../../../types.js';
 import { getMealPeriods, DAYS_OF_WEEK, AVAILABLE_DIET_TAGS } from '../types.js';
+import { useBodyScrollLock } from '../../../shared/hooks/index.js';
 
 interface EditMealModalProps {
   isOpen: boolean;
@@ -23,6 +24,8 @@ export const EditMealModal: React.FC<EditMealModalProps> = ({
   defaultPeriod,
   schedules,
 }) => {
+  useBodyScrollLock(isOpen);
+
   const [dayOfWeek, setDayOfWeek] = useState<DayOfWeek>(defaultDay);
   const [mealType, setMealType] = useState<MealType>(defaultPeriod);
   const [title, setTitle] = useState('');

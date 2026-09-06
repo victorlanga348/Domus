@@ -3,6 +3,7 @@ import { dashboardApi, type DashboardData } from '../api/dashboardApi.js';
 import { useHouseSocket } from '../../../shared/socket/useHouseSocket.js';
 import { MuralNote, FamilyMember } from '../../../types';
 import { DashboardSkeleton } from '../../../components/index.js';
+import { useBodyScrollLock } from '../../../shared/hooks/index.js';
 
 interface DashboardViewProps {
   currentUserId?: string;
@@ -58,6 +59,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
   // Modal Novo Recado
   const [isAddNoteModalOpen, setIsAddNoteModalOpen] = useState(false);
+  useBodyScrollLock(isAddNoteModalOpen);
   const [noteTitle, setNoteTitle] = useState('');
   const [noteContent, setNoteContent] = useState('');
   const [noteColor, setNoteColor] = useState<MuralNote['color']>('amber');

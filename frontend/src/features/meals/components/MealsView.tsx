@@ -8,6 +8,7 @@ import {
 import { MealCard } from './MealCard.js';
 import { EditMealModal } from './EditMealModal.js';
 import { EditMealSchedulesModal } from './EditMealSchedulesModal.js';
+import { useBodyScrollLock } from '../../../shared/hooks/index.js';
 
 export const MealsView: React.FC<MealsViewProps> = ({
   mealPlan,
@@ -45,6 +46,9 @@ export const MealsView: React.FC<MealsViewProps> = ({
   const [editingMeal, setEditingMeal] = useState<MealItem | null>(null);
   const [modalDay, setModalDay] = useState<DayOfWeek>(selectedDay);
   const [modalPeriod, setModalPeriod] = useState<MealType>('breakfast');
+
+  // Prevent background scrolling when confirmation dialog is open
+  useBodyScrollLock(isClearConfirmOpen);
 
   // Role permissions
   const isGeneralAdmin = currentUserRole === 'Admin Geral';
@@ -319,6 +323,7 @@ export const MealsView: React.FC<MealsViewProps> = ({
                     if (meal) handleOpenEditMeal(meal);
                     else handleOpenAddMeal(selectedDay, period.type);
                   }}
+                  onEditSchedule={() => setIsSchedulesModalOpen(true)}
                 />
               );
             })}
@@ -376,6 +381,7 @@ export const MealsView: React.FC<MealsViewProps> = ({
                               if (meal) handleOpenEditMeal(meal);
                               else handleOpenAddMeal(day.key, period.type);
                             }}
+                            onEditSchedule={() => setIsSchedulesModalOpen(true)}
                           />
                         );
                       })}

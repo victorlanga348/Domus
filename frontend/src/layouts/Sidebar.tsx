@@ -1,5 +1,6 @@
 import React from 'react';
 import { TabType, FamilyMember } from '../types';
+import { useBodyScrollLock } from '../shared/hooks/index.js';
 
 interface SidebarProps {
   currentTab: TabType;
@@ -22,6 +23,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   isMobileOpen = false,
   onCloseMobile,
 }) => {
+  useBodyScrollLock(isMobileOpen);
   const navItems: { id: TabType; label: string; icon: string }[] = [
     { id: 'dashboard', label: 'Mural de Recados', icon: 'push_pin' },
     { id: 'tasks', label: 'Tarefas & Rodízio', icon: 'assignment' },

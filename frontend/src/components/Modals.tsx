@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { FamilyMember, ExpenseItem, HouseRule, ActivityLog, HouseTask } from '../types';
+import { useBodyScrollLock } from '../shared/hooks/index.js';
 
 /* --- Add Expense Modal --- */
 export const AddExpenseModal: React.FC<{
@@ -8,6 +9,8 @@ export const AddExpenseModal: React.FC<{
   familyMembers: FamilyMember[];
   onAddExpense: (expense: Omit<ExpenseItem, 'id'>) => void;
 }> = ({ isOpen, onClose, familyMembers, onAddExpense }) => {
+  useBodyScrollLock(isOpen);
+
   const [title, setTitle] = useState('');
   const [amount, setAmount] = useState('');
   const [paidBy, setPaidBy] = useState(familyMembers[0]?.name || 'Morador');
@@ -147,6 +150,8 @@ export const RequestReimbursementModal: React.FC<{
   onClose: () => void;
   onSubmit: (amount: number, reason: string) => void;
 }> = ({ isOpen, onClose, onSubmit }) => {
+  useBodyScrollLock(isOpen);
+
   const [amount, setAmount] = useState('');
   const [reason, setReason] = useState('');
 
@@ -238,6 +243,8 @@ export const AddHouseRuleModal: React.FC<{
   onClose: () => void;
   onAddRule: (rule: Omit<HouseRule, 'id' | 'number'>) => void;
 }> = ({ isOpen, onClose, onAddRule }) => {
+  useBodyScrollLock(isOpen);
+
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
 
@@ -328,6 +335,7 @@ export const LeadershipTransferModal: React.FC<{
   onConfirm: () => void;
   targetMemberName: string;
 }> = ({ isOpen, onClose, onConfirm, targetMemberName }) => {
+  useBodyScrollLock(isOpen);
   if (!isOpen) return null;
 
   return (
@@ -396,6 +404,8 @@ export const AddMemberModal: React.FC<{
   currentUserRole?: FamilyMember['role'];
   onInitiateTransferGeneralAdmin?: (pendingMember: Omit<FamilyMember, 'id'>) => void;
 }> = ({ isOpen, onClose, onAddMember, currentUserRole = 'Admin Geral', onInitiateTransferGeneralAdmin }) => {
+  useBodyScrollLock(isOpen);
+
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [role, setRole] = useState<FamilyMember['role']>('Resident');
@@ -571,6 +581,8 @@ export const NotificationsDrawer: React.FC<{
   onMarkAllAsRead,
   onNavigateToReports,
 }) => {
+  useBodyScrollLock(isOpen);
+
   const [activeTab, setActiveTab] = useState<'alerts' | 'notifications'>('alerts');
 
   if (!isOpen) return null;
@@ -885,6 +897,7 @@ export const FamilyMembersDrawer: React.FC<{
   onTransferGeneralAdmin,
   onRemoveMember,
 }) => {
+  useBodyScrollLock(isOpen);
   const [editingMemberId, setEditingMemberId] = useState<string | null>(null);
   const [locationInput, setLocationInput] = useState('');
   const [selectedIcon, setSelectedIcon] = useState('home');
@@ -1197,6 +1210,8 @@ export const LeaveHouseModal: React.FC<{
   houseName,
   loading = false,
 }) => {
+  useBodyScrollLock(isOpen);
+
   const [selectedSuccessorId, setSelectedSuccessorId] = React.useState<string>('');
 
   React.useEffect(() => {
@@ -1383,9 +1398,10 @@ export const ConfirmActionModal: React.FC<{
   confirmText = 'Confirmar',
   cancelText = 'Cancelar',
   variant = 'danger',
-  icon,
+  icon = 'warning',
   loading = false,
 }) => {
+  useBodyScrollLock(isOpen);
   if (!isOpen) return null;
 
   const defaultIcon = variant === 'danger' ? 'warning' : variant === 'warning' ? 'info' : 'check_circle';

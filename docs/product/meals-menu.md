@@ -13,8 +13,11 @@ O cardápio opera em ciclo semanal contínuo de 7 dias (Segunda a Domingo) divid
 - **Jantar (`dinner`):** Padrão `19:00` às `22:30` (customizável).
 
 ### 2.1 Ajuste de Horários
-- O Administrador Geral e os Sub-Administradores (quando destrancado) podem ajustar os horários de início e término de cada refeição através do modal **"Ajustar Horários"** (`schedule` icon).
+- O Administrador Geral e os Sub-Administradores (quando destrancado) podem ajustar os horários de início e término de cada refeição de duas formas:
+  1. Através do botão global **"Ajustar Horários"** (`schedule` icon) no cabeçalho do módulo.
+  2. Clicando **diretamente sobre a faixa de horário** exibida em qualquer card de refeição (`MealCard`).
 - Os horários configurados persistem no `localStorage` por residência e refletem em tempo real em todos os cards, modais e visões do cardápio.
+- Ao abrir qualquer modal de edição ou confirmação, a rolagem de fundo é automaticamente travada (`useBodyScrollLock`), garantindo foco e prevenindo deslocamentos acidentais.
 
 ---
 
@@ -53,3 +56,8 @@ O cardápio opera em ciclo semanal contínuo de 7 dias (Segunda a Domingo) divid
 - **Alternador de Visualização (View Switcher):**
   - **Modo Diário:** Foco nos 4 turnos do dia selecionado, com detalhes de ingredientes e tags.
   - **Modo Semanal (Kanban 7 Dias):** Visão panorâmica dos 7 dias e 4 refeições lado a lado, facilitando planejamento conjunto e lista de compras.
+
+### 4.4 Ergonomia do Card de Refeição (`MealCard`)
+- **Estado Vazio (Sem Prato Cadastrado):** Exibe exclusivamente uma ação central clara (`+ Adicionar`), eliminando botões `+` duplicados no cabeçalho do card.
+- **Estado Preenchido:** Exibe o botão de edição (`edit`) no canto superior direito do card.
+- **Ação de Horário no Card:** O horário do turno possui feedback hover e dispara diretamente o modal de ajuste de turnos para usuários com permissão de edição.

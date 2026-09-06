@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { HouseTask, TaskRotation, FamilyMember } from '../../../types';
 import { ConfirmActionModal, TasksSkeleton } from '../../../components/index.js';
+import { useBodyScrollLock } from '../../../shared/hooks/index.js';
 
 interface TasksRotationsViewProps {
   tasks: HouseTask[];
@@ -86,6 +87,9 @@ export const TasksRotationsView: React.FC<TasksRotationsViewProps> = ({
   const [editParticipantIds, setEditParticipantIds] = useState<string[]>([]);
   const [isSavingEdit, setIsSavingEdit] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
+
+  // Lock background scroll when task modal or edit modal is active
+  useBodyScrollLock(isAddTaskModalOpen || Boolean(editingTask));
 
   const handleOpenEditRotation = (task: HouseTask) => {
     setEditingTask(task);
