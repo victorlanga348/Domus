@@ -40,6 +40,7 @@ import {
   useHouseSocket,
   emitHouseLog,
   emitTaskCreated,
+  emitTaskUpdated,
   emitTaskDeleted,
   emitTaskStatusChanged,
   emitNoteCreated,
@@ -63,6 +64,17 @@ function mapBackendTaskToHouseTask(task: any, currentMembers: FamilyMember[]): H
 
   let assignee: any = null;
   const isRotation = Boolean(task.participants && task.participants.length > 1);
+  const rawParticipants = task.participants || [];
+  const participantIds = rawParticipants.map((p: any) => p.user_id || p.user?.id || p.id).filter(Boolean);
+  const participants = rawParticipants.map((p: any) => {
+    const u = p.user || p;
+    return {
+      id: u.id,
+      name: u.name,
+      avatar: u.avatar_url || currentMembers.find((m) => m.id === u.id)?.avatar,
+      vacation_mode: Boolean(u.vacation_mode),
+    };
+  });
 
   if (isRotation) {
     const sorted = [...task.participants].map((p: any) => p.user || p).sort((a: any, b: any) =>
@@ -100,6 +112,8 @@ function mapBackendTaskToHouseTask(task: any, currentMembers: FamilyMember[]): H
     nextMemberAvatar: assigneeAvatar,
     icon: 'task_alt',
     isRotation,
+    participantIds,
+    participants,
     frequency:
       task.frequency === 'DAILY'
         ? 'Diária'
@@ -111,6 +125,65 @@ function mapBackendTaskToHouseTask(task: any, currentMembers: FamilyMember[]): H
     completedBy: task.status === 'COMPLETED' ? (task.locked_by?.name || 'Concluído') : undefined,
     completedById: task.status === 'COMPLETED' ? (task.locked_by?.id || undefined) : undefined,
   };
+}
+
+function mapBackendTasksToRotations(backendTasks: any[], currentMembers: FamilyMember[]): TaskRotation[] {
+  const rotationTasks = backendTasks.filter((t) => t.participants && t.participants.length > 1);
+  return rotationTasks.map((t) => {
+    const sorted = [...t.participants].map((p: any) => p.user || p).sort((a: any, b: any) =>
+      (a?.name || '').localeCompare(b?.name || '', 'pt-BR', { sensitivity: 'base' })
+    );
+    const poolSize = sorted.length;
+    const baseIndex = (((t.rotation_index || 0) % poolSize) + poolSize) % poolSize;
+    let nextIdx = baseIndex;
+    for (let i = 0; i < poolSize; i++) {
+      const cand = sorted[(baseIndex + i) % poolSize];
+      if (!cand?.vacation_mode) {
+        nextIdx = (baseIndex + i) % poolSize;
+        break;
+      }
+    }
+
+    const queue = sorted.map((u: any, idx: number) => ({
+      id: u.id,
+      name: u.name,
+      avatar:
+        u.avatar_url ||
+        currentMembers.find((m) => m.id === u.id)?.avatar ||
+        `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(u.name)}`,
+      isNext: idx === nextIdx,
+      vacation_mode: Boolean(u.vacation_mode),
+    }));
+
+    const nextUser = queue.find((q) => q.isNext) || queue[0];
+    const freq =
+      t.frequency === 'DAILY'
+        ? 'Diária'
+        : t.frequency === 'WEEKLY'
+        ? 'Semanal'
+        : t.frequency === 'MONTHLY'
+        ? 'Mensal'
+        : 'Única (Um só dia)';
+
+    let period: 'morning' | 'afternoon' | 'night' = 'morning';
+    if (t.shift === 'AFTERNOON') period = 'afternoon';
+    if (t.shift === 'NIGHT') period = 'night';
+
+    return {
+      id: t.id,
+      taskId: t.id,
+      title: t.title,
+      schedule: `${freq} • Turno ${period === 'morning' ? 'Manhã' : period === 'afternoon' ? 'Tarde' : 'Noite'}`,
+      nextMember: nextUser?.name || 'Morador',
+      nextMemberAvatar: nextUser?.avatar || '',
+      queue,
+      frequency: freq,
+      poolSelection: 'Participantes selecionados',
+      icon: 'sync',
+      period,
+      participantIds: t.participants.map((p: any) => p.user_id || p.user?.id || p.id),
+    };
+  });
 }
 
 function mapBackendLogToActivityLog(log: any): ActivityLog {
@@ -414,6 +487,8 @@ export default function App() {
               bm.avatar_url ||
               existing?.avatar ||
               `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(bm.name)}`,
+            statusTag: bm.vacation_mode ? 'Férias' : existing?.statusTag,
+            vacation_mode: Boolean(bm.vacation_mode ?? existing?.vacation_mode),
           };
         });
 
@@ -458,6 +533,10 @@ export default function App() {
         .then((backendTasks) => {
           if (Array.isArray(backendTasks) && backendTasks.length > 0) {
             setTasks(backendTasks.map((t) => mapBackendTaskToHouseTask(t, familyMembers)));
+            const generatedRotations = mapBackendTasksToRotations(backendTasks, familyMembers);
+            if (generatedRotations.length > 0) {
+              setRotations(generatedRotations);
+            }
           }
         })
         .catch((err) => {
@@ -515,6 +594,33 @@ export default function App() {
           if (prev.some((t) => t.id === incomingTask.id)) return prev;
           return [incomingTask, ...prev];
         });
+      },
+      onTaskUpdated: (incomingData: any) => {
+        const taskPayload = incomingData?.task || incomingData;
+        if (taskPayload?.id) {
+          const mapped = mapBackendTaskToHouseTask(taskPayload, familyMembers);
+          setTasks((prev) => prev.map((t) => (t.id === mapped.id ? mapped : t)));
+          setRotations((prev) => {
+            const generated = mapBackendTasksToRotations([taskPayload], familyMembers);
+            if (generated.length === 0) return prev.filter((r) => r.id !== mapped.id && r.taskId !== mapped.id);
+            const exists = prev.some((r) => r.id === mapped.id || r.taskId === mapped.id);
+            if (exists) return prev.map((r) => (r.id === mapped.id || r.taskId === mapped.id ? generated[0] : r));
+            return [...generated, ...prev];
+          });
+        }
+      },
+      onVacationChanged: ({ userId, vacation_mode }: { userId: string; vacation_mode: boolean }) => {
+        setFamilyMembers((prev) =>
+          prev.map((m) => (m.id === userId ? { ...m, vacation_mode, statusTag: vacation_mode ? 'Férias' : undefined } : m))
+        );
+        if (currentHouse?.id && authUser?.id) {
+          tasksApi.getTasks(currentHouse.id, authUser.id).then((backendTasks) => {
+            if (Array.isArray(backendTasks)) {
+              setTasks(backendTasks.map((t) => mapBackendTaskToHouseTask(t, familyMembers)));
+              setRotations(mapBackendTasksToRotations(backendTasks, familyMembers));
+            }
+          }).catch(() => {});
+        }
       },
       onTaskDeleted: ({ taskId }: { taskId: string }) => {
         setTasks((prev) => prev.filter((t) => t.id !== taskId));
@@ -823,7 +929,14 @@ export default function App() {
     };
 
     const matchedMember = familyMembers.find((m) => m.name === newTask.nextMember);
-    const participantIds = matchedMember ? [matchedMember.id] : authUser?.id ? [authUser.id] : [];
+    const participantIds =
+      newTask.participantIds && newTask.participantIds.length > 0
+        ? newTask.participantIds
+        : matchedMember
+        ? [matchedMember.id]
+        : authUser?.id
+        ? [authUser.id]
+        : [];
 
     let taskObj: HouseTask;
     if (currentHouse?.id && authUser?.id) {
@@ -855,11 +968,89 @@ export default function App() {
     }
 
     setTasks((prev) => [taskObj, ...prev]);
+    if (taskObj.isRotation) {
+      setRotations((prev) => {
+        if (prev.some((r) => r.id === taskObj.id || r.taskId === taskObj.id)) return prev;
+        const newRot = mapBackendTasksToRotations([taskObj], familyMembers);
+        return [...newRot, ...prev];
+      });
+    }
+
     if (currentHouse?.id) {
       emitTaskCreated(currentHouse.id, taskObj);
     }
     recordHouseActivity(`Nova tarefa "${taskObj.title}" criada.`, authUser?.name, 'ROTATED', taskObj.id);
     showToast(`Tarefa "${taskObj.title}" criada com sucesso!`);
+  };
+
+  const handleUpdateTask = async (
+    taskId: string,
+    data: {
+      title: string;
+      period: 'morning' | 'afternoon' | 'night';
+      frequency: string;
+      participantIds: string[];
+    }
+  ) => {
+    const shiftMap: Record<string, 'MORNING' | 'AFTERNOON' | 'NIGHT'> = {
+      morning: 'MORNING',
+      afternoon: 'AFTERNOON',
+      night: 'NIGHT',
+    };
+
+    const frequencyMap: Record<string, 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'ONCE'> = {
+      'Diária': 'DAILY',
+      'Semanal': 'WEEKLY',
+      'Mensal': 'MONTHLY',
+      'Única (Um só dia)': 'ONCE',
+    };
+
+    if (currentHouse?.id && authUser?.id) {
+      try {
+        const result = await tasksApi.updateTask(
+          taskId,
+          {
+            title: data.title,
+            shift: shiftMap[data.period] || 'MORNING',
+            frequency: frequencyMap[data.frequency] || 'DAILY',
+            participant_ids: data.participantIds,
+          },
+          authUser.id,
+          currentUser.role
+        );
+
+        const updatedTaskObj = mapBackendTaskToHouseTask(result.task, familyMembers);
+        setTasks((prev) => prev.map((t) => (t.id === taskId ? updatedTaskObj : t)));
+
+        // Sincroniza a lista de rodízios
+        setRotations((prev) => {
+          const generated = mapBackendTasksToRotations([result.task], familyMembers);
+          if (generated.length === 0) {
+            return prev.filter((r) => r.id !== taskId && r.taskId !== taskId);
+          }
+          const exists = prev.some((r) => r.id === taskId || r.taskId === taskId);
+          if (exists) {
+            return prev.map((r) => (r.id === taskId || r.taskId === taskId ? generated[0] : r));
+          }
+          return [...generated, ...prev];
+        });
+
+        if (currentHouse?.id) {
+          emitTaskUpdated(currentHouse.id, updatedTaskObj);
+        }
+
+        recordHouseActivity(
+          `Escala de rodízio da tarefa "${data.title}" foi atualizada por ${authUser.name}.`,
+          authUser.name,
+          'ROTATED',
+          taskId
+        );
+        showToast('Escala de rodízio atualizada com sucesso!');
+      } catch (err: any) {
+        showToast(err.message || 'Erro ao atualizar escala de rodízio.');
+        throw err;
+      }
+    }
   };
 
   const handleDeleteTask = async (taskId: string) => {
@@ -1337,6 +1528,7 @@ export default function App() {
               currentUserRole={currentUser.role}
               currentUserName={authUser?.name}
               onAddTask={handleAddTask}
+              onUpdateTask={handleUpdateTask}
               onTaskStatusChange={handleTaskStatusChange}
               onDeleteTask={handleDeleteTask}
               onRotateNext={handleRotateNext}

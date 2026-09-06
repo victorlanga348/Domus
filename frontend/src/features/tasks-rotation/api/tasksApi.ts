@@ -47,6 +47,36 @@ export const tasksApi = {
     return json.data;
   },
 
+  async updateTask(
+    taskId: string,
+    data: {
+      title?: string;
+      description?: string;
+      shift?: 'MORNING' | 'AFTERNOON' | 'NIGHT';
+      frequency?: 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'ONCE';
+      participant_ids?: string[];
+    },
+    userId?: string,
+    userRole?: string
+  ) {
+    const response = await fetch(`${APP_CONFIG.API_BASE_URL}/tasks/${taskId}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(userId ? { 'x-user-id': userId } : {}),
+        ...(userRole ? { 'x-user-role': userRole } : {}),
+      },
+      body: JSON.stringify(data),
+    });
+
+    const json = await response.json();
+    if (!response.ok) {
+      throw new Error(json.message || json.error || 'Erro ao atualizar tarefa de rodízio');
+    }
+
+    return json.data;
+  },
+
   async lockTask(taskId: string, userId: string, houseId: string) {
     // Emite evento instantâneo via Socket
     emitTaskLocking(taskId, userId, houseId);

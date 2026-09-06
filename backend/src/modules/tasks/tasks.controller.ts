@@ -123,4 +123,26 @@ export class TaskController {
       next(error);
     }
   };
+
+  updateTask = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const id = String(req.params.id);
+      const userId = req.userId || (req.headers['x-user-id'] as string) || req.body.user_id;
+      const userRole = req.user?.role || (req.headers['x-user-role'] as string) || req.body.user_role;
+
+      const result = await this.taskService.updateTask(id, userId, userRole, req.body);
+      const houseId = req.houseId || (req.headers['x-house-id'] as string) || result.task.house_id;
+
+      if (houseId) {
+        try {
+          const { emitToHouse } = await import('../../shared/socket/socketServer.js');
+          emitToHouse(houseId, 'task:updated', result);
+        } catch {}
+      }
+
+      res.status(200).json({ status: 'success', data: result });
+    } catch (error) {
+      next(error);
+    }
+  };
 }

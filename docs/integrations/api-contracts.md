@@ -125,6 +125,40 @@
 - **Payload:** `{ "reason": "Falta de produto de limpeza" }`
 - **Resposta (200):** Tarefa com status `BLOCKED`.
 
+### `PUT /api/tasks/:id` (e `PATCH /api/tasks/:id`)
+- **Descrição:** Atualiza título, descrição, turno, frequência e sincroniza a lista de participantes da tarefa, recalculando o `rotation_index` com preservação determinística da vez da escala e salto de membros em férias.
+- **Autorização:** Exclusivo para **Admin Geral** e **Sub-Admins** (`role === 'ADMIN' | 'SUB_ADMIN'`).
+- **Headers:** `x-user-id`, `x-user-role`
+- **Payload:**
+  ```json
+  {
+    "title": "Lavar a louça do jantar",
+    "shift": "MORNING",
+    "frequency": "DAILY",
+    "participant_ids": ["uuid-1", "uuid-2", "uuid-3"]
+  }
+  ```
+- **Resposta (200):**
+  ```json
+  {
+    "status": "success",
+    "message": "Tarefa atualizada com sucesso.",
+    "task": {
+      "id": "uuid-task",
+      "title": "Lavar a louça do jantar",
+      "rotation_index": 1,
+      "shift": "MORNING",
+      "frequency": "DAILY",
+      "participants": [
+        { "id": "uuid-tp-1", "user_id": "uuid-1", "user": { "id": "uuid-1", "name": "Ana", "vacation_mode": false } }
+      ]
+    }
+  }
+  ```
+- **Erros:**
+  - `403 Forbidden`: `FORBIDDEN_TASK_UPDATE` para moradores sem papel de administração.
+  - `404 Not Found`: `TASK_NOT_FOUND` se o ID da tarefa não existir.
+
 ---
 
 ## 4. Endpoints de Salas Privadas & Governança (`/api/rooms`)

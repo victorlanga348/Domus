@@ -27,6 +27,7 @@ export interface FamilyMember {
   avatar: string;
   balanceOwed?: number; // positive = gets back, negative = owes, 0 = settled
   statusTag?: string;
+  vacation_mode?: boolean;
   temporary?: boolean;
 }
 
@@ -46,6 +47,8 @@ export interface HouseTask {
   monthDay?: number;
   advanceNotice?: string;
   isRotation?: boolean;
+  participantIds?: string[];
+  participants?: { id: string; name: string; avatar?: string; vacation_mode?: boolean }[];
   completedBy?: string;
   completedById?: string;
   completedAt?: string;
@@ -53,16 +56,18 @@ export interface HouseTask {
 
 export interface TaskRotation {
   id: string;
+  taskId?: string;
   title: string;
   schedule: string; // e.g. "Daily • 20:00"
   nextMember: string;
   nextMemberAvatar: string;
-  queue: { name: string; avatar: string; isNext?: boolean }[];
+  queue: { id?: string; name: string; avatar: string; isNext?: boolean; vacation_mode?: boolean }[];
   frequency: string;
   poolSelection: string;
   icon: string;
   days?: string[];
   period?: 'morning' | 'afternoon' | 'night';
+  participantIds?: string[];
 }
 
 export interface ExpenseItem {
