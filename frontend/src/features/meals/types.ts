@@ -1,13 +1,4 @@
-import { DayOfWeek, MealType, MealItem, HouseMealPlan, FamilyMember, MealChef } from '../../types.js';
-
-export interface CookingScheduleConfig {
-  weekdayPool: MealChef[];
-  weekdayMeals: MealType[];
-  weekendMode: 'fixed' | 'free';
-  weekendChefs?: MealChef[];
-  weekendMeals?: MealType[];
-  updatedAt?: string;
-}
+import { DayOfWeek, MealType, MealItem, HouseMealPlan, FamilyMember, MealPeriodSchedule } from '../../types.js';
 
 export interface MealPeriodMeta {
   type: MealType;
@@ -17,36 +8,48 @@ export interface MealPeriodMeta {
   badgeColor: string;
 }
 
-export const MEAL_PERIODS: MealPeriodMeta[] = [
-  {
-    type: 'breakfast',
-    label: 'Café da Manhã',
-    timeRange: '06:00 - 10:00',
-    icon: 'wb_twilight',
-    badgeColor: 'bg-amber-50 text-amber-800 border-amber-200',
-  },
-  {
-    type: 'lunch',
-    label: 'Almoço',
-    timeRange: '11:30 - 14:30',
-    icon: 'sunny',
-    badgeColor: 'bg-emerald-50 text-emerald-800 border-emerald-200',
-  },
-  {
-    type: 'snack',
-    label: 'Lanche / Sobremesa',
-    timeRange: '15:30 - 18:00',
-    icon: 'bakery_dining',
-    badgeColor: 'bg-orange-50 text-orange-800 border-orange-200',
-  },
-  {
-    type: 'dinner',
-    label: 'Jantar',
-    timeRange: '19:00 - 22:30',
-    icon: 'dark_mode',
-    badgeColor: 'bg-indigo-50 text-indigo-800 border-indigo-200',
-  },
-];
+export const DEFAULT_MEAL_SCHEDULES: Record<MealType, MealPeriodSchedule> = {
+  breakfast: { startTime: '06:00', endTime: '10:00' },
+  lunch: { startTime: '11:30', endTime: '14:30' },
+  snack: { startTime: '15:30', endTime: '18:00' },
+  dinner: { startTime: '19:00', endTime: '22:30' },
+};
+
+export function getMealPeriods(schedules?: Partial<Record<MealType, MealPeriodSchedule>>): MealPeriodMeta[] {
+  const effective = { ...DEFAULT_MEAL_SCHEDULES, ...(schedules || {}) };
+  return [
+    {
+      type: 'breakfast',
+      label: 'Café da Manhã',
+      timeRange: `${effective.breakfast.startTime} - ${effective.breakfast.endTime}`,
+      icon: 'wb_twilight',
+      badgeColor: 'bg-amber-50 text-amber-800 border-amber-200',
+    },
+    {
+      type: 'lunch',
+      label: 'Almoço',
+      timeRange: `${effective.lunch.startTime} - ${effective.lunch.endTime}`,
+      icon: 'sunny',
+      badgeColor: 'bg-emerald-50 text-emerald-800 border-emerald-200',
+    },
+    {
+      type: 'snack',
+      label: 'Lanche / Sobremesa',
+      timeRange: `${effective.snack.startTime} - ${effective.snack.endTime}`,
+      icon: 'bakery_dining',
+      badgeColor: 'bg-orange-50 text-orange-800 border-orange-200',
+    },
+    {
+      type: 'dinner',
+      label: 'Jantar',
+      timeRange: `${effective.dinner.startTime} - ${effective.dinner.endTime}`,
+      icon: 'dark_mode',
+      badgeColor: 'bg-indigo-50 text-indigo-800 border-indigo-200',
+    },
+  ];
+}
+
+export const MEAL_PERIODS: MealPeriodMeta[] = getMealPeriods();
 
 export interface DayMeta {
   key: DayOfWeek;
@@ -81,12 +84,11 @@ export interface MealsViewProps {
   currentUserRole: string;
   currentUserId?: string;
   currentUserName?: string;
-  savedCookingSchedule?: CookingScheduleConfig | null;
   onUpdateMeal: (meal: MealItem) => void;
   onDeleteMeal: (mealId: string) => void;
   onToggleLock: () => void;
   onClearMeals?: () => void;
-  onGenerateSchedule?: (config: CookingScheduleConfig) => void;
+  onUpdateSchedules?: (schedules: Record<MealType, MealPeriodSchedule>) => void;
 }
 
 export function createDefaultMealPlan(houseId: string): HouseMealPlan {
@@ -94,6 +96,7 @@ export function createDefaultMealPlan(houseId: string): HouseMealPlan {
     houseId,
     isLocked: false,
     meals: [],
+    schedules: DEFAULT_MEAL_SCHEDULES,
   };
 }
 

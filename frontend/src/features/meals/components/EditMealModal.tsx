@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { MealItem, DayOfWeek, MealType, FamilyMember } from '../../../types.js';
-import { MEAL_PERIODS, DAYS_OF_WEEK, AVAILABLE_DIET_TAGS } from '../types.js';
+import React, { useState, useEffect, useMemo } from 'react';
+import { MealItem, DayOfWeek, MealType, MealPeriodSchedule } from '../../../types.js';
+import { getMealPeriods, DAYS_OF_WEEK, AVAILABLE_DIET_TAGS } from '../types.js';
 
 interface EditMealModalProps {
   isOpen: boolean;
@@ -10,7 +10,7 @@ interface EditMealModalProps {
   initialMeal?: MealItem | null;
   defaultDay: DayOfWeek;
   defaultPeriod: MealType;
-  familyMembers: FamilyMember[];
+  schedules?: Record<MealType, MealPeriodSchedule>;
 }
 
 export const EditMealModal: React.FC<EditMealModalProps> = ({
@@ -21,14 +21,15 @@ export const EditMealModal: React.FC<EditMealModalProps> = ({
   initialMeal,
   defaultDay,
   defaultPeriod,
-  familyMembers,
+  schedules,
 }) => {
   const [dayOfWeek, setDayOfWeek] = useState<DayOfWeek>(defaultDay);
   const [mealType, setMealType] = useState<MealType>(defaultPeriod);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
-  const [selectedChefIds, setSelectedChefIds] = useState<string[]>([]);
+
+  const mealPeriods = useMemo(() => getMealPeriods(schedules), [schedules]);
 
   useEffect(() => {
     if (initialMeal) {
@@ -37,20 +38,12 @@ export const EditMealModal: React.FC<EditMealModalProps> = ({
       setTitle(initialMeal.title);
       setDescription(initialMeal.description || '');
       setSelectedTags(initialMeal.tags || []);
-      const initialChefs =
-        initialMeal.chefs && initialMeal.chefs.length > 0
-          ? initialMeal.chefs.map((c) => c.id)
-          : initialMeal.chefId
-          ? [initialMeal.chefId]
-          : [];
-      setSelectedChefIds(initialChefs);
     } else {
       setDayOfWeek(defaultDay);
       setMealType(defaultPeriod);
       setTitle('');
       setDescription('');
       setSelectedTags([]);
-      setSelectedChefIds([]);
     }
   }, [initialMeal, defaultDay, defaultPeriod, isOpen]);
 
@@ -64,21 +57,9 @@ export const EditMealModal: React.FC<EditMealModalProps> = ({
     );
   };
 
-  const handleChefToggle = (memberId: string) => {
-    setSelectedChefIds((prev) =>
-      prev.includes(memberId)
-        ? prev.filter((id) => id !== memberId)
-        : [...prev, memberId]
-    );
-  };
-
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim()) return;
-
-    const assignedChefs = familyMembers
-      .filter((m) => selectedChefIds.includes(m.id))
-      .map((m) => ({ id: m.id, name: m.name, avatar: m.avatar }));
 
     const updatedMeal: MealItem = {
       id: initialMeal?.id || `meal_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
@@ -87,10 +68,6 @@ export const EditMealModal: React.FC<EditMealModalProps> = ({
       title: title.trim(),
       description: description.trim() || undefined,
       tags: selectedTags,
-      chefs: assignedChefs,
-      chefId: assignedChefs[0]?.id,
-      chefName: assignedChefs[0]?.name,
-      chefAvatar: assignedChefs[0]?.avatar,
       updatedAt: new Date().toISOString(),
     };
 
@@ -120,7 +97,7 @@ export const EditMealModal: React.FC<EditMealModalProps> = ({
                 {initialMeal ? 'Editar Refeição' : 'Adicionar ao Cardápio'}
               </h3>
               <p className="text-[11px] text-[#727877] font-semibold">
-                Planejamento alimentar compartilhado
+                Planejamento alimentar da casa
               </p>
             </div>
           </div>
@@ -163,7 +140,7 @@ export const EditMealModal: React.FC<EditMealModalProps> = ({
                 onChange={(e) => setMealType(e.target.value as MealType)}
                 className="w-full bg-[#f0fcfa] border border-[#d0dddb] text-[#16302e] rounded-xl px-3 py-2 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-[#16302e]"
               >
-                {MEAL_PERIODS.map((p) => (
+                {mealPeriods.map((p) => (
                   <option key={p.type} value={p.type}>
                     {p.label} ({p.timeRange})
                   </option>
@@ -193,7 +170,7 @@ export const EditMealModal: React.FC<EditMealModalProps> = ({
               Ingredientes / Detalhes / Observações
             </label>
             <textarea
-              rows={2}
+              rows={3}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Ex: Usar cogumelos frescos, verificar se temos creme de leite na despensa."
@@ -231,83 +208,6 @@ export const EditMealModal: React.FC<EditMealModalProps> = ({
             </div>
           </div>
 
-          {/* Chef / Responsible Members (Multi-Chef Selection) */}
-          <div>
-            <div className="flex items-center justify-between mb-1.5">
-              <label className="text-xs font-black text-[#16302e] flex items-center gap-1.5">
-                <span className="material-symbols-outlined text-sm text-[#7b5800]">skillet</span>
-                <span>Cozinheiro(s) Responsável(is)</span>
-                {selectedChefIds.length > 0 && (
-                  <span className="text-[10px] font-bold bg-[#fff8e6] text-[#7b5800] px-1.5 py-0.5 rounded-md border border-[#ffca5e]/60">
-                    {selectedChefIds.length} {selectedChefIds.length === 1 ? 'selecionado' : 'selecionados'}
-                  </span>
-                )}
-              </label>
-
-              {selectedChefIds.length > 0 && (
-                <button
-                  type="button"
-                  onClick={() => setSelectedChefIds([])}
-                  className="text-[10px] font-bold text-[#727877] hover:text-red-600 transition-colors"
-                >
-                  Limpar seleção
-                </button>
-              )}
-            </div>
-
-            <p className="text-[11px] text-[#727877] font-medium mb-2">
-              Selecione uma ou mais pessoas que vão cozinhar ou ajudar nesta refeição.
-            </p>
-
-            {familyMembers.length === 0 ? (
-              <p className="text-xs text-[#98b3b0] italic">Nenhum morador cadastrado na casa.</p>
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-40 overflow-y-auto p-1 bg-[#f0fcfa] rounded-xl border border-[#d0dddb]">
-                {familyMembers.map((m) => {
-                  const isSelected = selectedChefIds.includes(m.id);
-                  return (
-                    <button
-                      key={m.id}
-                      type="button"
-                      onClick={() => handleChefToggle(m.id)}
-                      aria-pressed={isSelected}
-                      className={`flex items-center gap-2 p-2 rounded-lg border text-left transition-all min-h-[44px] cursor-pointer ${
-                        isSelected
-                          ? 'bg-white border-[#16302e] shadow-xs ring-1 ring-[#16302e]'
-                          : 'bg-white/60 border-transparent hover:bg-white hover:border-[#d0dddb]'
-                      }`}
-                    >
-                      {m.avatar ? (
-                        <img
-                          src={m.avatar}
-                          alt={m.name}
-                          className="w-7 h-7 rounded-full object-cover border border-[#d0dddb] shrink-0"
-                        />
-                      ) : (
-                        <span className="w-7 h-7 rounded-full bg-[#16302e] text-white flex items-center justify-center text-[10px] font-black shrink-0">
-                          {m.name.charAt(0).toUpperCase()}
-                        </span>
-                      )}
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs font-bold text-[#16302e] truncate">{m.name}</p>
-                        <p className="text-[10px] text-[#727877] font-medium truncate">{m.role}</p>
-                      </div>
-                      <span
-                        className={`w-4 h-4 rounded flex items-center justify-center text-[11px] transition-colors shrink-0 ${
-                          isSelected
-                            ? 'bg-[#16302e] text-[#ffca5e]'
-                            : 'border border-[#d0dddb] text-transparent'
-                        }`}
-                      >
-                        <span className="material-symbols-outlined text-xs">check</span>
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-
           {/* Actions Footer */}
           <div className="pt-3 border-t border-[#e4f0ee] flex items-center justify-between gap-2">
             <div>
@@ -318,7 +218,7 @@ export const EditMealModal: React.FC<EditMealModalProps> = ({
                     onDelete(initialMeal.id);
                     onClose();
                   }}
-                  className="px-3 py-2 rounded-xl text-xs font-bold text-red-600 hover:bg-red-50 transition-colors flex items-center gap-1 min-h-[44px]"
+                  className="px-3 py-2 rounded-xl text-xs font-bold text-red-600 hover:bg-red-50 transition-colors flex items-center gap-1 min-h-[44px] cursor-pointer"
                 >
                   <span className="material-symbols-outlined text-base">delete</span>
                   <span>Excluir</span>
@@ -330,14 +230,14 @@ export const EditMealModal: React.FC<EditMealModalProps> = ({
               <button
                 type="button"
                 onClick={onClose}
-                className="px-4 py-2 rounded-xl text-xs font-bold text-[#727877] hover:bg-[#f0fcfa] transition-colors min-h-[44px]"
+                className="px-4 py-2 rounded-xl text-xs font-bold text-[#727877] hover:bg-[#f0fcfa] transition-colors min-h-[44px] cursor-pointer"
               >
                 Cancelar
               </button>
               <button
                 type="submit"
                 disabled={!title.trim()}
-                className="px-5 py-2 rounded-xl text-xs font-black bg-[#16302e] text-[#ffca5e] hover:bg-[#204542] transition-colors shadow-xs disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1 min-h-[44px]"
+                className="px-5 py-2 rounded-xl text-xs font-black bg-[#16302e] text-[#ffca5e] hover:bg-[#204542] transition-colors shadow-xs disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1 min-h-[44px] cursor-pointer"
               >
                 <span className="material-symbols-outlined text-base">check</span>
                 <span>Salvar Prato</span>

@@ -17,7 +17,7 @@ import {
   MemberStatus,
   MealItem,
   HouseMealPlan,
-  MealChef,
+  MealPeriodSchedule,
   DayOfWeek,
   MealType,
 } from './types';
@@ -25,7 +25,7 @@ import { INITIAL_PREFERENCES } from './data.js';
 import { Sidebar, Header } from './layouts/index.js';
 import { DashboardView, dashboardApi } from './features/dashboard/index.js';
 import { TasksRotationsView, tasksApi } from './features/tasks-rotation/index.js';
-import { MealsView, createDefaultMealPlan, CookingScheduleConfig } from './features/meals/index.js';
+import { MealsView, createDefaultMealPlan, DEFAULT_MEAL_SCHEDULES } from './features/meals/index.js';
 import { SettingsView } from './features/settings/index.js';
 import { ReportsView } from './features/reports/index.js';
 import { StatisticsView } from './features/statistics/index.js';
@@ -392,7 +392,7 @@ export default function App() {
   });
 
   const [mealPlan, setMealPlan] = useState<HouseMealPlan>(() => {
-    if (!houseKey) return { houseId: '', isLocked: false, meals: [] };
+    if (!houseKey) return { houseId: '', isLocked: false, meals: [], schedules: DEFAULT_MEAL_SCHEDULES };
     const saved = localStorage.getItem(`${houseKey}_meals`);
     if (saved) {
       try {
@@ -400,6 +400,8 @@ export default function App() {
         const cleanMeals = (parsed.meals || [])
           .filter(
             (m: any) =>
+              m.title &&
+              m.title.trim() &&
               !m.id?.startsWith('meal_mon_') &&
               !m.id?.startsWith('meal_tue_') &&
               !m.id?.startsWith('meal_wed_') &&
@@ -409,29 +411,17 @@ export default function App() {
               !m.id?.startsWith('meal_sun_')
           )
           .map((m: any) => {
-            const chefs =
-              Array.isArray(m.chefs) && m.chefs.length > 0
-                ? m.chefs
-                : m.chefName
-                ? [{ id: m.chefId || '', name: m.chefName, avatar: m.chefAvatar }]
-                : [];
-            return { ...m, chefs };
+            const { chefs, chefId, chefName, chefAvatar, ...rest } = m;
+            return rest as MealItem;
           });
-        return { ...parsed, meals: cleanMeals };
+        return {
+          ...parsed,
+          meals: cleanMeals,
+          schedules: parsed.schedules || DEFAULT_MEAL_SCHEDULES,
+        };
       } catch {}
     }
     return createDefaultMealPlan(currentHouse?.id || '');
-  });
-
-  const [cookingSchedule, setCookingSchedule] = useState<CookingScheduleConfig | null>(() => {
-    if (!houseKey) return null;
-    const saved = localStorage.getItem(`${houseKey}_cookingSchedule`);
-    if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch {}
-    }
-    return null;
   });
 
   // Modal Visibility States
@@ -919,6 +909,8 @@ export default function App() {
         const cleanMeals = (parsed.meals || [])
           .filter(
             (m: any) =>
+              m.title &&
+              m.title.trim() &&
               !m.id?.startsWith('meal_mon_') &&
               !m.id?.startsWith('meal_tue_') &&
               !m.id?.startsWith('meal_wed_') &&
@@ -928,31 +920,19 @@ export default function App() {
               !m.id?.startsWith('meal_sun_')
           )
           .map((m: any) => {
-            const chefs =
-              Array.isArray(m.chefs) && m.chefs.length > 0
-                ? m.chefs
-                : m.chefName
-                ? [{ id: m.chefId || '', name: m.chefName, avatar: m.chefAvatar }]
-                : [];
-            return { ...m, chefs };
+            const { chefs, chefId, chefName, chefAvatar, ...rest } = m;
+            return rest as MealItem;
           });
-        setMealPlan({ ...parsed, meals: cleanMeals });
+        setMealPlan({
+          ...parsed,
+          meals: cleanMeals,
+          schedules: parsed.schedules || DEFAULT_MEAL_SCHEDULES,
+        });
       } catch {
         setMealPlan(createDefaultMealPlan(houseData.house.id));
       }
     } else {
       setMealPlan(createDefaultMealPlan(houseData.house.id));
-    }
-
-    const cachedScheduleRaw = localStorage.getItem(`${key}_cookingSchedule`);
-    if (cachedScheduleRaw) {
-      try {
-        setCookingSchedule(JSON.parse(cachedScheduleRaw));
-      } catch {
-        setCookingSchedule(null);
-      }
-    } else {
-      setCookingSchedule(null);
     }
   };
 
@@ -1015,7 +995,6 @@ export default function App() {
     setMuralNotes([]);
     setMemberStatuses([]);
     setMealPlan({ houseId: '', isLocked: false, meals: [] });
-    setCookingSchedule(null);
     setCurrentTab('dashboard');
     setSubTab('bulletin');
     showToast('Sessão encerrada.');
@@ -1579,6 +1558,16 @@ export default function App() {
 
   const handleUpdateMeal = useCallback(
     (meal: MealItem) => {
+      const isGeneralAdmin = currentUser.role === 'Admin Geral';
+      const isAdmin = currentUser.role === 'Admin';
+      const isLocked = Boolean(mealPlan.isLocked);
+      const canEdit = isGeneralAdmin || (isAdmin && !isLocked);
+
+      if (!canEdit) {
+        showToast('Você não possui permissão para editar o cardápio.');
+        return;
+      }
+
       setMealPlan((prev) => {
         const exists = prev.meals.some(
           (m) => m.id === meal.id || (m.dayOfWeek === meal.dayOfWeek && m.mealType === meal.mealType)
@@ -1600,11 +1589,21 @@ export default function App() {
       }
       showToast(`Prato "${meal.title}" salvo no cardápio!`);
     },
-    [houseKey, currentHouse?.id, showToast]
+    [currentUser.role, mealPlan.isLocked, houseKey, currentHouse?.id, showToast]
   );
 
   const handleDeleteMeal = useCallback(
     (mealId: string) => {
+      const isGeneralAdmin = currentUser.role === 'Admin Geral';
+      const isAdmin = currentUser.role === 'Admin';
+      const isLocked = Boolean(mealPlan.isLocked);
+      const canEdit = isGeneralAdmin || (isAdmin && !isLocked);
+
+      if (!canEdit) {
+        showToast('Você não possui permissão para remover pratos do cardápio.');
+        return;
+      }
+
       setMealPlan((prev) => {
         const updatedPlan: HouseMealPlan = {
           ...prev,
@@ -1621,10 +1620,20 @@ export default function App() {
       }
       showToast('Prato removido do cardápio.');
     },
-    [houseKey, currentHouse?.id, showToast]
+    [currentUser.role, mealPlan.isLocked, houseKey, currentHouse?.id, showToast]
   );
 
   const handleClearMeals = useCallback(() => {
+    const isGeneralAdmin = currentUser.role === 'Admin Geral';
+    const isAdmin = currentUser.role === 'Admin';
+    const isLocked = Boolean(mealPlan.isLocked);
+    const canEdit = isGeneralAdmin || (isAdmin && !isLocked);
+
+    if (!canEdit) {
+      showToast('Você não possui permissão para esvaziar o cardápio.');
+      return;
+    }
+
     setMealPlan((prev) => {
       const updatedPlan: HouseMealPlan = {
         ...prev,
@@ -1637,7 +1646,7 @@ export default function App() {
     });
 
     showToast('Cardápio esvaziado com sucesso. Pronto para novos pratos!');
-  }, [houseKey, showToast]);
+  }, [currentUser.role, mealPlan.isLocked, houseKey, showToast]);
 
   const handleToggleMealLock = useCallback(() => {
     if (currentUser.role !== 'Admin Geral') {
@@ -1678,85 +1687,32 @@ export default function App() {
     });
   }, [currentUser.role, authUser?.id, authUser?.name, houseKey, currentHouse?.id, showToast]);
 
-  const handleGenerateSchedule = useCallback(
-    (config: CookingScheduleConfig) => {
-      const weekdayDays: DayOfWeek[] = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'];
-      const weekendDays: DayOfWeek[] = ['saturday', 'sunday'];
+  const handleUpdateMealSchedules = useCallback(
+    (newSchedules: Record<MealType, MealPeriodSchedule>) => {
+      const isGeneralAdmin = currentUser.role === 'Admin Geral';
+      const isAdmin = currentUser.role === 'Admin';
+      const isLocked = Boolean(mealPlan.isLocked);
+      const canEdit = isGeneralAdmin || (isAdmin && !isLocked);
 
-      const pool = [...config.weekdayPool];
-      let poolIdx = 0;
-
-      // Build map of new chef assignments by dayOfWeek_mealType
-      const newChefsMap = new Map<string, MealChef[]>();
-
-      // Weekdays (Mon-Fri)
-      weekdayDays.forEach((day) => {
-        config.weekdayMeals.forEach((mealType) => {
-          if (pool.length > 0) {
-            const chef = pool[poolIdx % pool.length];
-            poolIdx++;
-            newChefsMap.set(`${day}_${mealType}`, [chef]);
-          }
-        });
-      });
-
-      // Weekends (Sat-Sun)
-      weekendDays.forEach((day) => {
-        const weekendChefs = config.weekendMode === 'fixed' ? config.weekendChefs || [] : [];
-        (config.weekendMeals || ['lunch', 'dinner']).forEach((mealType) => {
-          newChefsMap.set(`${day}_${mealType}`, weekendChefs);
-        });
-      });
+      if (!canEdit) {
+        showToast('Você não possui permissão para alterar os horários das refeições.');
+        return;
+      }
 
       setMealPlan((prev) => {
-        const updatedMeals: MealItem[] = [...prev.meals];
-
-        newChefsMap.forEach((chefs, key) => {
-          const [day, mealType] = key.split('_') as [DayOfWeek, MealType];
-          const existingIndex = updatedMeals.findIndex(
-            (m) => m.dayOfWeek === day && m.mealType === mealType
-          );
-
-          if (existingIndex >= 0) {
-            const current = updatedMeals[existingIndex];
-            updatedMeals[existingIndex] = {
-              ...current,
-              chefs,
-              chefId: chefs[0]?.id,
-              chefName: chefs[0]?.name,
-              chefAvatar: chefs[0]?.avatar,
-              updatedAt: new Date().toISOString(),
-            };
-          } else {
-            updatedMeals.push({
-              id: `meal_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
-              dayOfWeek: day,
-              mealType,
-              title: '',
-              chefs,
-              chefId: chefs[0]?.id,
-              chefName: chefs[0]?.name,
-              chefAvatar: chefs[0]?.avatar,
-              updatedAt: new Date().toISOString(),
-            });
-          }
-        });
-
-        const updatedPlan: HouseMealPlan = { ...prev, meals: updatedMeals };
+        const updatedPlan: HouseMealPlan = {
+          ...prev,
+          schedules: newSchedules,
+        };
         if (houseKey) {
           localStorage.setItem(`${houseKey}_meals`, JSON.stringify(updatedPlan));
         }
         return updatedPlan;
       });
 
-      setCookingSchedule(config);
-      if (houseKey) {
-        localStorage.setItem(`${houseKey}_cookingSchedule`, JSON.stringify(config));
-      }
-
-      showToast('Escala semanal de cozinheiros gerada e aplicada com sucesso!');
+      showToast('Horários das refeições atualizados com sucesso!');
     },
-    [houseKey, showToast]
+    [currentUser.role, mealPlan.isLocked, houseKey, showToast]
   );
 
   // Nível 1: Não Autenticado ➔ Tela de Login / Cadastro
@@ -1892,12 +1848,11 @@ export default function App() {
               currentUserRole={currentUser.role}
               currentUserId={authUser?.id}
               currentUserName={authUser?.name}
-              savedCookingSchedule={cookingSchedule}
               onUpdateMeal={handleUpdateMeal}
               onDeleteMeal={handleDeleteMeal}
               onToggleLock={handleToggleMealLock}
               onClearMeals={handleClearMeals}
-              onGenerateSchedule={handleGenerateSchedule}
+              onUpdateSchedules={handleUpdateMealSchedules}
             />
           )}
 

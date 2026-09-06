@@ -3,25 +3,23 @@ import { MealItem, DayOfWeek, MealType } from '../../../types.js';
 import {
   MealsViewProps,
   DAYS_OF_WEEK,
-  MEAL_PERIODS,
+  getMealPeriods,
 } from '../types.js';
 import { MealCard } from './MealCard.js';
 import { EditMealModal } from './EditMealModal.js';
-import { GenerateScheduleModal } from './GenerateScheduleModal.js';
+import { EditMealSchedulesModal } from './EditMealSchedulesModal.js';
 
 export const MealsView: React.FC<MealsViewProps> = ({
   mealPlan,
-  familyMembers,
   currentUserRole,
-  savedCookingSchedule,
   onUpdateMeal,
   onDeleteMeal,
   onToggleLock,
   onClearMeals,
-  onGenerateSchedule,
+  onUpdateSchedules,
 }) => {
   // Determine current day of week as initial selection
-  const currentDayIndex = new Date().getDay(); // 0 = Dom, 1 = Seg, ...
+  const currentDayIndex = new Date().getDay(); // 0 = Dom, 1 = Seg, 2 = Ter, 3 = Qua, 4 = Qui, 5 = Sex, 6 = Sáb
   const initialDayKey: DayOfWeek =
     currentDayIndex === 0
       ? 'sunday'
@@ -42,7 +40,7 @@ export const MealsView: React.FC<MealsViewProps> = ({
 
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
+  const [isSchedulesModalOpen, setIsSchedulesModalOpen] = useState(false);
   const [isClearConfirmOpen, setIsClearConfirmOpen] = useState(false);
   const [editingMeal, setEditingMeal] = useState<MealItem | null>(null);
   const [modalDay, setModalDay] = useState<DayOfWeek>(selectedDay);
@@ -54,11 +52,19 @@ export const MealsView: React.FC<MealsViewProps> = ({
   const isLocked = Boolean(mealPlan.isLocked);
   const canEdit = isGeneralAdmin || (isAdmin && !isLocked);
 
+  // Dynamic meal periods based on custom schedules
+  const mealPeriods = useMemo(
+    () => getMealPeriods(mealPlan.schedules),
+    [mealPlan.schedules]
+  );
+
   // Group meals by day and period
   const mealsByDayAndPeriod = useMemo(() => {
     const map = new Map<string, MealItem>();
     (mealPlan.meals || []).forEach((m) => {
-      map.set(`${m.dayOfWeek}_${m.mealType}`, m);
+      if (m.title && m.title.trim()) {
+        map.set(`${m.dayOfWeek}_${m.mealType}`, m);
+      }
     });
     return map;
   }, [mealPlan.meals]);
@@ -75,7 +81,7 @@ export const MealsView: React.FC<MealsViewProps> = ({
       sunday: 0,
     };
     (mealPlan.meals || []).forEach((m) => {
-      if (m.title.trim()) {
+      if (m.title && m.title.trim()) {
         countMap[m.dayOfWeek] = (countMap[m.dayOfWeek] || 0) + 1;
       }
     });
@@ -123,7 +129,7 @@ export const MealsView: React.FC<MealsViewProps> = ({
           {isGeneralAdmin && (
             <button
               onClick={onToggleLock}
-              className="w-full sm:w-auto px-3.5 py-2 rounded-xl text-xs font-black bg-[#16302e] text-[#ffca5e] hover:bg-[#204542] transition-colors flex items-center justify-center gap-1.5 shadow-xs shrink-0 min-h-[40px]"
+              className="w-full sm:w-auto px-3.5 py-2 rounded-xl text-xs font-black bg-[#16302e] text-[#ffca5e] hover:bg-[#204542] transition-colors flex items-center justify-center gap-1.5 shadow-xs shrink-0 min-h-[40px] cursor-pointer"
             >
               <span className="material-symbols-outlined text-base">lock_open</span>
               <span>Destrancar Cardápio</span>
@@ -144,7 +150,7 @@ export const MealsView: React.FC<MealsViewProps> = ({
             </h2>
           </div>
           <p className="text-xs text-[#727877] font-semibold mt-1">
-            Planejamento alimentar semanal, restrições e cozinheiros responsáveis
+            Planejamento alimentar compartilhado, turnos e restrições dietéticas
           </p>
         </div>
 
@@ -154,7 +160,7 @@ export const MealsView: React.FC<MealsViewProps> = ({
           <div className="hidden sm:flex bg-[#f0fcfa] p-1 rounded-xl border border-[#d0dddb] items-center">
             <button
               onClick={() => setViewMode('daily')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
                 viewMode === 'daily'
                   ? 'bg-white text-[#16302e] shadow-xs'
                   : 'text-[#727877] hover:text-[#16302e]'
@@ -165,7 +171,7 @@ export const MealsView: React.FC<MealsViewProps> = ({
             </button>
             <button
               onClick={() => setViewMode('weekly')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
                 viewMode === 'weekly'
                   ? 'bg-white text-[#16302e] shadow-xs'
                   : 'text-[#727877] hover:text-[#16302e]'
@@ -176,11 +182,23 @@ export const MealsView: React.FC<MealsViewProps> = ({
             </button>
           </div>
 
+          {/* Adjust Schedules Button (Available for Admin Geral and Sub-Admin when unlocked) */}
+          {canEdit && onUpdateSchedules && (
+            <button
+              onClick={() => setIsSchedulesModalOpen(true)}
+              className="px-3.5 py-2 rounded-xl text-xs font-black bg-[#f0fcfa] text-[#16302e] hover:bg-[#e4f0ee] transition-colors flex items-center gap-1.5 border border-[#d0dddb] min-h-[40px] cursor-pointer"
+              title="Ajustar horários de início e término das refeições"
+            >
+              <span className="material-symbols-outlined text-base text-[#7b5800]">schedule</span>
+              <span>Ajustar Horários</span>
+            </button>
+          )}
+
           {/* Lock / Unlock Trigger for General Admin */}
           {isGeneralAdmin && (
             <button
               onClick={onToggleLock}
-              className={`px-3.5 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 border min-h-[40px] ${
+              className={`px-3.5 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 border min-h-[40px] cursor-pointer ${
                 isLocked
                   ? 'bg-amber-100 text-amber-900 border-amber-300 hover:bg-amber-200'
                   : 'bg-[#f0fcfa] text-[#16302e] border-[#d0dddb] hover:bg-[#e4f0ee]'
@@ -191,18 +209,6 @@ export const MealsView: React.FC<MealsViewProps> = ({
                 {isLocked ? 'lock_open' : 'lock'}
               </span>
               <span>{isLocked ? 'Destrancar' : 'Trancar Cardápio'}</span>
-            </button>
-          )}
-
-          {/* Generate Schedule Action (Available for editors) */}
-          {canEdit && onGenerateSchedule && (
-            <button
-              onClick={() => setIsScheduleModalOpen(true)}
-              className="px-3.5 py-2 rounded-xl text-xs font-black bg-[#16302e] text-[#ffca5e] hover:bg-[#204542] transition-colors flex items-center gap-1.5 shadow-xs min-h-[40px] cursor-pointer"
-              title="Distribuir cozinheiros da semana com rodízio inteligente"
-            >
-              <span className="material-symbols-outlined text-base">auto_mode</span>
-              <span>Gerar Escala</span>
             </button>
           )}
 
@@ -218,11 +224,11 @@ export const MealsView: React.FC<MealsViewProps> = ({
             </button>
           )}
 
-          {/* Status Chip for Resident / SubAdmin when unlocked */}
-          {!isGeneralAdmin && !isLocked && (
-            <span className="px-3 py-1.5 rounded-xl text-xs font-bold bg-[#f0fcfa] text-[#16302e] border border-[#d0dddb] flex items-center gap-1">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-              <span>Aberto para sugestões</span>
+          {/* Status Chip for Resident when unlocked */}
+          {!canEdit && (
+            <span className="px-3 py-1.5 rounded-xl text-xs font-bold bg-[#f0fcfa] text-[#727877] border border-[#d0dddb] flex items-center gap-1">
+              <span className="material-symbols-outlined text-xs">visibility</span>
+              <span>Somente leitura</span>
             </span>
           )}
         </div>
@@ -235,29 +241,40 @@ export const MealsView: React.FC<MealsViewProps> = ({
           <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar sm:grid sm:grid-cols-7">
             {DAYS_OF_WEEK.map((day) => {
               const isSelected = selectedDay === day.key;
+              const isToday = day.key === initialDayKey;
               const count = mealCountPerDay[day.key] || 0;
 
               return (
                 <button
                   key={day.key}
                   onClick={() => setSelectedDay(day.key)}
-                  className={`min-w-[76px] sm:min-w-0 p-2.5 sm:p-3 rounded-2xl border text-center transition-all duration-200 flex flex-col items-center justify-center gap-1 cursor-pointer min-h-[56px] ${
+                  className={`flex flex-col items-center justify-center p-3 rounded-2xl border transition-all shrink-0 min-w-[76px] sm:min-w-0 cursor-pointer ${
                     isSelected
-                      ? 'bg-[#16302e] text-white border-[#16302e] shadow-sm ring-2 ring-[#16302e]/20'
-                      : 'bg-white text-[#16302e] border-[#d9e5e3] hover:border-[#98b3b0]'
+                      ? 'bg-[#16302e] text-[#ffca5e] border-[#16302e] shadow-md scale-100'
+                      : 'bg-white text-[#16302e] border-[#d9e5e3] hover:border-[#98b3b0] hover:bg-[#f0fcfa]'
                   }`}
                   aria-pressed={isSelected}
-                  aria-label={`${day.fullLabel} (${count} refeições)`}
                 >
-                  <span className="text-[11px] sm:text-xs font-black uppercase tracking-wider">
-                    {day.shortLabel}
-                  </span>
+                  <div className="flex items-center gap-1">
+                    <span className="text-xs font-black uppercase tracking-wider">
+                      {day.shortLabel}
+                    </span>
+                    {isToday && (
+                      <span
+                        className={`w-1.5 h-1.5 rounded-full ${
+                          isSelected ? 'bg-[#ffca5e]' : 'bg-[#7b5800]'
+                        }`}
+                        title="Hoje"
+                      />
+                    )}
+                  </div>
+
                   <span
-                    className={`text-[10px] font-bold px-1.5 py-0.2 rounded-full ${
+                    className={`text-[10px] font-bold mt-1 px-1.5 py-0.2 rounded-full ${
                       isSelected
-                        ? 'bg-[#ffca5e] text-[#16302e]'
+                        ? 'bg-white/20 text-white'
                         : count > 0
-                        ? 'bg-[#f0fcfa] text-[#7b5800] border border-[#d0dddb]'
+                        ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
                         : 'text-[#98b3b0]'
                     }`}
                   >
@@ -270,33 +287,26 @@ export const MealsView: React.FC<MealsViewProps> = ({
         </div>
       )}
 
-      {/* VIEW MODE 1: VISÃO DIÁRIA */}
-      {viewMode === 'daily' ? (
-        <div className="space-y-3">
-          <div className="flex items-center justify-between px-1">
+      {/* DAILY VIEW CONTENT: 4 Periods Grid */}
+      {viewMode === 'daily' && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
             <h3 className="text-sm sm:text-base font-black text-[#16302e] flex items-center gap-2">
-              <span>{DAYS_OF_WEEK.find((d) => d.key === selectedDay)?.fullLabel}</span>
-              <span className="text-xs font-semibold text-[#727877]">
-                ({mealCountPerDay[selectedDay] || 0}/4 refeições definidas)
+              <span className="material-symbols-outlined text-lg text-[#7b5800]">calendar_today</span>
+              <span>
+                {DAYS_OF_WEEK.find((d) => d.key === selectedDay)?.fullLabel}
               </span>
+              {selectedDay === initialDayKey && (
+                <span className="text-[10px] font-extrabold uppercase bg-[#fff8e6] text-[#7b5800] px-2 py-0.5 rounded-md border border-[#ffca5e]/60">
+                  Hoje
+                </span>
+              )}
             </h3>
-
-            {canEdit && (
-              <button
-                onClick={() => handleOpenAddMeal(selectedDay, 'lunch')}
-                className="text-xs font-bold text-[#7b5800] hover:text-[#5a4000] flex items-center gap-1 p-1 rounded-lg"
-              >
-                <span className="material-symbols-outlined text-sm">add_circle</span>
-                <span>Adicionar Prato</span>
-              </button>
-            )}
           </div>
 
-          {/* Grid of 4 Daily Periods */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4">
-            {MEAL_PERIODS.map((period) => {
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+            {mealPeriods.map((period) => {
               const meal = mealsByDayAndPeriod.get(`${selectedDay}_${period.type}`);
-
               return (
                 <MealCard
                   key={period.type}
@@ -306,52 +316,52 @@ export const MealsView: React.FC<MealsViewProps> = ({
                   isLocked={isLocked}
                   isSubAdmin={isAdmin}
                   onEdit={() => {
-                    if (meal) {
-                      handleOpenEditMeal(meal);
-                    } else {
-                      handleOpenAddMeal(selectedDay, period.type);
-                    }
+                    if (meal) handleOpenEditMeal(meal);
+                    else handleOpenAddMeal(selectedDay, period.type);
                   }}
                 />
               );
             })}
           </div>
         </div>
-      ) : (
-        /* VIEW MODE 2: VISÃO SEMANAL (PANORÂMICA KANBAN 7 DIAS) */
-        <div className="space-y-3">
-          <div className="flex items-center justify-between px-1">
-            <h3 className="text-sm sm:text-base font-black text-[#16302e]">
-              Grade Panorâmica da Semana
-            </h3>
-            <span className="text-xs text-[#727877] font-semibold">
-              7 dias • Ideal para planejamento de compras
-            </span>
-          </div>
+      )}
 
-          {/* 7 Columns Container with smooth scroll if needed */}
-          <div className="overflow-x-auto pb-4 no-scrollbar">
-            <div className="grid grid-cols-7 gap-3 min-w-[1050px]">
+      {/* WEEKLY KANBAN VIEW (Desktop / Tablet Panorâmico) */}
+      {viewMode === 'weekly' && (
+        <div className="hidden sm:block space-y-4">
+          <div className="overflow-x-auto pb-4">
+            <div className="grid grid-cols-7 gap-3 min-w-[980px]">
               {DAYS_OF_WEEK.map((day) => {
-                const count = mealCountPerDay[day.key] || 0;
+                const isToday = day.key === initialDayKey;
                 return (
                   <div
                     key={day.key}
-                    className="bg-[#f0fcfa]/60 rounded-2xl border border-[#d9e5e3] p-2.5 flex flex-col gap-2.5"
+                    className={`rounded-2xl border p-3 flex flex-col gap-3 ${
+                      isToday
+                        ? 'bg-[#F4F9F7] border-[#16302e] shadow-xs'
+                        : 'bg-white border-[#d9e5e3]'
+                    }`}
                   >
                     {/* Day Column Header */}
-                    <div className="bg-white p-2 rounded-xl border border-[#d9e5e3] text-center">
-                      <h4 className="text-xs font-black text-[#16302e]">
-                        {day.shortLabel}
-                      </h4>
-                      <span className="text-[10px] font-bold text-[#727877]">
-                        {count} de 4
+                    <div className="flex items-center justify-between border-b border-[#e4f0ee] pb-2">
+                      <div>
+                        <span className="text-xs font-black text-[#16302e]">
+                          {day.fullLabel}
+                        </span>
+                        {isToday && (
+                          <span className="block text-[10px] font-bold text-[#7b5800]">
+                            Hoje
+                          </span>
+                        )}
+                      </div>
+                      <span className="text-[10px] font-extrabold px-1.5 py-0.5 rounded-full bg-[#f0fcfa] text-[#16302e] border border-[#d0dddb]">
+                        {mealCountPerDay[day.key] || 0}
                       </span>
                     </div>
 
-                    {/* Column Meal Cards */}
-                    <div className="flex flex-col gap-2">
-                      {MEAL_PERIODS.map((period) => {
+                    {/* Meal Cards for this Day */}
+                    <div className="space-y-2.5 flex-1">
+                      {mealPeriods.map((period) => {
                         const meal = mealsByDayAndPeriod.get(`${day.key}_${period.type}`);
                         return (
                           <MealCard
@@ -363,11 +373,8 @@ export const MealsView: React.FC<MealsViewProps> = ({
                             isSubAdmin={isAdmin}
                             compact
                             onEdit={() => {
-                              if (meal) {
-                                handleOpenEditMeal(meal);
-                              } else {
-                                handleOpenAddMeal(day.key, period.type);
-                              }
+                              if (meal) handleOpenEditMeal(meal);
+                              else handleOpenAddMeal(day.key, period.type);
                             }}
                           />
                         );
@@ -381,28 +388,45 @@ export const MealsView: React.FC<MealsViewProps> = ({
         </div>
       )}
 
-      {/* Edit / Create Meal Modal */}
-      <EditMealModal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        onSave={onUpdateMeal}
-        onDelete={onDeleteMeal}
-        initialMeal={editingMeal}
-        defaultDay={modalDay}
-        defaultPeriod={modalPeriod}
-        familyMembers={familyMembers}
-      />
+      {/* Edit / Add Meal Modal */}
+      {isModalOpen && (
+        <EditMealModal
+          isOpen={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
+          onSave={(saved) => {
+            onUpdateMeal(saved);
+          }}
+          onDelete={onDeleteMeal}
+          initialMeal={editingMeal}
+          defaultDay={modalDay}
+          defaultPeriod={modalPeriod}
+          schedules={mealPlan.schedules}
+        />
+      )}
 
-      {/* Clear Menu Confirmation Modal */}
+      {/* Edit Schedules Modal */}
+      {isSchedulesModalOpen && onUpdateSchedules && (
+        <EditMealSchedulesModal
+          isOpen={isSchedulesModalOpen}
+          onClose={() => setIsSchedulesModalOpen(false)}
+          schedules={mealPlan.schedules}
+          onSave={onUpdateSchedules}
+        />
+      )}
+
+      {/* Clear Confirmation Modal */}
       {isClearConfirmOpen && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#131e1d]/60 backdrop-blur-xs animate-in fade-in duration-200"
           role="dialog"
           aria-modal="true"
         >
-          <div className="bg-white w-full max-w-sm rounded-2xl sm:rounded-3xl border border-[#d0dddb] shadow-2xl p-5 sm:p-6 space-y-4">
+          <div
+            className="bg-white rounded-2xl max-w-md w-full p-5 border border-[#d0dddb] shadow-2xl space-y-4"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="flex items-center gap-3 text-red-600">
-              <span className="w-10 h-10 rounded-2xl bg-red-50 border border-red-200 flex items-center justify-center shrink-0">
+              <span className="w-10 h-10 rounded-xl bg-red-50 flex items-center justify-center shrink-0 border border-red-200">
                 <span className="material-symbols-outlined text-2xl">warning</span>
               </span>
               <div>
@@ -441,17 +465,6 @@ export const MealsView: React.FC<MealsViewProps> = ({
             </div>
           </div>
         </div>
-      )}
-
-      {/* Generate Schedule Wizard Modal */}
-      {isScheduleModalOpen && onGenerateSchedule && (
-        <GenerateScheduleModal
-          isOpen={isScheduleModalOpen}
-          onClose={() => setIsScheduleModalOpen(false)}
-          familyMembers={familyMembers}
-          savedConfig={savedCookingSchedule}
-          onApplySchedule={onGenerateSchedule}
-        />
       )}
     </div>
   );

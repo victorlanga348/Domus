@@ -31,20 +31,13 @@ export const MealCard: React.FC<MealCardProps> = ({
     return found || { label: tagLabel, icon: 'restaurant_menu', color: 'bg-[#f0fcfa] text-[#16302e] border-[#d0dddb]' };
   };
 
-  const chefs =
-    meal?.chefs && meal.chefs.length > 0
-      ? meal.chefs
-      : meal?.chefName
-      ? [{ id: meal.chefId || '', name: meal.chefName, avatar: meal.chefAvatar }]
-      : [];
-
   return (
     <div
       className={`bg-white rounded-2xl border transition-all duration-200 flex flex-col justify-between ${
         hasMeal
           ? 'border-[#d9e5e3] shadow-xs hover:border-[#98b3b0]'
           : 'border-dashed border-[#d9e5e3] bg-white/70'
-      } ${compact ? 'p-3 gap-2 min-h-[160px]' : 'p-4 sm:p-5 gap-3.5 min-h-[190px]'}`}
+      } ${compact ? 'p-3 gap-2 min-h-[140px]' : 'p-4 sm:p-5 gap-3.5 min-h-[160px]'}`}
     >
       {/* Top Header: Period Badge & Action */}
       <div className="flex items-center justify-between gap-2">
@@ -72,7 +65,7 @@ export const MealCard: React.FC<MealCardProps> = ({
           {canEdit ? (
             <button
               onClick={onEdit}
-              className="p-1.5 sm:p-2 text-[#16302e] hover:text-[#7b5800] hover:bg-[#fff8e6] rounded-xl transition-colors min-h-[36px] min-w-[36px] sm:min-h-[40px] sm:min-w-[40px] flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-[#7b5800]/40"
+              className="p-1.5 sm:p-2 text-[#16302e] hover:text-[#7b5800] hover:bg-[#fff8e6] rounded-xl transition-colors min-h-[36px] min-w-[36px] sm:min-h-[40px] sm:min-w-[40px] flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-[#7b5800]/40 cursor-pointer"
               title={hasMeal ? 'Editar refeição' : 'Definir prato'}
               aria-label={hasMeal ? `Editar ${periodMeta.label}` : `Definir ${periodMeta.label}`}
             >
@@ -106,7 +99,7 @@ export const MealCard: React.FC<MealCardProps> = ({
             {meal!.description && (
               <p
                 className={`text-[#727877] font-medium mt-1 leading-relaxed ${
-                  compact ? 'text-[11px] line-clamp-1' : 'text-xs line-clamp-2'
+                  compact ? 'text-[11px] line-clamp-2' : 'text-xs line-clamp-3'
                 }`}
               >
                 {meal!.description}
@@ -119,7 +112,7 @@ export const MealCard: React.FC<MealCardProps> = ({
             {canEdit && (
               <button
                 onClick={onEdit}
-                className="mt-1.5 text-[11px] font-bold text-[#7b5800] hover:underline inline-flex items-center gap-0.5"
+                className="mt-1.5 text-[11px] font-bold text-[#7b5800] hover:underline inline-flex items-center gap-0.5 cursor-pointer"
               >
                 <span className="material-symbols-outlined text-[13px]">add</span>
                 <span>Adicionar</span>
@@ -131,7 +124,7 @@ export const MealCard: React.FC<MealCardProps> = ({
 
       {/* Tags Section */}
       {hasMeal && meal!.tags && meal!.tags.length > 0 && (
-        <div className="flex flex-wrap gap-1 items-center">
+        <div className="flex flex-wrap gap-1 items-center pt-1 border-t border-[#f0f4f3]">
           {meal!.tags.slice(0, compact ? 2 : 4).map((tag, idx) => {
             const meta = getTagStyle(tag);
             return (
@@ -149,50 +142,6 @@ export const MealCard: React.FC<MealCardProps> = ({
               +{meal!.tags.length - 2}
             </span>
           )}
-        </div>
-      )}
-
-      {/* Footer: Multi-Chef info & Avatar Stack */}
-      {hasMeal && chefs.length > 0 && (
-        <div className="pt-2 border-t border-[#f0f4f3] flex items-center justify-between gap-2 text-[11px]">
-          <div className="flex items-center gap-1.5 min-w-0">
-            {/* Avatar Stack */}
-            <div className="flex -space-x-1.5 overflow-hidden shrink-0">
-              {chefs.slice(0, 3).map((c, idx) =>
-                c.avatar ? (
-                  <img
-                    key={c.id || idx}
-                    src={c.avatar}
-                    alt={c.name}
-                    title={c.name}
-                    className="inline-block w-5 h-5 rounded-full object-cover ring-1.5 ring-white bg-white shrink-0"
-                  />
-                ) : (
-                  <span
-                    key={c.id || idx}
-                    title={c.name}
-                    className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-[#16302e] text-white ring-1.5 ring-white text-[9px] font-bold shrink-0"
-                  >
-                    {c.name.charAt(0).toUpperCase()}
-                  </span>
-                )
-              )}
-            </div>
-
-            <span className="text-[#16302e] font-bold truncate">
-              {chefs.length === 1
-                ? compact
-                  ? chefs[0].name.split(' ')[0]
-                  : `Chef: ${chefs[0].name}`
-                : chefs.length === 2
-                ? `${chefs[0].name.split(' ')[0]} & ${chefs[1].name.split(' ')[0]}`
-                : `${chefs[0].name.split(' ')[0]} +${chefs.length - 1}`}
-            </span>
-          </div>
-
-          <span className="text-[10px] font-bold text-[#7b5800] bg-[#fff8e6] px-1.5 py-0.2 rounded border border-[#ffca5e]/60 shrink-0">
-            {chefs.length > 1 ? 'Cozinheiros' : 'Responsável'}
-          </span>
         </div>
       )}
     </div>

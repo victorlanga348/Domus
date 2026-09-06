@@ -1,71 +1,55 @@
 # Módulo: Cardápio da Casa & Planejamento de Refeições
 
 ## 1. Visão Geral
-O Módulo de **Cardápio da Casa** centraliza o planejamento alimentar semanal dos moradores da residência, organizando refeições, ingredientes, restrições dietéticas e cozinheiros responsáveis.
+O Módulo de **Cardápio da Casa** centraliza o planejamento alimentar semanal dos moradores da residência, organizando refeições, ingredientes, observações de preparo, restrições dietéticas e faixas de horários dos turnos. O módulo atua como um **quadro informativo compartilhado**, sem vínculo com tarefas ou escalas obrigatórias de pessoas.
 
 ---
 
-## 2. Refeições e Periodicidade
-O cardápio opera em ciclo semanal contínuo de 7 dias (Segunda a Domingo) dividido em 4 refeições diárias:
-- **Café da Manhã (`breakfast`):** 06:00 às 10:00
-- **Almoço (`lunch`):** 11:30 às 14:30
-- **Lanche / Sobremesa (`snack`):** 15:30 às 18:00
-- **Jantar (`dinner`):** 19:00 às 22:30
+## 2. Refeições, Turnos e Horários Customizáveis
+O cardápio opera em ciclo semanal contínuo de 7 dias (Segunda a Domingo) dividido em 4 refeições diárias com horários personalizáveis por residência:
+- **Café da Manhã (`breakfast`):** Padrão `06:00` às `10:00` (customizável).
+- **Almoço (`lunch`):** Padrão `11:30` às `14:30` (customizável).
+- **Lanche / Sobremesa (`snack`):** Padrão `15:30` às `18:00` (customizável).
+- **Jantar (`dinner`):** Padrão `19:00` às `22:30` (customizável).
+
+### 2.1 Ajuste de Horários
+- O Administrador Geral e os Sub-Administradores (quando destrancado) podem ajustar os horários de início e término de cada refeição através do modal **"Ajustar Horários"** (`schedule` icon).
+- Os horários configurados persistem no `localStorage` por residência e refletem em tempo real em todos os cards, modais e visões do cardápio.
 
 ---
 
 ## 3. Matriz de Permissões & Trava Global (Lock Mode)
 
-| Papel / Perfil | Visualizar Cardápio | Editar Refeições (Destrancado) | Editar Refeições (Trancado 🔒) | Trancar / Destrancar 🔒 |
+| Ação / Operação | Admin Geral | Sub-Admin (Destrancado) | Sub-Admin (Trancado 🔒) | Residente / Convidado |
 | :--- | :---: | :---: | :---: | :---: |
-| **Admin Geral** | Sim | Sim | Sim | **Exclusivo** |
-| **Sub-Admin (Admin)** | Sim | Sim | Bloqueado (403 / Oculto) | Sem permissão |
-| **Residente / Convidado** | Sim | Somente Leitura | Somente Leitura | Sem permissão |
+| **Visualizar Cardápio & Horários** | Sim | Sim | Sim | Sim |
+| **Adicionar / Editar / Excluir Pratos** | Sim | Sim | Bloqueado ❌ | Bloqueado (Somente Leitura) |
+| **Ajustar Horários dos Turnos** | Sim | Sim | Bloqueado ❌ | Bloqueado ❌ |
+| **Limpar Cardápio da Semana** | Sim | Sim | Bloqueado ❌ | Bloqueado ❌ |
+| **Trancar / Destrancar Global 🔒** | **Exclusivo** | Sem permissão ❌ | Sem permissão ❌ | Sem permissão ❌ |
 
 ### 3.1 Regras de Operação da Trava Global
 - **Destrancado (Padrão):**
-  - O Admin Geral e os Sub-Admins podem adicionar, editar e excluir pratos.
-  - Indicador neutro com ícone `lock_open`.
+  - O Admin Geral e os Sub-Admins podem adicionar, editar e excluir pratos, bem como redefinir os horários dos turnos.
+  - Indicador neutro com botão para trancar.
 - **Trancado (🔒 Ativado pelo Admin Geral):**
-  - Acionado exclusivamente pelo Admin Geral após consolidação das compras ou alinhamento com a casa.
-  - Banner institucional proeminente: `🔒 Cardápio trancado pelo Administrador Geral`.
-  - Sub-Admins têm as ações de escrita desabilitadas/ocultas com tooltip explicativo.
+  - Banner institucional: `🔒 Cardápio trancado pelo Administrador Geral`.
+  - Sub-Admins e Residentes têm todas as ações de escrita bloqueadas.
   - O Admin Geral é o único que mantém permissão irrestrita de edição e botão para destrancar.
 
 ---
 
-## 4. Diretrizes de Interface e Responsividade
+## 4. Diretrizes de Interface e Usabilidade
 
-### 4.1 Mobile (< 640px)
-- Seletor horizontal com rolagem suave contendo os 7 dias da semana.
-- Navegação vertical focada no dia ativo com 4 cards expansíveis.
+### 4.1 Seleção Automática do Dia Atual
+- Ao abrir a tela do Cardápio da Casa, o sistema identifica automaticamente o dia da semana atual (`new Date().getDay()`) e inicia com ele selecionado, exibindo um badge discreto `Hoje` no dia correspondente.
+
+### 4.2 Mobile (< 640px)
+- Seletor horizontal com rolagem suave contendo os 7 dias da semana e contagem de pratos planejados.
+- Navegação vertical focada no dia ativo com 4 cards de turno.
 - Áreas de toque confortáveis (mínimo 44px) e respeito total a Safe Areas (`env(safe-area-inset-*)`).
 
-### 4.2 Tablet (640px - 1023px)
-- Grade em 2 colunas com navegação rápida de dias no topo.
-- Badges claros de tags dietéticas (`🌱 Vegetariano`, `🥛 Sem Lactose`, `🌾 Sem Glúten`).
-
 ### 4.3 Desktop (>= 1024px)
-- Alternador de visualização (View Switcher):
-  - **Modo Diário:** Foco nos pratos do dia, detalhes de preparo e foto/avatar do cozinheiro.
+- **Alternador de Visualização (View Switcher):**
+  - **Modo Diário:** Foco nos 4 turnos do dia selecionado, com detalhes de ingredientes e tags.
   - **Modo Semanal (Kanban 7 Dias):** Visão panorâmica dos 7 dias e 4 refeições lado a lado, facilitando planejamento conjunto e lista de compras.
-
----
-
-## 5. Escala Híbrida & Múltiplos Cozinheiros (Multi-Chef)
-
-### 5.1 Suporte Multi-Chef por Refeição
-- O cardápio permite atribuir **1 ou mais pessoas responsáveis** (`chefs: MealChef[]`) para cada refeição.
-- No modal de edição (`EditMealModal`), a seleção é feita via cards interativos dos moradores da residência.
-- No card da refeição (`MealCard`), múltiplos responsáveis são representados por um **Avatar Stack** com contagem agregada e tooltip informativo.
-
-### 5.2 Assistente "Gerar Escala da Semana"
-O assistente automatiza a atribuição de quem cozinha sem interferir nos pratos cadastrados:
-1. **Rodízio Útil (Segunda a Sexta):** Distribuição equilibrada (`round-robin`) entre os participantes selecionados para os turnos escolhidos (ex: Almoço e Jantar).
-2. **Regra de Fim de Semana (Sábado e Domingo):**
-   - **Livre / Cada um por si:** Nenhum cozinheiro atribuído por padrão.
-   - **Pessoa(s) Fixa(s):** Atribuição de moradores específicos para o fim de semana.
-3. **Pré-visualização e Preservação de Dados:**
-   - Apresenta tabela com a distribuição semanal e estatística de turnos por morador.
-   - Ao aplicar, **preserva títulos, descrições e tags de pratos existentes**, atualizando exclusivamente a lista de cozinheiros responsáveis.
-
