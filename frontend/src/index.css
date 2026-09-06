@@ -11,13 +11,15 @@
     min-height: 100dvh;
     background-color: #f0fcfa;
     box-sizing: border-box;
+    touch-action: manipulation;
   }
 
-  /* Previne auto-zoom no iOS Safari (mínimo de 16px para campos focáveis no mobile) */
+  /* Previne auto-zoom no iOS Safari e Android (mínimo de 16px para campos focáveis no mobile) */
   input,
   textarea,
   select {
     font-size: 16px;
+    touch-action: manipulation;
   }
   @media (min-width: 640px) {
     input,
@@ -174,6 +176,16 @@ p {
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
+  }
+}
+
+/* Prevenção Absoluta de Auto-Zoom no iOS Safari e Mobile WebKit ao Focar Inputs */
+@media screen and (max-width: 768px) {
+  input,
+  textarea,
+  select {
+    font-size: 16px !important;
+    max-height: none !important;
   }
 }
 

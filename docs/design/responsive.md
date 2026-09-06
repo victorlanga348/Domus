@@ -51,10 +51,13 @@
 
 ## 6. Prevenção de Auto-Zoom no iOS Safari & Teclado Virtual
 - **Regra de Tamanho de Fonte (16px):**
-  - No iOS Safari, qualquer elemento `<input>`, `<textarea>` ou `<select>` com `font-size < 16px` aciona zoom automático ao receber foco, quebrando o layout da tela.
-  - No mobile (`< 640px`), todos os campos focáveis devem ter `font-size: 16px !important`, retornando aos tamanhos canônicos da escala tipográfica em telas maiores (`sm:` ou superiores).
+  - No iOS Safari e navegadores mobile em geral, qualquer elemento `<input>`, `<textarea>` ou `<select>` com `font-size < 16px` aciona zoom automático ao receber foco, quebrando o layout da tela.
+  - No mobile (`screen and (max-width: 768px)`), todos os campos focáveis possuem `font-size: 16px !important`, anulando classes utilitárias menores (`text-xs`, `text-sm`) e retornando aos tamanhos canônicos da escala tipográfica apenas em telas maiores (`sm:` ou superiores).
 - **Metatag Viewport:**
-  - Configuração obrigatória: `<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />`.
+  - Configuração obrigatória para travar a escala e anular o auto-zoom:
+    `<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />`.
+- **Prevenção de Zoom por Duplo Toque (Touch Action):**
+  - Aplicação de `touch-action: manipulation;` em `html, body, #root, input, textarea, select, button`, desativando gestos involuntários de duplo clique que ampliam e travam a viewport no mobile.
 - **Containers de Autenticação com Teclado:**
   - A tela de autenticação deve operar sob `min-h-[100dvh]` com `overflow-y-auto`, permitindo rolagem vertical suave para que os campos e o botão de ação continuem acessíveis quando o teclado virtual estiver aberto.
 

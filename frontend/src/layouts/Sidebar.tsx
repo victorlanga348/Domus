@@ -216,7 +216,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </aside>
       </div>
       {/* Desktop Sidebar (hidden on mobile, fixed no scroll on desktop) */}
-      <aside className="hidden md:flex fixed left-0 top-0 h-screen h-[100dvh] w-[250px] lg:w-[280px] bg-[#16302e] shadow-none flex-col justify-between py-4 lg:py-6 z-50 transition-all duration-300 overflow-hidden [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+      <aside className="hidden md:flex fixed left-0 top-0 h-[100dvh] w-[250px] lg:w-[280px] bg-[#16302e] shadow-none flex-col justify-between py-4 lg:py-6 z-50 transition-all duration-300 overflow-hidden [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
         {/* Profile Area */}
         <div className="flex flex-col items-center justify-center px-5 mb-2 lg:mb-4 shrink-0">
           <div

@@ -257,6 +257,19 @@ export default function App() {
     return [];
   });
 
+  const [readNotificationIds, setReadNotificationIds] = useState<string[]>(() => {
+    if (!houseKey) return [];
+    const saved = localStorage.getItem(`${houseKey}_read_notifications`);
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch {
+        return [];
+      }
+    }
+    return [];
+  });
+
   const [preferences, setPreferences] = useState<SystemPreferences>(() => {
     if (!houseKey) return INITIAL_PREFERENCES;
     const saved = localStorage.getItem(`${houseKey}_prefs`);
@@ -311,6 +324,7 @@ export default function App() {
       localStorage.setItem(`${houseKey}_expenses`, JSON.stringify(expenses));
       localStorage.setItem(`${houseKey}_rules`, JSON.stringify(houseRules));
       localStorage.setItem(`${houseKey}_logs`, JSON.stringify(activityLogs));
+      localStorage.setItem(`${houseKey}_read_notifications`, JSON.stringify(readNotificationIds));
       localStorage.setItem(`${houseKey}_prefs`, JSON.stringify(preferences));
       localStorage.setItem(`${houseKey}_notes`, JSON.stringify(muralNotes));
       localStorage.setItem(`${houseKey}_statuses`, JSON.stringify(memberStatuses));
@@ -323,6 +337,7 @@ export default function App() {
     expenses,
     houseRules,
     activityLogs,
+    readNotificationIds,
     preferences,
     muralNotes,
     memberStatuses,
@@ -569,6 +584,25 @@ export default function App() {
     return online.length > 0 ? online : familyMembers;
   }, [familyMembers, onlineUserIds]);
 
+  // Contagem estrita de notificações não vistas para o indicador do sino
+  const unreadNotificationCount = useMemo(() => {
+    const readSet = new Set(readNotificationIds);
+    return activityLogs.filter((log) => !readSet.has(log.id)).length;
+  }, [activityLogs, readNotificationIds]);
+
+  // Ao abrir o painel de notificações, marca todos os logs correntes como lidos
+  const handleOpenNotifications = useCallback(() => {
+    setIsNotificationsOpen(true);
+    const currentIds = activityLogs.map((log) => log.id);
+    setReadNotificationIds((prev) => {
+      const updated = Array.from(new Set([...prev, ...currentIds]));
+      if (houseKey) {
+        localStorage.setItem(`${houseKey}_read_notifications`, JSON.stringify(updated));
+      }
+      return updated;
+    });
+  }, [activityLogs, houseKey]);
+
   const handleAuthSuccess = (user: AuthUser, token: string) => {
     setAuthUser(user);
     setAuthToken(token);
@@ -685,6 +719,7 @@ export default function App() {
     setExpenses([]);
     setHouseRules([]);
     setActivityLogs([]);
+    setReadNotificationIds([]);
     setMuralNotes([]);
     setMemberStatuses([]);
     showToast('Sessão encerrada.');
@@ -1227,8 +1262,8 @@ export default function App() {
           onSubTabChange={setSubTab}
           vacationMode={vacationMode}
           onToggleVacationMode={handleToggleVacationMode}
-          unreadNotificationCount={activityLogs.length}
-          onOpenNotifications={() => setIsNotificationsOpen(true)}
+          unreadNotificationCount={unreadNotificationCount}
+          onOpenNotifications={handleOpenNotifications}
           onOpenMembersDrawer={() => setIsMembersDrawerOpen(true)}
           onSwitchHouse={handleSwitchHouse}
           onToggleMobileMenu={() => setIsMobileMenuOpen((prev) => !prev)}
@@ -1236,7 +1271,7 @@ export default function App() {
 
         {/* Dynamic View Canvas */}
         <div
-          className="flex-1 min-w-0 max-w-full pb-6 md:pb-12 overflow-x-hidden"
+          className="flex-1 min-w-0 max-w-full pb-6 md:pb-12"
           style={{ paddingBottom: 'calc(1.5rem + env(safe-area-inset-bottom, 0px))' }}
         >
           {currentTab === 'dashboard' && (

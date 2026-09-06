@@ -93,7 +93,7 @@ export const JoinHouseholdView: React.FC<JoinHouseholdViewProps> = ({
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="Ex: Residência Alameda"
-                  className="w-full bg-[#f8fdfc] border border-[#cfe0dc] rounded-xl pl-11 pr-4 py-3 text-sm text-[#112321] placeholder-[#7d9c97] focus:outline-none focus:ring-2 focus:ring-[#16302e] focus:border-transparent transition-all shadow-sm"
+                  className="w-full bg-[#f8fdfc] border border-[#cfe0dc] rounded-xl pl-11 pr-4 py-3 text-base text-[#112321] placeholder-[#7d9c97] focus:outline-none focus:ring-2 focus:ring-[#16302e] focus:border-transparent transition-all shadow-sm"
                   required
                 />
               </div>
@@ -114,7 +114,7 @@ export const JoinHouseholdView: React.FC<JoinHouseholdViewProps> = ({
                   value={code}
                   onChange={(e) => setCode(e.target.value.toUpperCase())}
                   placeholder="Ex: DOMUS-789X ou CASA-4892"
-                  className="w-full bg-[#f8fdfc] border border-[#cfe0dc] rounded-xl pl-11 pr-4 py-3 text-sm font-mono tracking-wider font-semibold text-[#112321] placeholder-[#7d9c97] focus:outline-none focus:ring-2 focus:ring-[#16302e] focus:border-transparent transition-all shadow-sm"
+                  className="w-full bg-[#f8fdfc] border border-[#cfe0dc] rounded-xl pl-11 pr-4 py-3 text-base font-mono tracking-wider font-semibold text-[#112321] placeholder-[#7d9c97] focus:outline-none focus:ring-2 focus:ring-[#16302e] focus:border-transparent transition-all shadow-sm"
                   required
                 />
               </div>
