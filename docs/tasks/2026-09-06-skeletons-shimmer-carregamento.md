@@ -1,6 +1,6 @@
 # Task: Implementação de Skeletons Shimmer para Estados de Carregamento
 **Data:** 2026-09-06  
-**Status:** Em Andamento  
+**Status:** Concluída  
 **Specs Impactadas:**  
 - `[[docs/components/overview.md]]`
 - `[[docs/pages/dashboard.md]]`
@@ -23,7 +23,7 @@
    - Implementar `DashboardSkeleton` reproduzindo a geometria exata do banner de boas-vindas e da grade de recados.
    - Implementar `TasksSkeleton` reproduzindo a barra de turnos e os cartões de tarefas.
 2. **Integração no `DashboardView.tsx`:**
-   - Renderizar o `DashboardSkeleton` enquanto `loading === true`.
+   - Renderizar o `DashboardSkeleton` enquanto `loading === true` e sem dados prévios em cache.
 3. **Integração no `TasksRotationsView.tsx`:**
    - Adicionar prop opcional `loading?: boolean`.
    - Renderizar `TasksSkeleton` caso `loading` esteja ativo.
@@ -44,18 +44,19 @@
 ---
 
 ## 4. Critérios de Aceitação
-- [ ] O componente `Skeleton` e os layouts `DashboardSkeleton` e `TasksSkeleton` criados e exportados em `components/index.ts`.
-- [ ] `DashboardView` exibe o `DashboardSkeleton` durante o carregamento inicial da API.
-- [ ] Efeito shimmer orgânico suave nas cores da paleta DOMUS sem causar travamentos.
-- [ ] Usuários com `prefers-reduced-motion` recebem skeleton estático sem animação contínua.
-- [ ] Verificação de tipos (`rtk npm --prefix frontend run typecheck`) e build de produção (`rtk npx vite build`) sem erros.
+- [x] O componente `Skeleton` e os layouts `DashboardSkeleton` e `TasksSkeleton` criados e exportados em `components/index.ts`.
+- [x] `DashboardView` exibe o `DashboardSkeleton` durante o carregamento inicial da API.
+- [x] Efeito shimmer orgânico suave nas cores da paleta DOMUS sem causar travamentos.
+- [x] Usuários com `prefers-reduced-motion` recebem skeleton estático sem animação contínua.
+- [x] Verificação de tipos (`rtk npm --prefix frontend run typecheck`) e build de produção (`rtk npx vite build`) sem erros.
 
 ---
 
 ## 5. Plano de Implementação (Passo a Passo)
-1. Criar `frontend/src/components/Skeleton.tsx` com `Skeleton`, `DashboardSkeleton` e `TasksSkeleton`.
-2. Exportar em `frontend/src/components/index.ts`.
-3. Atualizar `frontend/src/features/dashboard/components/DashboardView.tsx` para renderizar `DashboardSkeleton` quando `loading === true`.
-4. Atualizar `frontend/src/features/tasks-rotation/components/TasksRotationsView.tsx` com suporte a `TasksSkeleton`.
-5. Validar compilação e build via terminal com `rtk`.
-6. Sincronizar documentação em `/docs`.
+1. [x] Criar `frontend/src/components/Skeleton.tsx` com `Skeleton`, `DashboardSkeleton` e `TasksSkeleton`.
+2. [x] Exportar em `frontend/src/components/index.ts`.
+3. [x] Atualizar `frontend/src/features/dashboard/components/DashboardView.tsx` para renderizar `DashboardSkeleton` quando `loading === true`.
+4. [x] Atualizar `frontend/src/features/tasks-rotation/components/TasksRotationsView.tsx` com suporte a `TasksSkeleton`.
+5. [x] Validar compilação e build via terminal com `rtk`.
+6. [x] Sincronizar documentação em `/docs`.
+
