@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
 import { HouseTask, TaskRotation, FamilyMember } from '../../../types';
 import { ConfirmActionModal } from '../../../components/index.js';
 
@@ -274,7 +275,8 @@ export const TasksRotationsView: React.FC<TasksRotationsViewProps> = ({
             }
             setIsAddTaskModalOpen(true);
           }}
-          className="px-3.5 py-2 bg-[#7b5800] hover:bg-[#5d4200] active:scale-98 text-white rounded-xl text-xs font-bold transition-all shadow-xs flex items-center justify-center gap-1.5 shrink-0"
+          className="px-3.5 py-2 bg-[#7b5800] hover:bg-[#5d4200] active:scale-[0.96] text-white rounded-xl text-xs font-bold transition-all shadow-xs flex items-center justify-center gap-1.5 shrink-0 cursor-pointer"
+          aria-label="Adicionar Nova Tarefa"
         >
           <span className="material-symbols-outlined text-base">add</span>
           <span>Nova Tarefa</span>
@@ -286,26 +288,28 @@ export const TasksRotationsView: React.FC<TasksRotationsViewProps> = ({
         <div className="flex items-center gap-1 bg-[#f0fcfa] p-1 rounded-lg w-full sm:w-auto justify-center sm:justify-start">
           <button
             onClick={() => setActiveTab('all_tasks')}
-            className={`flex-1 sm:flex-initial px-3 py-1.5 rounded-md text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+            className={`flex-1 sm:flex-initial px-3 py-1.5 rounded-md text-xs font-bold transition-all active:scale-[0.96] cursor-pointer flex items-center justify-center gap-1.5 ${
               activeTab === 'all_tasks'
                 ? 'bg-[#16302e] text-white shadow-xs'
                 : 'text-[#727877] hover:text-[#16302e]'
             }`}
+            aria-label="Ver todas as tarefas pendentes"
           >
             <span className="material-symbols-outlined text-sm shrink-0">task_alt</span>
-            <span>Tarefas ({pendingTasks.length})</span>
+            <span>Tarefas (<span className="tabular-nums">{pendingTasks.length}</span>)</span>
           </button>
 
           <button
             onClick={() => setActiveTab('rotations')}
-            className={`flex-1 sm:flex-initial px-3 py-1.5 rounded-md text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+            className={`flex-1 sm:flex-initial px-3 py-1.5 rounded-md text-xs font-bold transition-all active:scale-[0.96] cursor-pointer flex items-center justify-center gap-1.5 ${
               activeTab === 'rotations'
                 ? 'bg-[#16302e] text-white shadow-xs'
                 : 'text-[#727877] hover:text-[#16302e]'
             }`}
+            aria-label="Ver rodízios de tarefas"
           >
             <span className="material-symbols-outlined text-sm shrink-0">sync</span>
-            <span>Rodízios ({rotations.length})</span>
+            <span>Rodízios (<span className="tabular-nums">{rotations.length}</span>)</span>
           </button>
         </div>
 
@@ -314,7 +318,8 @@ export const TasksRotationsView: React.FC<TasksRotationsViewProps> = ({
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value as any)}
-              className="bg-[#f0fcfa] border border-[#d0dddb] text-[#16302e] text-xs font-bold px-2.5 py-1.5 rounded-lg focus:outline-none cursor-pointer flex-1 sm:flex-initial"
+              className="bg-[#f0fcfa] border border-[#d0dddb] text-[#16302e] text-xs font-bold px-2.5 py-1.5 rounded-lg focus:outline-none cursor-pointer flex-1 sm:flex-initial tabular-nums"
+              aria-label="Filtrar tarefas por status"
             >
               <option value="pending">Pendentes ({tasks.filter((t) => t.status !== 'completed').length})</option>
               <option value="completed">Concluídas ({tasks.filter((t) => t.status === 'completed').length})</option>
@@ -325,6 +330,7 @@ export const TasksRotationsView: React.FC<TasksRotationsViewProps> = ({
               value={selectedPeriod}
               onChange={(e) => setSelectedPeriod(e.target.value as any)}
               className="bg-[#f0fcfa] border border-[#d0dddb] text-[#16302e] text-xs font-bold px-2.5 py-1.5 rounded-lg focus:outline-none cursor-pointer flex-1 sm:flex-initial"
+              aria-label="Filtrar tarefas por turno"
             >
               <option value="all">Todos os Turnos</option>
               <option value="morning">Manhã</option>
@@ -349,164 +355,180 @@ export const TasksRotationsView: React.FC<TasksRotationsViewProps> = ({
               </p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {filteredTasks.map((task) => {
-                const isRotation = Boolean(task.isRotation);
+            <motion.div
+              layout
+              className="grid grid-cols-1 md:grid-cols-2 gap-3"
+            >
+              <AnimatePresence mode="popLayout">
+                {filteredTasks.map((task) => {
+                  const isRotation = Boolean(task.isRotation);
 
-                return (
-                  <div
-                    key={task.id}
-                    className="bg-white p-3.5 rounded-xl border border-[#d9e5e3] shadow-2xs hover:border-[#98b3b0] transition-all flex flex-col justify-between gap-2.5"
-                  >
-                    <div>
-                      {/* Top Row: Icon, Title & Badge */}
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="flex items-center gap-2.5 min-w-0">
-                          <div className="w-8 h-8 rounded-lg bg-[#f0fcfa] border border-[#d0dddb] flex items-center justify-center text-[#7b5800] shrink-0">
-                            <span className="material-symbols-outlined text-lg">{task.icon || 'checklist'}</span>
-                          </div>
-                          <div className="min-w-0">
-                            <h3 className="text-xs sm:text-sm font-bold text-[#16302e] truncate leading-tight">
-                              {task.title}
-                            </h3>
-                            <div className="flex flex-wrap items-center gap-1.5 mt-1">
-                              <span className="text-[10px] text-[#727877] font-medium bg-[#f0fcfa] px-1.5 py-0.5 rounded border border-[#e4f0ee] inline-flex items-center gap-1">
-                                <span className="material-symbols-outlined text-[11px]">repeat</span>
-                                <span>{task.frequency || 'Diária'}</span>
-                              </span>
-                              {task.advanceNotice && (
-                                <span className="text-[10px] text-[#7b5800] font-bold bg-[#fff8e6] px-1.5 py-0.5 rounded border border-[#ffca5e]/50 flex items-center gap-0.5">
-                                  <span className="material-symbols-outlined text-[11px]">notifications_active</span>
-                                  <span>{task.advanceNotice}</span>
+                  return (
+                    <motion.div
+                      key={task.id}
+                      layout
+                      initial={{ opacity: 0, y: 10, scale: 0.98 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.95, y: -8 }}
+                      transition={{ type: 'spring', duration: 0.28, bounce: 0 }}
+                      className="bg-white p-3.5 rounded-xl border border-[#d9e5e3] shadow-2xs hover:border-[#98b3b0] transition-colors flex flex-col justify-between gap-2.5"
+                    >
+                      <div>
+                        {/* Top Row: Icon, Title & Badge */}
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <div className="w-8 h-8 rounded-lg bg-[#f0fcfa] border border-[#d0dddb] flex items-center justify-center text-[#7b5800] shrink-0">
+                              <span className="material-symbols-outlined text-lg">{task.icon || 'checklist'}</span>
+                            </div>
+                            <div className="min-w-0">
+                              <h3 className="text-xs sm:text-sm font-bold text-[#16302e] truncate leading-tight">
+                                {task.title}
+                              </h3>
+                              <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                                <span className="text-[10px] text-[#727877] font-medium bg-[#f0fcfa] px-1.5 py-0.5 rounded border border-[#e4f0ee] inline-flex items-center gap-1">
+                                  <span className="material-symbols-outlined text-[11px]">repeat</span>
+                                  <span>{task.frequency || 'Diária'}</span>
                                 </span>
-                              )}
+                                {task.advanceNotice && (
+                                  <span className="text-[10px] text-[#7b5800] font-bold bg-[#fff8e6] px-1.5 py-0.5 rounded border border-[#ffca5e]/50 flex items-center gap-0.5">
+                                    <span className="material-symbols-outlined text-[11px]">notifications_active</span>
+                                    <span>{task.advanceNotice}</span>
+                                  </span>
+                                )}
+                              </div>
                             </div>
                           </div>
-                        </div>
 
-                        {/* Rotation or Period Badge */}
-                        {isRotation ? (
-                          <span className="px-1.5 py-0.5 rounded text-[10px] font-extrabold bg-[#ffca5e]/30 text-[#755400] border border-[#ffca5e] shrink-0 flex items-center gap-0.5">
-                            <span className="material-symbols-outlined text-[10px]">sync</span>
-                            <span>Rodízio</span>
-                          </span>
-                        ) : (
-                          <span className="px-1.5 py-0.5 rounded text-[10px] font-extrabold bg-[#f0fcfa] text-[#16302e] border border-[#d0dddb] shrink-0">
-                            {task.period === 'morning' ? 'Manhã' : task.period === 'afternoon' ? 'Tarde' : 'Noite'}
-                          </span>
-                        )}
-                      </div>
-
-                      {/* Responsável Bar */}
-                      <div className="mt-2.5 bg-[#f0fcfa] px-2.5 py-1.5 rounded-lg border border-[#e4f0ee] flex items-center justify-between text-xs">
-                        <span className="text-[10px] font-semibold text-[#727877]">Responsável:</span>
-                        <div className="flex items-center gap-1 min-w-0">
-                          {task.nextMemberAvatar && (
-                            <img
-                              src={task.nextMemberAvatar}
-                              alt={task.nextMember}
-                              className="w-3.5 h-3.5 rounded-full object-cover shrink-0"
-                            />
-                          )}
-                          <span className="font-bold text-[11px] text-[#16302e] truncate">
-                            {task.nextMember || 'Livre'}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Footer Actions */}
-                    <div className="flex items-center justify-between gap-2 pt-2 border-t border-[#f0fcfa]">
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        {task.status === 'completed' ? (
-                          <>
-                            <span className="px-2 py-0.5 rounded-md text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1">
-                              <span className="material-symbols-outlined text-xs text-emerald-600">check_circle</span>
-                              <span>Concluída</span>
+                          {/* Rotation or Period Badge */}
+                          {isRotation ? (
+                            <span className="px-1.5 py-0.5 rounded text-[10px] font-extrabold bg-[#ffca5e]/30 text-[#755400] border border-[#ffca5e] shrink-0 flex items-center gap-0.5">
+                              <span className="material-symbols-outlined text-[10px]">sync</span>
+                              <span>Rodízio</span>
                             </span>
-                            {canRevert && (
-                              <button
-                                type="button"
-                                onClick={() => setTaskToRevert(task)}
-                                className="px-2 py-0.5 text-slate-500 hover:text-[#7b5800] hover:bg-amber-50 text-[11px] font-bold rounded-md transition-all flex items-center gap-1"
-                                title="Reverter para Pendente"
-                              >
-                                <span className="material-symbols-outlined text-xs">undo</span>
-                                <span>Reverter p/ Pendente</span>
-                              </button>
+                          ) : (
+                            <span className="px-1.5 py-0.5 rounded text-[10px] font-extrabold bg-[#f0fcfa] text-[#16302e] border border-[#d0dddb] shrink-0">
+                              {task.period === 'morning' ? 'Manhã' : task.period === 'afternoon' ? 'Tarde' : 'Noite'}
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Responsável Bar */}
+                        <div className="mt-2.5 bg-[#f0fcfa] px-2.5 py-1.5 rounded-lg border border-[#e4f0ee] flex items-center justify-between text-xs">
+                          <span className="text-[10px] font-semibold text-[#727877]">Responsável:</span>
+                          <div className="flex items-center gap-1 min-w-0">
+                            {task.nextMemberAvatar && (
+                              <img
+                                src={task.nextMemberAvatar}
+                                alt={task.nextMember}
+                                className="w-3.5 h-3.5 rounded-full object-cover shrink-0"
+                              />
                             )}
-                          </>
-                        ) : (
-                          <>
-                            {Boolean(
-                              (currentUserId && task.nextMemberId && task.nextMemberId === currentUserId) ||
-                              (effectiveUserName && task.nextMember && task.nextMember.trim().toLowerCase() === effectiveUserName.trim().toLowerCase())
-                            ) ? (
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  onTaskStatusChange(task.id, 'completed');
-                                  if (task.isRotation && rotations.length > 0) {
-                                    onRotateNext(rotations[0].id);
-                                  }
-                                }}
-                                className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 active:scale-98 text-white text-[11px] font-bold rounded-lg transition-all shadow-2xs flex items-center gap-1 cursor-pointer"
-                              >
-                                <span className="material-symbols-outlined text-xs">check_circle</span>
-                                <span>Concluir</span>
-                              </button>
-                            ) : (
-                              <div className="relative group inline-block">
+                            <span className="font-bold text-[11px] text-[#16302e] truncate">
+                              {task.nextMember || 'Livre'}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Footer Actions */}
+                      <div className="flex items-center justify-between gap-2 pt-2 border-t border-[#f0fcfa]">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          {task.status === 'completed' ? (
+                            <>
+                              <span className="px-2 py-0.5 rounded-md text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1">
+                                <span className="material-symbols-outlined text-xs text-emerald-600">check_circle</span>
+                                <span>Concluída</span>
+                              </span>
+                              {canRevert && (
                                 <button
                                   type="button"
-                                  disabled
-                                  className="px-2.5 py-1 bg-slate-100 text-slate-400 border border-slate-200 text-[11px] font-bold rounded-lg flex items-center gap-1 cursor-not-allowed opacity-80"
+                                  onClick={() => setTaskToRevert(task)}
+                                  className="px-2 py-0.5 text-slate-500 hover:text-[#7b5800] hover:bg-amber-50 active:scale-[0.96] text-[11px] font-bold rounded-md transition-all flex items-center gap-1 cursor-pointer"
+                                  title="Reverter para Pendente"
+                                  aria-label="Reverter tarefa para pendente"
                                 >
-                                  <span className="material-symbols-outlined text-xs text-slate-400">lock</span>
+                                  <span className="material-symbols-outlined text-xs">undo</span>
+                                  <span>Reverter p/ Pendente</span>
+                                </button>
+                              )}
+                            </>
+                          ) : (
+                            <>
+                              {Boolean(
+                                (currentUserId && task.nextMemberId && task.nextMemberId === currentUserId) ||
+                                (effectiveUserName && task.nextMember && task.nextMember.trim().toLowerCase() === effectiveUserName.trim().toLowerCase())
+                              ) ? (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    onTaskStatusChange(task.id, 'completed');
+                                    if (task.isRotation && rotations.length > 0) {
+                                      onRotateNext(rotations[0].id);
+                                    }
+                                  }}
+                                  className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 active:scale-[0.96] text-white text-[11px] font-bold rounded-lg transition-all shadow-2xs flex items-center gap-1 cursor-pointer"
+                                  aria-label="Concluir Tarefa"
+                                >
+                                  <span className="material-symbols-outlined text-xs">check_circle</span>
                                   <span>Concluir</span>
                                 </button>
-                                <div className="hidden group-hover:block absolute bottom-full left-0 mb-1.5 z-30 px-2 py-1 bg-[#16302e] text-white text-[10px] font-medium rounded-md shadow-md whitespace-nowrap pointer-events-none">
-                                  Aguardando confirmação de {task.nextMember || 'outro morador'}
+                              ) : (
+                                <div className="relative group inline-block">
+                                  <button
+                                    type="button"
+                                    disabled
+                                    className="px-2.5 py-1 bg-slate-100 text-slate-400 border border-slate-200 text-[11px] font-bold rounded-lg flex items-center gap-1 cursor-not-allowed opacity-80"
+                                    aria-disabled="true"
+                                    aria-label="Conclusão bloqueada"
+                                  >
+                                    <span className="material-symbols-outlined text-xs text-slate-400">lock</span>
+                                    <span>Concluir</span>
+                                  </button>
+                                  <div className="hidden group-hover:block absolute bottom-full left-0 mb-1.5 z-30 px-2 py-1 bg-[#16302e] text-white text-[10px] font-medium rounded-md shadow-md whitespace-nowrap pointer-events-none">
+                                    Aguardando confirmação de {task.nextMember || 'outro morador'}
+                                  </div>
                                 </div>
-                              </div>
-                            )}
+                              )}
 
-                            {isRotation && rotations.length > 0 && Boolean(
-                              (currentUserId && task.nextMemberId && task.nextMemberId === currentUserId) ||
-                              (effectiveUserName && task.nextMember && task.nextMember.trim().toLowerCase() === effectiveUserName.trim().toLowerCase())
-                            ) && (
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  onRotateNext(rotations[0].id);
-                                  onTaskStatusChange(task.id, 'skipped');
-                                }}
-                                className="px-2 py-1 bg-white border border-[#c1c8c6] text-[#7b5800] hover:bg-amber-50 text-[11px] font-bold rounded-lg transition-all flex items-center gap-1"
-                                title="Pular vez para a próxima pessoa da fila"
-                              >
-                                <span className="material-symbols-outlined text-xs">skip_next</span>
-                                <span>Pular</span>
-                              </button>
-                            )}
-                          </>
+                              {isRotation && rotations.length > 0 && Boolean(
+                                (currentUserId && task.nextMemberId && task.nextMemberId === currentUserId) ||
+                                (effectiveUserName && task.nextMember && task.nextMember.trim().toLowerCase() === effectiveUserName.trim().toLowerCase())
+                              ) && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    onRotateNext(rotations[0].id);
+                                    onTaskStatusChange(task.id, 'skipped');
+                                  }}
+                                  className="px-2 py-1 bg-white border border-[#c1c8c6] text-[#7b5800] hover:bg-amber-50 active:scale-[0.96] text-[11px] font-bold rounded-lg transition-all flex items-center gap-1 cursor-pointer"
+                                  title="Pular vez para a próxima pessoa da fila"
+                                  aria-label="Pular vez na fila do rodízio"
+                                >
+                                  <span className="material-symbols-outlined text-xs">skip_next</span>
+                                  <span>Pular</span>
+                                </button>
+                              )}
+                            </>
+                          )}
+                        </div>
+
+                        {onDeleteTask && (
+                          <button
+                            type="button"
+                            onClick={() => onDeleteTask(task.id)}
+                            className="p-1 rounded text-[#727877] hover:text-rose-600 hover:bg-rose-50 active:scale-[0.96] transition-all cursor-pointer"
+                            title="Excluir tarefa"
+                            aria-label="Excluir tarefa"
+                          >
+                            <span className="material-symbols-outlined text-sm">delete</span>
+                          </button>
                         )}
                       </div>
-
-                      {onDeleteTask && (
-                        <button
-                          type="button"
-                          onClick={() => onDeleteTask(task.id)}
-                          className="p-1 rounded text-[#727877] hover:text-rose-600 hover:bg-rose-50 transition-colors"
-                          title="Excluir tarefa"
-                        >
-                          <span className="material-symbols-outlined text-sm">delete</span>
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+                    </motion.div>
+                  );
+                })}
+              </AnimatePresence>
+            </motion.div>
           )}
         </div>
       )}
@@ -533,7 +555,8 @@ export const TasksRotationsView: React.FC<TasksRotationsViewProps> = ({
 
                   <button
                     onClick={() => onRotateNext(rot.id)}
-                    className="px-2.5 py-1 bg-[#7b5800] hover:bg-[#5d4200] text-white rounded-lg text-[11px] font-bold transition-all flex items-center gap-1 shrink-0"
+                    className="px-2.5 py-1 bg-[#7b5800] hover:bg-[#5d4200] active:scale-[0.96] text-white rounded-lg text-[11px] font-bold transition-all flex items-center gap-1 shrink-0 cursor-pointer"
+                    aria-label={`Girar rodízio de ${rot.title}`}
                   >
                     <span className="material-symbols-outlined text-xs">sync</span>
                     <span>Girar</span>
@@ -543,7 +566,7 @@ export const TasksRotationsView: React.FC<TasksRotationsViewProps> = ({
                 {/* Queue Display */}
                 <div className="mt-2.5 bg-[#f0fcfa] p-2 rounded-lg border border-[#e4f0ee] space-y-1">
                   <span className="text-[9px] font-bold text-[#727877] uppercase tracking-wider block">
-                    Ordem do Rodízio ({rot.queue.length} membros):
+                    Ordem do Rodízio (<span className="tabular-nums">{rot.queue.length}</span> membros):
                   </span>
                   <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 scrollbar-none">
                     {rot.queue.map((q, idx) => (

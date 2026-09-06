@@ -97,8 +97,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </div>
             <button
               onClick={onCloseMobile}
-              className="text-[#98b3b0] hover:text-white p-1 rounded-full hover:bg-[#2d4644] transition-colors cursor-pointer"
+              className="text-[#98b3b0] hover:text-white p-1 rounded-full hover:bg-[#2d4644] transition-all active:scale-[0.96] cursor-pointer"
               title="Fechar Menu"
+              aria-label="Fechar Menu"
             >
               <span className="material-symbols-outlined text-2xl">close</span>
             </button>
@@ -138,11 +139,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     onTabChange(item.id);
                     onCloseMobile?.();
                   }}
-                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-xs font-bold transition-all cursor-pointer ${
+                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-xs font-bold transition-all active:scale-[0.96] cursor-pointer ${
                     isActive
                       ? 'bg-[#f0fcfa] text-[#16302e] shadow-md'
                       : 'text-[#98b3b0] hover:text-white hover:bg-[#2d4644]/50'
                   }`}
+                  aria-label={item.label}
+                  aria-current={isActive ? 'page' : undefined}
                 >
                   <span
                     className={`material-symbols-outlined text-lg ${
@@ -161,7 +164,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <div className="border-t border-[#2d4644] pt-4 mt-6">
             <div className="flex items-center justify-between mb-2 px-1">
               <h3 className="text-[10px] font-bold text-[#98b3b0] opacity-70 uppercase tracking-widest">
-                MEMBROS ONLINE ({activeUsers.length})
+                MEMBROS ONLINE (<span className="tabular-nums">{activeUsers.length}</span>)
               </h3>
             </div>
             <div className="flex items-center -space-x-2 px-1 mb-4">
@@ -190,7 +193,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     onSwitchHouseClick();
                     onCloseMobile?.();
                   }}
-                  className="text-[#98b3b0] hover:text-[#ffca5e] flex items-center gap-2.5 px-2 py-2 text-xs font-semibold w-full transition-colors rounded-xl hover:bg-[#2d4644]/40 cursor-pointer"
+                  className="text-[#98b3b0] hover:text-[#ffca5e] flex items-center gap-2.5 px-2 py-2 text-xs font-semibold w-full transition-all rounded-xl hover:bg-[#2d4644]/40 active:scale-[0.96] cursor-pointer"
+                  aria-label="Trocar Residência"
                 >
                   <span className="material-symbols-outlined text-base text-[#ffca5e]">apartment</span>
                   <span>Trocar Residência</span>
@@ -201,7 +205,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   onLogoutClick();
                   onCloseMobile?.();
                 }}
-                className="text-[#98b3b0] hover:text-rose-300 flex items-center gap-2.5 px-2 py-2 text-xs font-semibold w-full transition-colors rounded-xl hover:bg-[#2d4644]/40 cursor-pointer"
+                className="text-[#98b3b0] hover:text-rose-300 flex items-center gap-2.5 px-2 py-2 text-xs font-semibold w-full transition-all rounded-xl hover:bg-[#2d4644]/40 active:scale-[0.96] cursor-pointer"
+                aria-label="Sair da Conta"
               >
                 <span className="material-symbols-outlined text-base">logout</span>
                 <span>Sair da Conta</span>
@@ -240,7 +245,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         >
           {/* Animated Indicator with Inverted Border-Radius Curves */}
           <div
-            className={`absolute top-0 left-3 lg:left-3.5 right-0 pointer-events-none transition-transform duration-350 ease-[cubic-bezier(0.4,0,0.2,1)] z-0 ${
+            className={`absolute top-0 left-3 lg:left-3.5 right-0 pointer-events-none transition-transform duration-250 ease-[cubic-bezier(0.2,0,0,1)] z-0 ${
               indicatorStyle.ready ? 'opacity-100' : 'opacity-0'
             }`}
             style={{
@@ -262,11 +267,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 key={item.id}
                 data-nav-item={item.id}
                 onClick={() => onTabChange(item.id)}
-                className={`relative z-10 flex items-center gap-3.5 px-6 lg:px-7 py-2.5 lg:py-3 text-left w-full cursor-pointer focus:outline-none transition-colors duration-200 group ${
+                className={`relative z-10 flex items-center gap-3.5 px-6 lg:px-7 py-2.5 lg:py-3 text-left w-full cursor-pointer focus:outline-none transition-all duration-200 active:scale-[0.96] group ${
                   isActive
                     ? 'active text-[#16302e]'
                     : 'text-[#98b3b0] hover:text-white'
                 }`}
+                aria-label={item.label}
+                aria-current={isActive ? 'page' : undefined}
               >
                 <span
                   className={`material-symbols-outlined text-lg lg:text-xl transition-colors duration-200 ${
@@ -295,7 +302,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <h3 className="text-[10px] font-bold text-[#98b3b0] opacity-70 uppercase tracking-widest">
               MORADORES ONLINE
             </h3>
-            <span className="text-[10px] text-[#ffca5e] font-bold">
+            <span className="text-[10px] text-[#ffca5e] font-bold tabular-nums">
               {activeUsers.length} Online
             </span>
           </div>
@@ -323,7 +330,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
           {onSwitchHouseClick && (
             <button
               onClick={onSwitchHouseClick}
-              className="text-[#98b3b0] opacity-75 hover:opacity-100 hover:text-[#ffca5e] flex items-center gap-2.5 transition-all duration-200 text-xs font-semibold w-full py-1"
+              className="text-[#98b3b0] opacity-75 hover:opacity-100 hover:text-[#ffca5e] flex items-center gap-2.5 transition-all duration-200 active:scale-[0.96] text-xs font-semibold w-full py-1 cursor-pointer"
+              aria-label="Trocar Residência"
             >
               <span className="material-symbols-outlined text-base text-[#ffca5e]">apartment</span>
               <span>Trocar Residência</span>
@@ -331,7 +339,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
           )}
           <button
             onClick={onLogoutClick}
-            className="text-[#98b3b0] opacity-75 hover:opacity-100 hover:text-rose-300 flex items-center gap-2.5 transition-all duration-200 text-xs font-semibold w-full py-1"
+            className="text-[#98b3b0] opacity-75 hover:opacity-100 hover:text-rose-300 flex items-center gap-2.5 transition-all duration-200 active:scale-[0.96] text-xs font-semibold w-full py-1 cursor-pointer"
+            aria-label="Sair da Conta"
           >
             <span className="material-symbols-outlined text-base">logout</span>
             <span>Sair da Conta</span>

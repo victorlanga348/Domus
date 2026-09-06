@@ -272,16 +272,32 @@ describe('Ciclo de Vida Completo da Aplicação (E2E)', () => {
     const completeData = await resComplete.json();
     assert.ok(completeData.data.nextAssignee, 'Deve retornar o próximo responsável da fila de rodízio');
 
-    // Validação de persistência no Prisma: status rotacionado para OPEN e lock liberado
-    const rotatedTask = await prisma.task.findUnique({ where: { id: taskId } });
-    assert.equal(rotatedTask?.status, 'OPEN', 'Tarefa deve retornar para OPEN pronta para o próximo turno');
-    assert.equal(rotatedTask?.locked_by_id, null, 'Lock deve ter sido liberado após conclusão');
+    // Validação de persistência no Prisma: status mantido como COMPLETED para histórico/auditoria
+    const completedTask = await prisma.task.findUnique({ where: { id: taskId } });
+    assert.equal(completedTask?.status, 'COMPLETED', 'Tarefa deve persistir como COMPLETED para histórico e auditoria');
+    assert.equal(completedTask?.locked_by_id, aliceId, 'locked_by_id registra o morador que executou a conclusão');
 
     // Validação de registro no feed de atividades
     const activity = await prisma.activityLog.findFirst({
       where: { task_id: taskId, action_type: 'COMPLETED' },
     });
     assert.ok(activity, 'Deve existir registro no ActivityLog comprovando a conclusão');
+
+    // 6.5 Reversão por Admin: Alice (ADMIN) reverte a tarefa concluída para OPEN
+    const resRevert = await fetch(`${baseUrl}/tasks/${taskId}/revert`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${aliceToken}`,
+        'x-user-id': aliceId,
+        'x-user-role': 'ADMIN',
+      },
+      body: JSON.stringify({ user_id: aliceId, role: 'ADMIN' }),
+    });
+    assert.equal(resRevert.status, 200, 'Admin deve conseguir reverter a tarefa para OPEN com 200');
+    const revertedTask = await prisma.task.findUnique({ where: { id: taskId } });
+    assert.equal(revertedTask?.status, 'OPEN', 'Tarefa deve retornar para OPEN após reversão pelo Admin');
+    assert.equal(revertedTask?.locked_by_id, null, 'Lock deve ter sido liberado após reversão');
   });
 
   it('7. WebSockets & Presença Real-Time: Deve conectar cliente e transmitir evento house:presence', async () => {

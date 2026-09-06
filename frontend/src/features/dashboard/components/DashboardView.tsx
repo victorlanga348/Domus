@@ -135,7 +135,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             </div>
             <p className="text-xs text-[#727877] mt-0.5 flex items-center gap-1.5">
               <span className="material-symbols-outlined text-sm text-[#7b5800]">group</span>
-              <span>Total de Moradores: <strong>{familyMembers.length || dashboardData?.members?.length || 1}</strong></span>
+              <span>Total de Moradores: <strong className="tabular-nums">{familyMembers.length || dashboardData?.members?.length || 1}</strong></span>
             </p>
           </div>
         </div>
@@ -144,7 +144,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         <div className="flex items-center gap-3 self-stretch md:self-auto">
           <button
             onClick={() => setIsAddNoteModalOpen(true)}
-            className="w-full md:w-auto bg-[#7b5800] hover:bg-[#5f4400] text-white px-5 py-2.5 rounded-2xl text-xs font-bold transition-all shadow-xs flex items-center justify-center gap-2"
+            className="w-full md:w-auto bg-[#7b5800] hover:bg-[#5f4400] active:scale-[0.96] text-white px-5 py-2.5 rounded-2xl text-xs font-bold transition-all shadow-xs flex items-center justify-center gap-2 cursor-pointer"
+            aria-label="Fixar Novo Recado"
           >
             <span className="material-symbols-outlined text-base">push_pin</span>
             <span>Fixar Novo Recado</span>
@@ -166,7 +167,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
 
           <div className="flex items-center gap-2">
-            <span className="text-xs font-bold text-[#727877] bg-[#f0fcfa] px-3 py-1 rounded-xl border border-[#d0dddb]">
+            <span className="text-xs font-bold text-[#727877] bg-[#f0fcfa] px-3 py-1 rounded-xl border border-[#d0dddb] tabular-nums">
               {muralNotes.length} {muralNotes.length === 1 ? 'recado fixado' : 'recados fixados'}
             </span>
           </div>
@@ -187,7 +188,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               </div>
               <button
                 onClick={() => setIsAddNoteModalOpen(true)}
-                className="mt-2 bg-[#16302e] hover:bg-[#2d4644] text-white px-4 py-2 rounded-xl text-xs font-bold transition-all shadow-xs flex items-center gap-1.5"
+                className="mt-2 bg-[#16302e] hover:bg-[#2d4644] active:scale-[0.96] text-white px-4 py-2 rounded-xl text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 cursor-pointer"
+                aria-label="Escrever Primeiro Recado"
               >
                 <span className="material-symbols-outlined text-sm">add</span>
                 <span>Escrever Primeiro Recado</span>
@@ -208,8 +210,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                       </h3>
                       <button
                         onClick={() => onDeleteMuralNote?.(note.id)}
-                        className="p-1 text-black/40 hover:text-rose-700 transition-colors rounded-lg hover:bg-black/5"
+                        className="p-1 text-black/40 hover:text-rose-700 active:scale-[0.96] transition-all rounded-lg hover:bg-black/5 cursor-pointer"
                         title="Excluir recado"
+                        aria-label="Excluir recado"
                       >
                         <span className="material-symbols-outlined text-sm">delete</span>
                       </button>

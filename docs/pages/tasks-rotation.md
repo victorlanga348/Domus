@@ -34,7 +34,15 @@ Cada cartão exibe:
 
 ---
 
-## 3. Persistência Centralizada & Sincronização em Tempo Real (PostgreSQL)
+## 3. Animações, Transições e Feedback Tátil (`Motion & UI Engineering`)
+- **Orquestração de Entrada (`Staggered Enter`):** Ao alternar turnos ou aplicar filtros, a grade de tarefas utiliza `motion.div` com `staggerChildren: 0.05` e mola com zero ricochete (`bounce: 0`, `duration: 0.28`), eliminando saltos abruptos de layout.
+- **Reordenação Fluida (`Layout Animation`):** Transições de status e remoções são envolvidas em `<AnimatePresence mode="popLayout">` com a propriedade `layout`, garantindo estabilidade espacial e transições contínuas.
+- **Feedback Tátil (`Scale on Press`):** Botões de ação (`[ Nova Tarefa ]`, `[ Concluir ]`, `[ Pular ]`, `[ Girar ]`, `[ Reverter ]`) utilizam feedback háptico/tátil `active:scale-[0.96]`.
+- **Prevenção de Layout Shift (`tabular-nums`):** Contadores de tarefas pendentes, concluídas e membros da fila do rodízio utilizam `font-variant-numeric: tabular-nums`.
+
+---
+
+## 4. Persistência Centralizada & Sincronização em Tempo Real (PostgreSQL)
 - **Fonte Canônica da Residência:** Tarefas não são mais armazenadas exclusivamente em navegadores individuais. O PostgreSQL é a fonte oficial da verdade sob a partição `house_id`.
 - **Fluxos Centralizados:**
   - `GET /api/tasks?houseId=...`: Lista todas as tarefas ativas da residência na montagem da tela.
@@ -43,3 +51,4 @@ Cada cartão exibe:
   - `PATCH /api/tasks/:id/revert` (alias `/api/tasks/:id/reverter`): Reversão de status exclusiva para Admin Geral e Sub-Admin com emissão de `task:status_changed`.
   - `DELETE /api/tasks/:id`: Exclusão persistente no banco e emissão de `task:deleted`.
   - `POST /api/activity-logs`: Registro oficial de conclusões, bloqueios, reversões e rotações, garantindo que o histórico e as notificações sejam idênticos em todos os aparelhos da mesma residência.
+
