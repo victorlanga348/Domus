@@ -1,4 +1,13 @@
-import { DayOfWeek, MealType, MealItem, HouseMealPlan, FamilyMember } from '../../types.js';
+import { DayOfWeek, MealType, MealItem, HouseMealPlan, FamilyMember, MealChef } from '../../types.js';
+
+export interface CookingScheduleConfig {
+  weekdayPool: MealChef[];
+  weekdayMeals: MealType[];
+  weekendMode: 'fixed' | 'free';
+  weekendChefs?: MealChef[];
+  weekendMeals?: MealType[];
+  updatedAt?: string;
+}
 
 export interface MealPeriodMeta {
   type: MealType;
@@ -72,10 +81,12 @@ export interface MealsViewProps {
   currentUserRole: string;
   currentUserId?: string;
   currentUserName?: string;
+  savedCookingSchedule?: CookingScheduleConfig | null;
   onUpdateMeal: (meal: MealItem) => void;
   onDeleteMeal: (mealId: string) => void;
   onToggleLock: () => void;
   onClearMeals?: () => void;
+  onGenerateSchedule?: (config: CookingScheduleConfig) => void;
 }
 
 export function createDefaultMealPlan(houseId: string): HouseMealPlan {

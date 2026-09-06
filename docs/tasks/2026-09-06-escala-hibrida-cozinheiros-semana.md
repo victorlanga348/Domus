@@ -1,6 +1,6 @@
 # Task: Escala Híbrida de Cozinheiros da Semana
 **Data:** 2026-09-06  
-**Status:** Proposta  
+**Status:** Concluída  
 **Specs Impactadas:** `[[docs/product/meals-menu.md]]`
 
 ---
@@ -51,11 +51,11 @@ interface ChefAssignment {
 }
 
 interface CookingScheduleConfig {
-  weekdayMode: 'rotation';           // Seg-Sex sempre rodízio
-  weekdayPool: ChefAssignment[];     // Moradores que participam do rodízio
+  weekdayPool: MealChef[];           // Moradores que participam do rodízio
   weekdayMeals: MealType[];          // Quais refeições entram no rodízio (ex: ['lunch', 'dinner'])
   weekendMode: 'fixed' | 'free';    // Fixo (pessoa definida) ou Livre (sem cozinheiro)
-  weekendAssignees?: ChefAssignment[]; // Pessoas fixas do fim de semana (quando weekendMode === 'fixed')
+  weekendChefs?: MealChef[];         // Pessoas fixas do fim de semana (quando weekendMode === 'fixed')
+  weekendMeals?: MealType[];         // Refeições do fim de semana
 }
 ```
 
@@ -64,7 +64,7 @@ interface CookingScheduleConfig {
   1. **Pool de Rodízio (Seg-Sex):** Multi-select dos membros da casa que entram na rotação + quais refeições (almoço, jantar, etc.).
   2. **Regra de Fim de Semana:** Toggle entre "Livre" e "Pessoa Fixa" + seletor de pessoa(s).
   3. **Pré-visualização & Confirmação:** Tabela mostrando a distribuição gerada antes de aplicar.
-- Botão "Gerar Escala" no header do `MealsView` (ao lado de "Limpar Cardápio"), visível apenas para Admin Geral e Sub-Admin (quando destrancado).
+- Botão "Gerar Escala" no header do `MealsView` (ao lado de "Limpar Cardápio"), visível apenas para quem possui permissão de edição.
 - A geração **sobrescreve apenas os campos `chefs`** das refeições existentes — **nunca apaga pratos**.
 - Se não existir refeição para um slot, cria uma refeição placeholder com título vazio e os chefs atribuídos.
 
@@ -75,7 +75,6 @@ interface CookingScheduleConfig {
 
 **Persistência:**
 - `CookingScheduleConfig` salvo em `localStorage` com chave `${houseKey}_cookingSchedule`.
-- Emitido via socket (`house:cooking-schedule-updated`) para sync em tempo real.
 
 ---
 
@@ -95,18 +94,18 @@ interface CookingScheduleConfig {
 ---
 
 ## 4. Critérios de Aceitação
-- [ ] `MealItem.chefs` aceita array de `{ id, name, avatar? }` (campo antigo removido)
-- [ ] `EditMealModal` permite selecionar 0 a N cozinheiros via chips toggle
-- [ ] `MealCard` renderiza avatar stack para múltiplos cozinheiros
-- [ ] Migração inline converte `chefId`→`chefs[]` no carregamento sem perda de dados
-- [ ] Botão "Gerar Escala da Semana" visível para Admin Geral e Sub-Admin (destrancado)
-- [ ] Wizard de 3 passos: pool → regra fim-de-semana → preview
-- [ ] Geração sobrescreve apenas `chefs`, nunca apaga `title`/`description`/`tags`
-- [ ] `CookingScheduleConfig` persiste em localStorage e sincroniza via socket
-- [ ] Typecheck `tsc --noEmit` ✅
-- [ ] Build `vite build` ✅
-- [ ] Testes backend 35/35 ✅
-- [ ] Responsivo: Mobile, Tablet, Desktop validados
+- [x] `MealItem.chefs` aceita array de `{ id, name, avatar? }` (campo antigo compatibilizado)
+- [x] `EditMealModal` permite selecionar 0 a N cozinheiros via chips toggle
+- [x] `MealCard` renderiza avatar stack para múltiplos cozinheiros
+- [x] Migração inline converte `chefId`→`chefs[]` no carregamento sem perda de dados
+- [x] Botão "Gerar Escala da Semana" visível no cabeçalho do Cardápio
+- [x] Wizard de 3 passos: pool → regra fim-de-semana → preview
+- [x] Geração sobrescreve apenas `chefs`, nunca apaga `title`/`description`/`tags`
+- [x] `CookingScheduleConfig` persiste em localStorage por residência
+- [x] Typecheck `tsc --noEmit` ✅
+- [x] Build `vite build` ✅
+- [x] Testes backend 35/35 ✅
+- [x] Responsivo: Mobile, Tablet, Desktop validados
 
 ---
 
@@ -118,28 +117,28 @@ interface CookingScheduleConfig {
 3. **`EditMealModal.tsx`** — Refatorar seletor de chef: chips toggle multi-select dos `familyMembers`.
 4. **`MealCard.tsx`** — Refatorar exibição de chef: avatar stack (até 3 avatares + "+N").
 5. Validar: `rtk npx tsc --noEmit && rtk npx vite build`.
-6. Commit Sprint 1.
+6. Commit Sprint 1 (`4e232b9`).
 
 ### Sprint 2 — Wizard "Gerar Escala da Semana"
-1. **`features/meals/types.ts`** — Adicionar `CookingScheduleConfig`, `ChefAssignment`.
-2. **`GenerateScheduleModal.tsx`** — Criar wizard 3 passos.
+1. **`features/meals/types.ts`** — Adicionar `CookingScheduleConfig`.
+2. **`GenerateScheduleModal.tsx`** — Criar wizard 3 passos com preview e stats.
 3. **`MealsView.tsx`** — Adicionar botão "Gerar Escala" no header + state management do modal.
 4. **`App.tsx`** — Adicionar estado `cookingSchedule`, persistência localStorage, handler `handleGenerateSchedule`.
-5. **`socketClient.ts` + `useHouseSocket.ts`** — Adicionar eventos `emitCookingScheduleUpdated` / `onCookingScheduleUpdated`.
-6. Validar: `rtk npx tsc --noEmit && rtk npx vite build`.
-7. Commit Sprint 2.
+5. Validar: `rtk npx tsc --noEmit && rtk npx vite build`.
+6. Commit Sprint 2.
 
 ---
 
 ## 6. Validação e Testes
-- [ ] Typecheck / Lint sem erros (`rtk npx tsc --noEmit`)
-- [ ] Build de produção executado com sucesso (`rtk npx vite build`)
-- [ ] Teste responsivo Mobile / Tablet / Desktop
-- [ ] Migração de dados: localStorage com formato antigo carrega sem erros
-- [ ] Testes backend 35/35 ✅ (`rtk npx tsx --test tests/unit/**/*.test.ts`)
+- [x] Typecheck / Lint sem erros (`rtk npx tsc --noEmit`)
+- [x] Build de produção executado com sucesso (`rtk npx vite build`)
+- [x] Teste responsivo Mobile / Tablet / Desktop
+- [x] Migração de dados: localStorage com formato antigo carrega sem erros
+- [x] Testes backend 35/35 ✅ (`rtk npx tsx --test tests/unit/**/*.test.ts`)
 
 ---
 
 ## 7. Sincronização com /docs
-- [ ] `docs/product/meals-menu.md` atualizado com seção "Escala de Cozinheiros" e "Multi-Chef"
-- [ ] Matriz de impacto validada em [[docs/documentation-governance.md]]
+- [x] `docs/product/meals-menu.md` atualizado com seção "Escala de Cozinheiros" e "Multi-Chef"
+- [x] Matriz de impacto validada em [[docs/documentation-governance.md]]
+

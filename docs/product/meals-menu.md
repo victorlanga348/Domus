@@ -49,3 +49,23 @@ O cardápio opera em ciclo semanal contínuo de 7 dias (Segunda a Domingo) divid
 - Alternador de visualização (View Switcher):
   - **Modo Diário:** Foco nos pratos do dia, detalhes de preparo e foto/avatar do cozinheiro.
   - **Modo Semanal (Kanban 7 Dias):** Visão panorâmica dos 7 dias e 4 refeições lado a lado, facilitando planejamento conjunto e lista de compras.
+
+---
+
+## 5. Escala Híbrida & Múltiplos Cozinheiros (Multi-Chef)
+
+### 5.1 Suporte Multi-Chef por Refeição
+- O cardápio permite atribuir **1 ou mais pessoas responsáveis** (`chefs: MealChef[]`) para cada refeição.
+- No modal de edição (`EditMealModal`), a seleção é feita via cards interativos dos moradores da residência.
+- No card da refeição (`MealCard`), múltiplos responsáveis são representados por um **Avatar Stack** com contagem agregada e tooltip informativo.
+
+### 5.2 Assistente "Gerar Escala da Semana"
+O assistente automatiza a atribuição de quem cozinha sem interferir nos pratos cadastrados:
+1. **Rodízio Útil (Segunda a Sexta):** Distribuição equilibrada (`round-robin`) entre os participantes selecionados para os turnos escolhidos (ex: Almoço e Jantar).
+2. **Regra de Fim de Semana (Sábado e Domingo):**
+   - **Livre / Cada um por si:** Nenhum cozinheiro atribuído por padrão.
+   - **Pessoa(s) Fixa(s):** Atribuição de moradores específicos para o fim de semana.
+3. **Pré-visualização e Preservação de Dados:**
+   - Apresenta tabela com a distribuição semanal e estatística de turnos por morador.
+   - Ao aplicar, **preserva títulos, descrições e tags de pratos existentes**, atualizando exclusivamente a lista de cozinheiros responsáveis.
+

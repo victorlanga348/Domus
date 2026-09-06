@@ -7,15 +7,18 @@ import {
 } from '../types.js';
 import { MealCard } from './MealCard.js';
 import { EditMealModal } from './EditMealModal.js';
+import { GenerateScheduleModal } from './GenerateScheduleModal.js';
 
 export const MealsView: React.FC<MealsViewProps> = ({
   mealPlan,
   familyMembers,
   currentUserRole,
+  savedCookingSchedule,
   onUpdateMeal,
   onDeleteMeal,
   onToggleLock,
   onClearMeals,
+  onGenerateSchedule,
 }) => {
   // Determine current day of week as initial selection
   const currentDayIndex = new Date().getDay(); // 0 = Dom, 1 = Seg, ...
@@ -39,6 +42,7 @@ export const MealsView: React.FC<MealsViewProps> = ({
 
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
   const [isClearConfirmOpen, setIsClearConfirmOpen] = useState(false);
   const [editingMeal, setEditingMeal] = useState<MealItem | null>(null);
   const [modalDay, setModalDay] = useState<DayOfWeek>(selectedDay);
@@ -187,6 +191,18 @@ export const MealsView: React.FC<MealsViewProps> = ({
                 {isLocked ? 'lock_open' : 'lock'}
               </span>
               <span>{isLocked ? 'Destrancar' : 'Trancar Cardápio'}</span>
+            </button>
+          )}
+
+          {/* Generate Schedule Action (Available for editors) */}
+          {canEdit && onGenerateSchedule && (
+            <button
+              onClick={() => setIsScheduleModalOpen(true)}
+              className="px-3.5 py-2 rounded-xl text-xs font-black bg-[#16302e] text-[#ffca5e] hover:bg-[#204542] transition-colors flex items-center gap-1.5 shadow-xs min-h-[40px] cursor-pointer"
+              title="Distribuir cozinheiros da semana com rodízio inteligente"
+            >
+              <span className="material-symbols-outlined text-base">auto_mode</span>
+              <span>Gerar Escala</span>
             </button>
           )}
 
@@ -425,6 +441,17 @@ export const MealsView: React.FC<MealsViewProps> = ({
             </div>
           </div>
         </div>
+      )}
+
+      {/* Generate Schedule Wizard Modal */}
+      {isScheduleModalOpen && onGenerateSchedule && (
+        <GenerateScheduleModal
+          isOpen={isScheduleModalOpen}
+          onClose={() => setIsScheduleModalOpen(false)}
+          familyMembers={familyMembers}
+          savedConfig={savedCookingSchedule}
+          onApplySchedule={onGenerateSchedule}
+        />
       )}
     </div>
   );
