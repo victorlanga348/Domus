@@ -57,6 +57,20 @@
   max-height: 100dvh;
 }
 
+/* Safe Area Inset Utilities (PWA Standalone & Notch Support) */
+.pt-safe {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+.pl-safe {
+  padding-left: env(safe-area-inset-left, 0px);
+}
+.pr-safe {
+  padding-right: env(safe-area-inset-right, 0px);
+}
+
 /* Força contenção estrita do botão do Google Identity Services */
 #google-btn-container {
   width: 100% !important;

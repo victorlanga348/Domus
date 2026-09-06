@@ -54,7 +54,7 @@
   - No iOS Safari, qualquer elemento `<input>`, `<textarea>` ou `<select>` com `font-size < 16px` aciona zoom automático ao receber foco, quebrando o layout da tela.
   - No mobile (`< 640px`), todos os campos focáveis devem ter `font-size: 16px !important`, retornando aos tamanhos canônicos da escala tipográfica em telas maiores (`sm:` ou superiores).
 - **Metatag Viewport:**
-  - Configuração obrigatória: `<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover" />`.
+  - Configuração obrigatória: `<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />`.
 - **Containers de Autenticação com Teclado:**
   - A tela de autenticação deve operar sob `min-h-[100dvh]` com `overflow-y-auto`, permitindo rolagem vertical suave para que os campos e o botão de ação continuem acessíveis quando o teclado virtual estiver aberto.
 
@@ -62,7 +62,9 @@
 
 ## 7. Experiência PWA & Instalação em Tela Cheia (Standalone)
 - **Modo de Exibição:** `display: "standalone"`, eliminando barras de navegação do browser (Safari e Chrome) para sensação de aplicativo nativo.
-- **Área Segura (Safe Area):** Respeitar variáveis de ambiente `env(safe-area-inset-top)` e `env(safe-area-inset-bottom)` com `viewport-fit=cover` ativo.
-- **Cor de Tema da Barra de Notificações:** Sincronizada com a marca institucional (`#16302e`) para continuidade visual com o topo da aplicação.
+- **Área Segura (Safe Area):** Respeitar rigorosamente `env(safe-area-inset-top)` e `env(safe-area-inset-bottom)` com `viewport-fit=cover` ativo:
+  - **Cabeçalho:** Fundo uniforme preenchendo até a borda superior (`top: 0`) com `padding-top: env(safe-area-inset-top, 0px)` e conteúdo flex centralizado logo abaixo do notch / Dynamic Island.
+  - **Barras Inferiores & Rodapé:** Elementos fixos (toasts, botões de ação e fim de página) posicionados com `padding-bottom / bottom: calc(... + env(safe-area-inset-bottom, 0px))` para evitar sobreposição pela barra de gestos do sistema.
+- **Barra de Status do Sistema:** Sincronizada com tema claro (`theme-color: #ffffff` e `apple-mobile-web-app-status-bar-style: default`), garantindo contraste legível dos ícones do SO sobre o topo da aplicação.
 - **Arquitetura de Instalação Sem Bloqueio de Cache:** A experiência instalável opera via `manifest.webmanifest` e meta tags nativas de tela cheia. O Service Worker atua exclusivamente com rotina de bypass e auto-desregistro, garantindo conexão direta e imediata de rede sem retenção indevida de cache ou interferência em WebSockets e rotas de API em tempo real.
 

@@ -77,9 +77,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
         {/* Slide-In Drawer */}
         <aside
-          className={`relative w-72 max-w-[80%] bg-[#16302e] h-full h-[100dvh] max-h-[100dvh] shadow-2xl flex flex-col justify-between py-5 px-4 z-50 overflow-y-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden transform transition-transform duration-300 ease-in-out ${
+          className={`relative w-72 max-w-[80%] bg-[#16302e] h-full h-[100dvh] max-h-[100dvh] shadow-2xl flex flex-col justify-between px-4 z-50 overflow-y-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden transform transition-transform duration-300 ease-in-out ${
             isMobileOpen ? 'translate-x-0' : '-translate-x-full'
           }`}
+          style={{
+            paddingTop: 'calc(1.25rem + env(safe-area-inset-top, 0px))',
+            paddingBottom: 'calc(1.25rem + env(safe-area-inset-bottom, 0px))',
+          }}
         >
           {/* Top Bar with Brand & Close Button */}
           <div className="flex items-center justify-between border-b border-[#2d4644] pb-4 mb-4">
@@ -88,7 +92,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 roofing
               </span>
               <span className="text-lg font-black tracking-tight text-white">
-                DOMUS
+                Domus
               </span>
             </div>
             <button

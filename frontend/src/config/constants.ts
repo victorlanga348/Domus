@@ -11,7 +11,7 @@ const getHost = (): string => {
 };
 
 export const APP_CONFIG = {
-  APP_NAME: 'DOMUS',
+  APP_NAME: 'Domus',
   VERSION: '1.0.0',
   DEFAULT_LANGUAGE: 'pt-BR',
   API_BASE_URL: import.meta.env?.VITE_API_URL || `http://${getHost()}:3333/api`,

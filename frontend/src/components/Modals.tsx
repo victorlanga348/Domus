@@ -553,7 +553,11 @@ export const NotificationsDrawer: React.FC<{
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="bg-white w-full max-w-sm h-full h-[100dvh] max-h-[100dvh] p-5 shadow-2xl flex flex-col justify-between border-l border-[#d9e5e3] overflow-y-auto animate-in slide-in-from-right duration-200"
+        className="bg-white w-full max-w-sm h-full h-[100dvh] max-h-[100dvh] px-5 shadow-2xl flex flex-col justify-between border-l border-[#d9e5e3] overflow-y-auto animate-in slide-in-from-right duration-200"
+        style={{
+          paddingTop: 'calc(1.25rem + env(safe-area-inset-top, 0px))',
+          paddingBottom: 'calc(1.25rem + env(safe-area-inset-bottom, 0px))',
+        }}
       >
         <div>
           {/* Header */}
@@ -789,7 +793,11 @@ export const FamilyMembersDrawer: React.FC<{
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="bg-white w-full max-w-md h-full h-[100dvh] max-h-[100dvh] p-6 shadow-2xl flex flex-col justify-between border-l border-[#d9e5e3] overflow-y-auto animate-in slide-in-from-right duration-200"
+        className="bg-white w-full max-w-md h-full h-[100dvh] max-h-[100dvh] px-6 shadow-2xl flex flex-col justify-between border-l border-[#d9e5e3] overflow-y-auto animate-in slide-in-from-right duration-200"
+        style={{
+          paddingTop: 'calc(1.5rem + env(safe-area-inset-top, 0px))',
+          paddingBottom: 'calc(1.5rem + env(safe-area-inset-bottom, 0px))',
+        }}
       >
         <div>
           {/* Header */}
