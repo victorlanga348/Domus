@@ -201,6 +201,8 @@ function mapBackendLogToActivityLog(log: any): ActivityLog {
     timeAgo,
     author: log.user?.name || 'Morador',
     type: log.action_type === 'COMPLETED' && Boolean(log.task_id) ? 'task' : 'system',
+    created_at: log.created_at || new Date().toISOString(),
+    timestamp: time.getTime(),
   };
 }
 
@@ -356,6 +358,12 @@ export default function App() {
     return [];
   });
 
+  const [notificationsClearedAt, setNotificationsClearedAt] = useState<number>(() => {
+    if (!houseKey) return 0;
+    const saved = localStorage.getItem(`${houseKey}_notifications_cleared_at`);
+    return saved ? Number(saved) || 0 : 0;
+  });
+
   const [preferences, setPreferences] = useState<SystemPreferences>(() => {
     if (!houseKey) return INITIAL_PREFERENCES;
     const saved = localStorage.getItem(`${houseKey}_prefs`);
@@ -411,6 +419,7 @@ export default function App() {
       localStorage.setItem(`${houseKey}_rules`, JSON.stringify(houseRules));
       localStorage.setItem(`${houseKey}_logs`, JSON.stringify(activityLogs));
       localStorage.setItem(`${houseKey}_read_notifications`, JSON.stringify(readNotificationIds));
+      localStorage.setItem(`${houseKey}_notifications_cleared_at`, String(notificationsClearedAt));
       localStorage.setItem(`${houseKey}_prefs`, JSON.stringify(preferences));
       localStorage.setItem(`${houseKey}_notes`, JSON.stringify(muralNotes));
       localStorage.setItem(`${houseKey}_statuses`, JSON.stringify(memberStatuses));
@@ -424,6 +433,7 @@ export default function App() {
     houseRules,
     activityLogs,
     readNotificationIds,
+    notificationsClearedAt,
     preferences,
     muralNotes,
     memberStatuses,
@@ -443,12 +453,15 @@ export default function App() {
       taskId?: string
     ) => {
       const isTaskCompleted = actionType === 'COMPLETED' && Boolean(taskId);
+      const nowTs = Date.now();
       const newLog: ActivityLog = {
-        id: `log_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+        id: `log_${nowTs}_${Math.random().toString(36).substring(2, 6)}`,
         title,
         timeAgo: 'Agora mesmo',
         author: author || authUser?.name || 'Morador',
         type: isTaskCompleted ? 'task' : 'system',
+        created_at: new Date(nowTs).toISOString(),
+        timestamp: nowTs,
       };
       setActivityLogs((prev) => [newLog, ...prev]);
       if (currentHouse?.id) {
@@ -723,6 +736,32 @@ export default function App() {
       return updated;
     });
   }, [activityLogs, houseKey]);
+
+  const handleClearReadNotifications = useCallback(() => {
+    const now = Date.now();
+    setNotificationsClearedAt(now);
+    if (houseKey) {
+      localStorage.setItem(`${houseKey}_notifications_cleared_at`, String(now));
+    }
+    showToast('Notificações lidas foram limpas da gaveta.');
+  }, [houseKey, showToast]);
+
+  const handleMarkAllAsRead = useCallback(() => {
+    const currentIds = activityLogs.map((log) => log.id);
+    setReadNotificationIds((prev) => {
+      const updated = Array.from(new Set([...prev, ...currentIds]));
+      if (houseKey) {
+        localStorage.setItem(`${houseKey}_read_notifications`, JSON.stringify(updated));
+      }
+      return updated;
+    });
+    showToast('Todas as notificações foram marcadas como lidas.');
+  }, [activityLogs, houseKey, showToast]);
+
+  const handleNavigateToReports = useCallback(() => {
+    setIsNotificationsOpen(false);
+    setCurrentTab('reports');
+  }, []);
 
   const handleAuthSuccess = (user: AuthUser, token: string) => {
     setAuthUser(user);
@@ -1640,6 +1679,11 @@ export default function App() {
         activityLogs={activityLogs}
         tasks={tasks}
         onTaskStatusChange={handleTaskStatusChange}
+        readNotificationIds={readNotificationIds}
+        notificationsClearedAt={notificationsClearedAt}
+        onClearReadNotifications={handleClearReadNotifications}
+        onMarkAllAsRead={handleMarkAllAsRead}
+        onNavigateToReports={handleNavigateToReports}
       />
 
       <FamilyMembersDrawer

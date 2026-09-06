@@ -95,6 +95,8 @@ export interface ActivityLog {
   author: string;
   likes?: number;
   type?: 'task' | 'security' | 'climate' | 'system';
+  created_at?: string;
+  timestamp?: number;
 }
 
 export interface MuralNoteItem {
