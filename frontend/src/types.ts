@@ -1,4 +1,4 @@
-export type TabType = 'dashboard' | 'tasks' | 'reports' | 'statistics' | 'settings';
+export type TabType = 'dashboard' | 'tasks' | 'meals' | 'reports' | 'statistics' | 'settings';
 
 export interface TaskAuditItem {
   id: string;
@@ -131,4 +131,38 @@ export interface SystemPreferences {
     startTime: string;
     endTime: string;
   };
+}
+
+export type MealType = 'breakfast' | 'lunch' | 'snack' | 'dinner';
+
+export type DayOfWeek =
+  | 'monday'
+  | 'tuesday'
+  | 'wednesday'
+  | 'thursday'
+  | 'friday'
+  | 'saturday'
+  | 'sunday';
+
+export interface MealItem {
+  id: string;
+  dayOfWeek: DayOfWeek;
+  mealType: MealType;
+  title: string;
+  description?: string;
+  tags?: string[];
+  chefId?: string;
+  chefName?: string;
+  chefAvatar?: string;
+  updatedAt?: string;
+  updatedBy?: string;
+}
+
+export interface HouseMealPlan {
+  houseId: string;
+  isLocked: boolean;
+  lockedBy?: string;
+  lockedByName?: string;
+  lockedAt?: string;
+  meals: MealItem[];
 }

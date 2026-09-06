@@ -25,6 +25,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const navItems: { id: TabType; label: string; icon: string }[] = [
     { id: 'dashboard', label: 'Mural de Recados', icon: 'push_pin' },
     { id: 'tasks', label: 'Tarefas & Rodízio', icon: 'assignment' },
+    { id: 'meals', label: 'Cardápio da Casa', icon: 'restaurant' },
     { id: 'reports', label: 'Histórico & Relatórios', icon: 'history' },
     { id: 'statistics', label: 'Estatísticas', icon: 'bar_chart' },
     { id: 'settings', label: 'Configurações', icon: 'settings' },

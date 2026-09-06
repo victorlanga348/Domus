@@ -15,11 +15,14 @@ import {
   SystemPreferences,
   MuralNote,
   MemberStatus,
+  MealItem,
+  HouseMealPlan,
 } from './types';
 import { INITIAL_PREFERENCES } from './data.js';
 import { Sidebar, Header } from './layouts/index.js';
 import { DashboardView, dashboardApi } from './features/dashboard/index.js';
 import { TasksRotationsView, tasksApi } from './features/tasks-rotation/index.js';
+import { MealsView, createDefaultMealPlan } from './features/meals/index.js';
 import { SettingsView } from './features/settings/index.js';
 import { ReportsView } from './features/reports/index.js';
 import { StatisticsView } from './features/statistics/index.js';
@@ -50,6 +53,9 @@ import {
   emitRuleDeleted,
   emitRotationAdvanced,
   emitMembersUpdated,
+  emitMealUpdated,
+  emitMealDeleted,
+  emitMealLockToggled,
 } from './shared/socket/index.js';
 
 function mapBackendTaskToHouseTask(task: any, currentMembers: FamilyMember[]): HouseTask {
@@ -252,7 +258,7 @@ export default function App() {
   // 3. Navegação & Abas (Persistidas para manter o estado após bloqueio/reativação do celular)
   const [currentTab, setCurrentTab] = useState<TabType>(() => {
     const saved = localStorage.getItem('domus_active_tab') as TabType | null;
-    return saved && ['dashboard', 'tasks', 'reports', 'statistics', 'settings'].includes(saved) ? saved : 'dashboard';
+    return saved && ['dashboard', 'tasks', 'meals', 'reports', 'statistics', 'settings'].includes(saved) ? saved : 'dashboard';
   });
   const [subTab, setSubTab] = useState<string>(() => {
     return localStorage.getItem('domus_active_subtab') || 'bulletin';
@@ -382,6 +388,17 @@ export default function App() {
     return saved ? JSON.parse(saved) : [];
   });
 
+  const [mealPlan, setMealPlan] = useState<HouseMealPlan>(() => {
+    if (!houseKey) return { houseId: '', isLocked: false, meals: [] };
+    const saved = localStorage.getItem(`${houseKey}_meals`);
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch {}
+    }
+    return createDefaultMealPlan(currentHouse?.id || '', familyMembers);
+  });
+
   // Modal Visibility States
   const [isAddExpenseOpen, setIsAddExpenseOpen] = useState(false);
   const [isReimbursementOpen, setIsReimbursementOpen] = useState(false);
@@ -423,6 +440,7 @@ export default function App() {
       localStorage.setItem(`${houseKey}_prefs`, JSON.stringify(preferences));
       localStorage.setItem(`${houseKey}_notes`, JSON.stringify(muralNotes));
       localStorage.setItem(`${houseKey}_statuses`, JSON.stringify(memberStatuses));
+      localStorage.setItem(`${houseKey}_meals`, JSON.stringify(mealPlan));
     }
   }, [
     houseKey,
@@ -437,6 +455,7 @@ export default function App() {
     preferences,
     muralNotes,
     memberStatuses,
+    mealPlan,
   ]);
 
   const showToast = useCallback((msg: string) => {
@@ -698,6 +717,35 @@ export default function App() {
         setCurrentHouse((prev) => (prev ? { ...prev, invite_code } : prev));
         showToast(`O código de convite da casa foi atualizado para: ${invite_code}`);
       },
+      onMealUpdated: ({ meal }: { meal: any }) => {
+        if (!meal) return;
+        setMealPlan((prev) => {
+          const exists = prev.meals.some(
+            (m) => m.id === meal.id || (m.dayOfWeek === meal.dayOfWeek && m.mealType === meal.mealType)
+          );
+          const updatedMeals = exists
+            ? prev.meals.map((m) =>
+                m.id === meal.id || (m.dayOfWeek === meal.dayOfWeek && m.mealType === meal.mealType) ? meal : m
+              )
+            : [...prev.meals, meal];
+          return { ...prev, meals: updatedMeals };
+        });
+      },
+      onMealDeleted: ({ mealId }: { mealId: string }) => {
+        setMealPlan((prev) => ({
+          ...prev,
+          meals: prev.meals.filter((m) => m.id !== mealId),
+        }));
+      },
+      onMealLockToggled: (data: any) => {
+        setMealPlan((prev) => ({
+          ...prev,
+          isLocked: Boolean(data.isLocked),
+          lockedBy: data.lockedBy,
+          lockedByName: data.lockedByName,
+          lockedAt: data.lockedAt,
+        }));
+      },
     },
     authUser
       ? {
@@ -828,6 +876,17 @@ export default function App() {
       };
       setFamilyMembers([initialMember]);
     }
+
+    const cachedMealsRaw = localStorage.getItem(`${key}_meals`);
+    if (cachedMealsRaw) {
+      try {
+        setMealPlan(JSON.parse(cachedMealsRaw));
+      } catch {
+        setMealPlan(createDefaultMealPlan(houseData.house.id, membersList));
+      }
+    } else {
+      setMealPlan(createDefaultMealPlan(houseData.house.id, membersList));
+    }
   };
 
   const handleSwitchHouse = () => {
@@ -888,6 +947,7 @@ export default function App() {
     setReadNotificationIds([]);
     setMuralNotes([]);
     setMemberStatuses([]);
+    setMealPlan({ houseId: '', isLocked: false, meals: [] });
     setCurrentTab('dashboard');
     setSubTab('bulletin');
     showToast('Sessão encerrada.');
@@ -1449,6 +1509,92 @@ export default function App() {
             : 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80'),
       };
 
+  const handleUpdateMeal = useCallback(
+    (meal: MealItem) => {
+      setMealPlan((prev) => {
+        const exists = prev.meals.some(
+          (m) => m.id === meal.id || (m.dayOfWeek === meal.dayOfWeek && m.mealType === meal.mealType)
+        );
+        const updatedMeals = exists
+          ? prev.meals.map((m) =>
+              m.id === meal.id || (m.dayOfWeek === meal.dayOfWeek && m.mealType === meal.mealType) ? meal : m
+            )
+          : [...prev.meals, meal];
+        const updatedPlan: HouseMealPlan = { ...prev, meals: updatedMeals };
+        if (houseKey) {
+          localStorage.setItem(`${houseKey}_meals`, JSON.stringify(updatedPlan));
+        }
+        return updatedPlan;
+      });
+
+      if (currentHouse?.id) {
+        emitMealUpdated(currentHouse.id, meal);
+      }
+      showToast(`Prato "${meal.title}" salvo no cardápio!`);
+    },
+    [houseKey, currentHouse?.id, showToast]
+  );
+
+  const handleDeleteMeal = useCallback(
+    (mealId: string) => {
+      setMealPlan((prev) => {
+        const updatedPlan: HouseMealPlan = {
+          ...prev,
+          meals: prev.meals.filter((m) => m.id !== mealId),
+        };
+        if (houseKey) {
+          localStorage.setItem(`${houseKey}_meals`, JSON.stringify(updatedPlan));
+        }
+        return updatedPlan;
+      });
+
+      if (currentHouse?.id) {
+        emitMealDeleted(currentHouse.id, mealId);
+      }
+      showToast('Prato removido do cardápio.');
+    },
+    [houseKey, currentHouse?.id, showToast]
+  );
+
+  const handleToggleMealLock = useCallback(() => {
+    if (currentUser.role !== 'Admin Geral') {
+      showToast('Apenas o Administrador Geral pode trancar ou destrancar o cardápio.');
+      return;
+    }
+
+    setMealPlan((prev) => {
+      const nextLocked = !prev.isLocked;
+      const updatedPlan: HouseMealPlan = {
+        ...prev,
+        isLocked: nextLocked,
+        lockedBy: nextLocked ? authUser?.id : undefined,
+        lockedByName: nextLocked ? authUser?.name : undefined,
+        lockedAt: nextLocked ? new Date().toISOString() : undefined,
+      };
+
+      if (houseKey) {
+        localStorage.setItem(`${houseKey}_meals`, JSON.stringify(updatedPlan));
+      }
+
+      if (currentHouse?.id) {
+        emitMealLockToggled(
+          currentHouse.id,
+          nextLocked,
+          nextLocked ? authUser?.id : undefined,
+          nextLocked ? authUser?.name : undefined
+        );
+      }
+
+      showToast(
+        nextLocked
+          ? 'Cardápio trancado com sucesso pelo Administrador Geral.'
+          : 'Cardápio destrancado. Edições liberadas.'
+      );
+
+      return updatedPlan;
+    });
+  }, [currentUser.role, authUser?.id, authUser?.name, houseKey, currentHouse?.id, showToast]);
+
   // Nível 1: Não Autenticado ➔ Tela de Login / Cadastro
   if (!authUser) {
     return (
@@ -1572,6 +1718,19 @@ export default function App() {
               onDeleteTask={handleDeleteTask}
               onRotateNext={handleRotateNext}
               onUpdateRotations={setRotations}
+            />
+          )}
+
+          {currentTab === 'meals' && (
+            <MealsView
+              mealPlan={mealPlan}
+              familyMembers={familyMembers}
+              currentUserRole={currentUser.role}
+              currentUserId={authUser?.id}
+              currentUserName={authUser?.name}
+              onUpdateMeal={handleUpdateMeal}
+              onDeleteMeal={handleDeleteMeal}
+              onToggleLock={handleToggleMealLock}
             />
           )}
 
