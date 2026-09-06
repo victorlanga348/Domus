@@ -170,7 +170,7 @@ export const EditMealSchedulesModal: React.FC<EditMealSchedulesModalProps> = ({
                           required
                           value={currentSchedule.startTime}
                           onChange={(e) => handleChangeTime(period.type, 'startTime', e.target.value)}
-                          className="w-full min-w-0 max-w-full box-border h-8 sm:h-10 px-1 sm:px-3 py-1 sm:py-2 text-center text-[11px] sm:text-sm font-medium sm:font-semibold rounded-lg sm:rounded-xl border border-teal-100 bg-teal-50/40 focus:outline-none focus:ring-2 focus:ring-teal-500 text-[#16302e] [color-scheme:light] [&::-webkit-calendar-picker-indicator]:p-0 [&::-webkit-calendar-picker-indicator]:m-0 [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:scale-75 sm:[&::-webkit-calendar-picker-indicator]:scale-100"
+                          className="w-full min-w-0 max-w-[90%] box-border h-8 sm:h-10 px-1 sm:px-3 py-1 sm:py-2 text-center text-[11px] sm:text-sm font-medium sm:font-semibold rounded-lg sm:rounded-xl border border-teal-100 bg-teal-50/40 focus:outline-none focus:ring-2 focus:ring-teal-500 text-[#16302e] [color-scheme:light] [&::-webkit-calendar-picker-indicator]:p-0 [&::-webkit-calendar-picker-indicator]:m-0 [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:scale-75 sm:[&::-webkit-calendar-picker-indicator]:scale-100"
                         />
                       </div>
 
@@ -183,7 +183,7 @@ export const EditMealSchedulesModal: React.FC<EditMealSchedulesModalProps> = ({
                           required
                           value={currentSchedule.endTime}
                           onChange={(e) => handleChangeTime(period.type, 'endTime', e.target.value)}
-                          className="w-full min-w-0 max-w-full box-border h-8 sm:h-10 px-1 sm:px-3 py-1 sm:py-2 text-center text-[11px] sm:text-sm font-medium sm:font-semibold rounded-lg sm:rounded-xl border border-teal-100 bg-teal-50/40 focus:outline-none focus:ring-2 focus:ring-teal-500 text-[#16302e] [color-scheme:light] [&::-webkit-calendar-picker-indicator]:p-0 [&::-webkit-calendar-picker-indicator]:m-0 [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:scale-75 sm:[&::-webkit-calendar-picker-indicator]:scale-100"
+                          className="w-full min-w-0 max-w-[90%] box-border h-8 sm:h-10 px-1 sm:px-3 py-1 sm:py-2 text-center text-[11px] sm:text-sm font-medium sm:font-semibold rounded-lg sm:rounded-xl border border-teal-100 bg-teal-50/40 focus:outline-none focus:ring-2 focus:ring-teal-500 text-[#16302e] [color-scheme:light] [&::-webkit-calendar-picker-indicator]:p-0 [&::-webkit-calendar-picker-indicator]:m-0 [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:scale-75 sm:[&::-webkit-calendar-picker-indicator]:scale-100"
                         />
                       </div>
                     </div>
