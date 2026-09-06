@@ -93,7 +93,7 @@ export const JoinHouseholdView: React.FC<JoinHouseholdViewProps> = ({
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="Ex: Residência Alameda"
-                  className="w-full bg-[#f8fdfc] border border-[#cfe0dc] rounded-xl pl-11 pr-4 py-3 text-sm text-[#112321] placeholder-[#7d9c97] focus:outline-none focus:ring-2 focus:ring-[#16302e] focus:border-transparent transition-all shadow-sm"
+                  className="w-full bg-[#f8fdfc] border border-[#cfe0dc] rounded-xl pl-11 pr-4 py-3 text-base text-[#112321] placeholder-[#7d9c97] focus:outline-none focus:ring-2 focus:ring-[#16302e] focus:border-transparent transition-all shadow-sm"
                   required
                 />
               </div>
@@ -114,7 +114,7 @@ export const JoinHouseholdView: React.FC<JoinHouseholdViewProps> = ({
                   value={code}
                   onChange={(e) => setCode(e.target.value.toUpperCase())}
                   placeholder="Ex: DOMUS-789X ou CASA-4892"
-                  className="w-full bg-[#f8fdfc] border border-[#cfe0dc] rounded-xl pl-11 pr-4 py-3 text-sm font-mono tracking-wider font-semibold text-[#112321] placeholder-[#7d9c97] focus:outline-none focus:ring-2 focus:ring-[#16302e] focus:border-transparent transition-all shadow-sm"
+                  className="w-full bg-[#f8fdfc] border border-[#cfe0dc] rounded-xl pl-11 pr-4 py-3 text-base font-mono tracking-wider font-semibold text-[#112321] placeholder-[#7d9c97] focus:outline-none focus:ring-2 focus:ring-[#16302e] focus:border-transparent transition-all shadow-sm"
                   required
                 />
               </div>
@@ -157,7 +157,10 @@ export const JoinHouseholdView: React.FC<JoinHouseholdViewProps> = ({
         </div>
 
         {/* Footer */}
-        <footer className="pt-6 border-t border-[#d8eae6] flex flex-col sm:flex-row items-center justify-between text-[11px] text-[#5e7e7a] gap-3">
+        <footer
+          className="pt-6 pb-safe border-t border-[#d8eae6] flex flex-col sm:flex-row items-center justify-between text-[11px] text-[#5e7e7a] gap-3"
+          style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom, 0px))' }}
+        >
           <span className="font-bold tracking-wider text-[#16302e]">DOMUS</span>
           
           <div className="flex items-center gap-5">

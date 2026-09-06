@@ -7,6 +7,8 @@ const controller = new TaskController();
 taskRoutes.get('/', controller.getTasks);
 taskRoutes.get('/:id/assignee', controller.getNextAssignee);
 taskRoutes.post('/', controller.createTask);
+taskRoutes.put('/:id', controller.updateTask);
+taskRoutes.patch('/:id', controller.updateTask);
 taskRoutes.post('/:id/lock', controller.lockTask);
 taskRoutes.post('/:id/complete', controller.completeTask);
 taskRoutes.patch('/:id/complete', controller.completeTask);

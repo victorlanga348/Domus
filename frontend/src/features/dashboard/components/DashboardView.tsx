@@ -2,11 +2,15 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { dashboardApi, type DashboardData } from '../api/dashboardApi.js';
 import { useHouseSocket } from '../../../shared/socket/useHouseSocket.js';
 import { MuralNote, FamilyMember } from '../../../types';
+import { DashboardSkeleton } from '../../../components/index.js';
 
 interface DashboardViewProps {
   currentUserId?: string;
   currentUserName?: string;
   currentHouseId?: string;
+  houseName?: string;
+  houseInviteCode?: string;
+  onSyncHouse?: (house: any) => void;
   subTab?: string;
   vacationMode?: boolean;
   onShowToast?: (msg: string) => void;
@@ -21,6 +25,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   currentUserId = 'user-1',
   currentUserName,
   currentHouseId = 'house-1',
+  houseName,
+  houseInviteCode,
+  onSyncHouse,
   vacationMode = false,
   onShowToast,
   muralNotes = [],
@@ -29,8 +36,25 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   familyMembers = [],
   onSyncMembers,
 }) => {
-  const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
-  const [loading, setLoading] = useState(true);
+  const cacheKey = currentHouseId ? `domus_house_${currentHouseId}_dashboard_cache` : null;
+
+  const [dashboardData, setDashboardData] = useState<DashboardData | null>(() => {
+    if (!cacheKey) return null;
+    const cached = localStorage.getItem(cacheKey);
+    if (cached) {
+      try {
+        return JSON.parse(cached);
+      } catch {
+        return null;
+      }
+    }
+    return null;
+  });
+
+  const [loading, setLoading] = useState(() => {
+    if (!cacheKey) return true;
+    return !localStorage.getItem(cacheKey);
+  });
 
   // Modal Novo Recado
   const [isAddNoteModalOpen, setIsAddNoteModalOpen] = useState(false);
@@ -43,10 +67,18 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
   const fetchDashboard = useCallback(async () => {
     try {
-      setLoading(true);
+      if (!dashboardData) {
+        setLoading(true);
+      }
       const data = await dashboardApi.getDashboardData(currentHouseId, currentUserId);
       if (data) {
         setDashboardData(data);
+        if (cacheKey) {
+          localStorage.setItem(cacheKey, JSON.stringify(data));
+        }
+        if (data.house) {
+          onSyncHouse?.(data.house);
+        }
         if (data.members && data.members.length > 0) {
           onSyncMembers?.(data.members);
         }
@@ -56,7 +88,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     } finally {
       setLoading(false);
     }
-  }, [currentHouseId, currentUserId, onSyncMembers]);
+  }, [currentHouseId, currentUserId, cacheKey, dashboardData, onSyncHouse, onSyncMembers]);
 
   useEffect(() => {
     fetchDashboard();
@@ -68,6 +100,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       onShowToast?.(`${data.name} alterou o modo férias.`);
     },
     onMembersUpdated: () => {
+      fetchDashboard();
+    },
+    onCodeRegenerated: () => {
       fetchDashboard();
     },
   });
@@ -104,6 +139,10 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     }
   };
 
+  if (loading && !dashboardData) {
+    return <DashboardSkeleton />;
+  }
+
   return (
     <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto space-y-6 w-full animate-in fade-in duration-200">
       {/* Banner de Boas-vindas da Residência */}
@@ -115,15 +154,15 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           <div>
             <div className="flex items-center gap-2">
               <h1 className="text-lg sm:text-xl font-black text-[#16302e]">
-                {dashboardData?.house.name || 'Minha Residência'}
+                {houseName || dashboardData?.house.name || 'Minha Residência'}
               </h1>
               <span className="text-xs font-bold text-[#7b5800] bg-[#fff8e6] px-2.5 py-0.5 rounded-full border border-[#ffca5e]">
-                {dashboardData?.house.invite_code || 'CASA-DOMUS'}
+                {houseInviteCode || dashboardData?.house.invite_code || 'CASA-DOMUS'}
               </span>
             </div>
             <p className="text-xs text-[#727877] mt-0.5 flex items-center gap-1.5">
               <span className="material-symbols-outlined text-sm text-[#7b5800]">group</span>
-              <span>Total de Moradores: <strong>{familyMembers.length || dashboardData?.members?.length || 1}</strong></span>
+              <span>Total de Moradores: <strong className="tabular-nums">{familyMembers.length || dashboardData?.members?.length || 1}</strong></span>
             </p>
           </div>
         </div>
@@ -132,7 +171,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         <div className="flex items-center gap-3 self-stretch md:self-auto">
           <button
             onClick={() => setIsAddNoteModalOpen(true)}
-            className="w-full md:w-auto bg-[#7b5800] hover:bg-[#5f4400] text-white px-5 py-2.5 rounded-2xl text-xs font-bold transition-all shadow-xs flex items-center justify-center gap-2"
+            className="w-full md:w-auto bg-[#7b5800] hover:bg-[#5f4400] active:scale-[0.96] text-white px-5 py-2.5 rounded-2xl text-xs font-bold transition-all shadow-xs flex items-center justify-center gap-2 cursor-pointer"
+            aria-label="Fixar Novo Recado"
           >
             <span className="material-symbols-outlined text-base">push_pin</span>
             <span>Fixar Novo Recado</span>
@@ -154,7 +194,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
 
           <div className="flex items-center gap-2">
-            <span className="text-xs font-bold text-[#727877] bg-[#f0fcfa] px-3 py-1 rounded-xl border border-[#d0dddb]">
+            <span className="text-xs font-bold text-[#727877] bg-[#f0fcfa] px-3 py-1 rounded-xl border border-[#d0dddb] tabular-nums">
               {muralNotes.length} {muralNotes.length === 1 ? 'recado fixado' : 'recados fixados'}
             </span>
           </div>
@@ -175,7 +215,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               </div>
               <button
                 onClick={() => setIsAddNoteModalOpen(true)}
-                className="mt-2 bg-[#16302e] hover:bg-[#2d4644] text-white px-4 py-2 rounded-xl text-xs font-bold transition-all shadow-xs flex items-center gap-1.5"
+                className="mt-2 bg-[#16302e] hover:bg-[#2d4644] active:scale-[0.96] text-white px-4 py-2 rounded-xl text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 cursor-pointer"
+                aria-label="Escrever Primeiro Recado"
               >
                 <span className="material-symbols-outlined text-sm">add</span>
                 <span>Escrever Primeiro Recado</span>
@@ -196,8 +237,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                       </h3>
                       <button
                         onClick={() => onDeleteMuralNote?.(note.id)}
-                        className="p-1 text-black/40 hover:text-rose-700 transition-colors rounded-lg hover:bg-black/5"
+                        className="p-1 text-black/40 hover:text-rose-700 active:scale-[0.96] transition-all rounded-lg hover:bg-black/5 cursor-pointer"
                         title="Excluir recado"
+                        aria-label="Excluir recado"
                       >
                         <span className="material-symbols-outlined text-sm">delete</span>
                       </button>

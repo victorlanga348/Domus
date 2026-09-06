@@ -7,17 +7,20 @@
 
   html, body, #root {
     max-width: 100%;
-    overflow-x: hidden;
     min-height: 100%;
     min-height: 100dvh;
+    background-color: #F4F9F7;
     box-sizing: border-box;
+    touch-action: manipulation;
+    overscroll-behavior-y: none;
   }
 
-  /* Previne auto-zoom no iOS Safari (mínimo de 16px para campos focáveis no mobile) */
+  /* Previne auto-zoom no iOS Safari e Android (mínimo de 16px para campos focáveis no mobile) */
   input,
   textarea,
   select {
     font-size: 16px;
+    touch-action: manipulation;
   }
   @media (min-width: 640px) {
     input,
@@ -35,7 +38,7 @@
     --color-domus-secondary: #7b5800;
     --color-domus-secondary-container: #ffca5e;
     --color-domus-on-secondary-container: #755400;
-    --color-domus-surface: #f0fcfa;
+    --color-domus-surface: #F4F9F7;
     --color-domus-surface-container: #e4f0ee;
     --color-domus-surface-container-low: #eaf6f4;
     --color-domus-surface-lowest: #ffffff;
@@ -55,6 +58,20 @@
 .max-h-dvh {
   max-height: 100vh;
   max-height: 100dvh;
+}
+
+/* Safe Area Inset Utilities (PWA Standalone & Notch Support) */
+.pt-safe {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+.pl-safe {
+  padding-left: env(safe-area-inset-left, 0px);
+}
+.pr-safe {
+  padding-right: env(safe-area-inset-right, 0px);
 }
 
 /* Força contenção estrita do botão do Google Identity Services */
@@ -102,7 +119,7 @@
   height: 20px;
   background: transparent;
   border-bottom-right-radius: 20px;
-  box-shadow: 6px 6px 0 6px #f0fcfa;
+  box-shadow: 6px 6px 0 6px #F4F9F7;
   pointer-events: none;
 }
 
@@ -114,7 +131,7 @@
   height: 20px;
   background: transparent;
   border-top-right-radius: 20px;
-  box-shadow: 6px -6px 0 6px #f0fcfa;
+  box-shadow: 6px -6px 0 6px #F4F9F7;
   pointer-events: none;
 }
 
@@ -133,3 +150,43 @@
 ::-webkit-scrollbar-thumb:hover {
   background: #98b3b0;
 }
+
+/* Tipografia de Engenharia de Interface (make-interfaces-better & impeccable) */
+h1, h2, h3, h4 {
+  text-wrap: balance;
+}
+
+p {
+  text-wrap: pretty;
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Transição do Indicador Ativo da Sidebar (make-interfaces-better) */
+.sidebar-indicator {
+  transition: top 240ms cubic-bezier(0.2, 0, 0, 1), height 200ms cubic-bezier(0.2, 0, 0, 1);
+  will-change: top, height;
+}
+
+/* Acessibilidade: Respeito a Movimento Reduzido (prefers-reduced-motion) */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Prevenção Absoluta de Auto-Zoom no iOS Safari e Mobile WebKit ao Focar Inputs */
+@media screen and (max-width: 768px) {
+  input,
+  textarea,
+  select {
+    font-size: 16px !important;
+    max-height: none !important;
+  }
+}
+

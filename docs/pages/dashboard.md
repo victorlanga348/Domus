@@ -35,4 +35,10 @@ Oferecer ao morador um espaço acolhedor, interativo e centralizado para recados
   - `DELETE /api/v1/dashboard/bulletin/:id`: Remove recado do banco com validação de autoria ou permissão de Admin Geral.
   - **Broadcast WebSocket:** Eventos `note:created` e `note:deleted` garantem atualização em tempo real para todos os moradores conectados à sala da residência.
 
+---
+
+## 4. Estados de Carregamento & Perceived Performance
+- **`DashboardSkeleton`:** Durante a busca inicial de dados (`GET /api/v1/dashboard`), a interface exibe um esqueleto estruturado com animação de pulso suave nos tons da marca DOMUS (`#e4f0ee` e `#d0dddb`), eliminando a exibição prematura de falsos estados vazios e prevenindo deslocamentos acumulados de layout (CLS).
+- **Fallback Acessível:** Usuários com a diretiva `prefers-reduced-motion: reduce` visualizam o esqueleto estático sem ciclo de pulsação.
+
 

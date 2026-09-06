@@ -1,6 +1,6 @@
 import bcrypt from 'bcryptjs';
 import { prisma } from '../../database/prisma.js';
-import { TaskRepository, type CreateTaskInput, type TaskWithDetails } from './tasks.repository.js';
+import { TaskRepository, type CreateTaskInput, type UpdateTaskInput, type TaskWithDetails } from './tasks.repository.js';
 import { RotationService } from './tasks.rotation.service.js';
 import { AppError } from '../../shared/errors/AppError.js';
 import type { Task, User } from '@prisma/client';
@@ -295,6 +295,133 @@ export class TaskService {
         id: p.user.id,
         name: p.user.name,
       })),
+    };
+  }
+
+  /**
+   * 6. updateTask:
+   * Edita os parâmetros e/ou participantes da tarefa de rodízio.
+   * Regras estritas:
+   * 1. Apenas o Admin Geral e Sub-Admins têm permissão (403 para moradores comuns).
+   * 2. Preserva a escala de rotação sem quebras:
+   *    - Se o morador da vez atual permanecer no pool, o rotation_index é recalculado para sua nova posição A-Z.
+   *    - Se o morador da vez atual for removido, o rotation_index aponta para o próximo sucessor na ordem da fila.
+   * 3. Registra auditoria em ActivityLog e retorna a tarefa atualizada com o próximo responsável.
+   */
+  async updateTask(
+    taskId: string,
+    userId: string,
+    userRole: string | undefined,
+    data: UpdateTaskInput
+  ): Promise<{ task: TaskWithDetails; nextAssignee: User | null }> {
+    const task = await this.getTaskById(taskId);
+
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) {
+      throw new AppError('Usuário não encontrado.', 404, 'USER_NOT_FOUND');
+    }
+
+    const role = userRole || user.role;
+    const isGeneralAdmin = user.role === 'ADMIN' || role === 'ADMIN_GERAL' || role === 'Admin Geral';
+    const isSubAdmin = role === 'SUB_ADMIN' || role === 'Admin';
+
+    if (!isGeneralAdmin && !isSubAdmin) {
+      throw new AppError(
+        'Apenas o Admin Geral e Sub-Admins têm permissão para editar tarefas de rodízio.',
+        403,
+        'FORBIDDEN_TASK_UPDATE'
+      );
+    }
+
+    // 1. Identificar quem detém a vez atualmente antes da alteração
+    let currentAssigneeId: string | null = null;
+    if (task.participants && task.participants.length > 0) {
+      try {
+        const currentResp = await this.rotationService.getCurrentResponsible(taskId);
+        currentAssigneeId = currentResp.id;
+      } catch {
+        currentAssigneeId = null;
+      }
+    }
+
+    let nextRotationIndex = task.rotation_index;
+
+    // 2. Se participant_ids foi fornecido, calcula a preservação matemática do turno
+    if (data.participant_ids && Array.isArray(data.participant_ids)) {
+      if (data.participant_ids.length > 0) {
+        const newUsers = await prisma.user.findMany({
+          where: { id: { in: data.participant_ids } },
+        });
+
+        // Ordenação canônica A-Z
+        const sortedNewUsers = [...newUsers].sort((a, b) =>
+          a.name.localeCompare(b.name, 'pt-BR', { sensitivity: 'base' })
+        );
+
+        if (currentAssigneeId && sortedNewUsers.some((u) => u.id === currentAssigneeId)) {
+          // O morador da vez continua no pool: manter a sua vez no novo índice ordenado
+          const newIdx = sortedNewUsers.findIndex((u) => u.id === currentAssigneeId);
+          nextRotationIndex = newIdx >= 0 ? newIdx : 0;
+        } else if (currentAssigneeId) {
+          // O morador da vez foi removido: encontrar quem era o sucessor imediato na lista antiga
+          const prevSorted = task.participants
+            .map((p) => p.user)
+            .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR', { sensitivity: 'base' }));
+          const prevIdx = prevSorted.findIndex((u) => u.id === currentAssigneeId);
+
+          let nextUserInLine: User | null = null;
+          for (let step = 1; step < prevSorted.length; step++) {
+            const candidate = prevSorted[(prevIdx + step) % prevSorted.length];
+            if (sortedNewUsers.some((u) => u.id === candidate.id)) {
+              nextUserInLine = candidate;
+              break;
+            }
+          }
+
+          if (nextUserInLine) {
+            nextRotationIndex = sortedNewUsers.findIndex((u) => u.id === nextUserInLine.id);
+          } else {
+            nextRotationIndex = 0;
+          }
+        } else {
+          nextRotationIndex = 0;
+        }
+      } else {
+        nextRotationIndex = 0;
+      }
+    }
+
+    // 3. Persiste a alteração atômica
+    const updatedTask = await this.taskRepo.update(taskId, {
+      ...data,
+      rotation_index: nextRotationIndex,
+    });
+
+    // 4. Registra histórico de auditoria
+    await prisma.activityLog.create({
+      data: {
+        task_id: taskId,
+        user_id: userId,
+        house_id: task.house_id,
+        action_type: 'ROTATED',
+        comment: `${user.name} atualizou a escala de rodízio da tarefa "${updatedTask.title}"`,
+      },
+    });
+
+    // 5. Calcula o próximo responsável ativo considerando salto de férias
+    let nextAssignee: User | null = null;
+    if (updatedTask.participants && updatedTask.participants.length > 0) {
+      try {
+        const nextResult = await this.rotationService.getNextParticipant(taskId);
+        nextAssignee = nextResult.assignee;
+      } catch {
+        nextAssignee = null;
+      }
+    }
+
+    return {
+      task: updatedTask,
+      nextAssignee,
     };
   }
 }

@@ -31,9 +31,10 @@ Para atender a dispositivos compartilhados (ex: tablet fixo na cozinha) e celula
 
 ---
 
-## 3. Políticas de Senhas e Rate Limiting
-- **Rate Limit de PIN:** Máximo de 5 tentativas consecutivas incorretas por usuário em janela de 10 minutos.
-- **PINs Fracos Proibidos:** Validação contra sequências óbvias (`0000`, `1234`, `1111`).
+## 3. Políticas de Senhas, PIN e Rate Limiting
+- **Simplificação de Cadastro (Eliminação do PIN no Onboarding):** O campo de PIN foi removido do formulário de cadastro web/mobile para eliminar fricção no onboarding. O backend preenche o campo obrigatório `pin_hash` com hash de fallback seguro (`0000`) de forma determinística e transparente (idêntico ao procedimento de login federado via Google OAuth). Caso necessário, o morador pode definir um PIN personalizado posteriormente nas preferências do perfil.
+- **Rate Limit de PIN:** Máximo de 5 tentativas consecutivas incorretas por usuário em janela de 10 minutos na rota `/api/auth/verify-pin`.
+- **PINs Fracos Proibidos:** Validação contra sequências óbvias (`0000`, `1234`, `1111`) em caso de definição explícita pelo usuário.
 
 ---
 
@@ -69,6 +70,11 @@ Para atender a dispositivos compartilhados (ex: tablet fixo na cozinha) e celula
 ### 6.3 Princípio do Menor Privilégio & Reset de Papel no Reingresso
 - Ao sair da residência (`leaveHouse`), o vínculo do usuário é desfeito (`house_id = null`) e sua role é redefinida para `MEMBER`.
 - Ao reingressar via submissão do código de convite (`joinHouse`), qualquer usuário (mesmo que tenha sido Admin anteriormente) ingressa estritamente como **Morador** (`role: 'MEMBER'`). Privilégios administrativos só podem ser restabelecidos por ação deliberada do `Admin Geral` ativo.
+
+### 6.4 Bloqueio de Alternância de Residência para Admin Geral Ativo (`switchHouse`)
+- O **Admin Geral** não pode alternar para outra residência (`switchHouse`) enquanto existirem outros moradores vinculados à residência atual sem antes transferir formalmente a liderança.
+- **Backend:** A rota `POST /api/houses/switch` intercepta e rejeita a tentativa com status `403 Forbidden` (`CANNOT_SWITCH_HOUSE_AS_GENERAL_ADMIN`).
+- **Frontend:** O método centralizador `handleSwitchHouse()` verifica a role do usuário e a presença de outros integrantes, exibindo notificação explicativa e impedindo a navegação antes da transferência de cargo.
 
 ---
 

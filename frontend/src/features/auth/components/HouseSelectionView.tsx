@@ -237,7 +237,7 @@ export const HouseSelectionView: React.FC<HouseSelectionViewProps> = ({
                     value={createName}
                     onChange={(e) => setCreateName(e.target.value)}
                     placeholder="ex: Casa Alameda, República Central..."
-                    className="w-full p-3 bg-[#f0fcfa] border border-[#c1c8c6] rounded-xl text-xs font-medium focus:outline-none focus:border-[#7b5800]"
+                    className="w-full p-3 bg-[#f0fcfa] border border-[#c1c8c6] rounded-xl text-base font-medium focus:outline-none focus:border-[#7b5800]"
                   />
                   <p className="text-[11px] text-[#727877] mt-1.5">
                     Um Código de Convite único será gerado automaticamente para novos membros.
@@ -288,7 +288,7 @@ export const HouseSelectionView: React.FC<HouseSelectionViewProps> = ({
                     value={joinCode}
                     onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
                     placeholder="ex: CASA-4892"
-                    className="w-full p-3 bg-[#f0fcfa] border border-[#c1c8c6] rounded-xl text-xs font-bold tracking-wider focus:outline-none focus:border-[#16302e]"
+                    className="w-full p-3 bg-[#f0fcfa] border border-[#c1c8c6] rounded-xl text-base font-bold font-mono tracking-wider focus:outline-none focus:border-[#16302e]"
                   />
                   <p className="text-[11px] text-[#727877] mt-1.5">
                     Solicite o código a qualquer morador ou ao Administrador Geral da casa.

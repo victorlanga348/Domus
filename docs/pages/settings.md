@@ -13,6 +13,10 @@ Gerenciamento de membros da casa, governança de cargos administrativos, remoç�
   - **Desktop (>= 640px):** Disposição flex horizontal unificada.
   - **Compartilhamento Universal:** Utiliza a Web Share API (`navigator.share`) com payload enriquecido de convite. Em contextos HTTP de rede local (LAN) ou dispositivos sem suporte nativo a compartilhamento, executa fallback transparente para a área de transferência com feedback explícito via Toast (*"Mensagem de convite copiada! Cole no WhatsApp ou envie aos moradores."*).
   - **Regeneração de Código:** Protegido por modal de confirmação responsivo (`ConfirmActionModal`), exclusivo para o `Admin Geral`, invalidando o código antigo e gerando um novo em tempo real via PostgreSQL e WebSockets.
+- **Aplicativo DOMUS (Instalação PWA & Standalone):**
+  - **Identificação Automática:** Detecta se o aplicativo já opera em tela cheia / nativo (`display-mode: standalone` ou `navigator.standalone`), exibindo badge verde `"✓ Instalado"` e feedback informativo.
+  - **Instalação com 1 Toque (Android / Chrome / Edge / Desktop):** Intercepta o evento `beforeinstallprompt` e aciona a instalação nativa do sistema operacional com confirmação automática.
+  - **Guia Passo a Passo para iOS (Safari) e Navegadores Manuais:** Em navegadores sem suporte ao evento nativo ou quando o prompt do navegador falha, aciona um modal modal ilustrado e acessível em 3 passos (*1. Compartilhar; 2. Adicionar à Tela de Início; 3. Adicionar*).
 - **Modo Noturno:** Agendamento automático de dimmer de iluminação, sensores e economia de energia com horários de início e término.
 - **Regras de Convivência:** Cadastro, listagem numerada e exclusão de regras comunitárias.
 

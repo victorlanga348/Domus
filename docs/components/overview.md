@@ -14,3 +14,6 @@ Os componentes de UI residem em `frontend/src/components/` e são divididos em:
    - [SettingsView.tsx](file:///c:/Users/victo/OneDrive/Documentos/Github/Domus/frontend/src/components/SettingsView.tsx)
 3. **Modais & Diálogos:**
    - [Modals.tsx](file:///c:/Users/victo/OneDrive/Documentos/Github/Domus/frontend/src/components/Modals.tsx): Centraliza diálogos de criação de tarefa, registro de despesa, bloqueio de tarefa com motivo e prompt de PIN.
+4. **Estados de Carregamento & Feedback:**
+   - [Skeleton.tsx](file:///c:/Users/victo/OneDrive/Documentos/Github/Domus/frontend/src/components/Skeleton.tsx): Primitivo de skeleton com shimmer suave (`Skeleton`) e layouts dedicados (`DashboardSkeleton`, `TasksSkeleton`) para mitigar CLS e tempo percebido de carregamento.
+

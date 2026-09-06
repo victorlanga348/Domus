@@ -12,7 +12,7 @@ export interface RegisterDTO {
   name: string;
   email: string;
   password: string;
-  pin: string;
+  pin?: string;
   house_id?: string;
 }
 
@@ -35,7 +35,7 @@ export class AuthService {
       throw new AppError('Senha deve ter no mínimo 6 caracteres.', 400, 'PASSWORD_TOO_SHORT');
     }
 
-    if (!data.pin || data.pin.length < 4 || data.pin.length > 6) {
+    if (data.pin && (data.pin.length < 4 || data.pin.length > 6)) {
       throw new AppError('PIN deve conter entre 4 e 6 dígitos.', 400, 'INVALID_PIN_LENGTH');
     }
 
@@ -50,7 +50,7 @@ export class AuthService {
 
     const saltRounds = 10;
     const password_hash = await bcrypt.hash(data.password, saltRounds);
-    const pin_hash = await bcrypt.hash(data.pin, saltRounds);
+    const pin_hash = await bcrypt.hash(data.pin || '0000', saltRounds);
 
     const user = await prisma.user.create({
       data: {

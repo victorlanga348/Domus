@@ -92,6 +92,11 @@ export function emitTaskDeleted(houseId: string, taskId: string): void {
   if (houseId && taskId) s.emit('house:task_deleted', { houseId, taskId });
 }
 
+export function emitTaskUpdated(houseId: string, task: any): void {
+  const s = getSocket();
+  if (houseId && task) s.emit('house:task_updated', { houseId, task });
+}
+
 export function emitTaskStatusChanged(houseId: string, taskId: string, status: string): void {
   const s = getSocket();
   if (houseId && taskId) s.emit('house:task_status_changed', { houseId, taskId, status });
@@ -125,4 +130,9 @@ export function emitRuleDeleted(houseId: string, ruleId: string): void {
 export function emitRotationAdvanced(houseId: string, rotationId: string): void {
   const s = getSocket();
   if (houseId && rotationId) s.emit('house:rotation_advanced', { houseId, rotationId });
+}
+
+export function emitMembersUpdated(houseId: string, payload?: any): void {
+  const s = getSocket();
+  if (houseId) s.emit('house:members_updated', { houseId, ...payload });
 }

@@ -173,8 +173,35 @@ export class HouseService {
   /**
    * 4. switchHouse:
    * Alterna a residência ativa do usuário sem necessitar de novo login.
+   * Regra Obrigatória: O Admin Geral não pode alternar de casa se houver outros moradores na residência atual sem transferir a liderança.
    */
   async switchHouse(userId: string, targetHouseId: string) {
+    if (!userId) {
+      throw new AppError('Usuário não identificado.', 401, 'UNAUTHORIZED');
+    }
+
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) {
+      throw new AppError('Usuário não encontrado.', 404, 'USER_NOT_FOUND');
+    }
+
+    if (user.house_id && user.house_id !== targetHouseId && user.role === 'ADMIN') {
+      const otherMembersCount = await prisma.user.count({
+        where: {
+          house_id: user.house_id,
+          id: { not: userId },
+        },
+      });
+
+      if (otherMembersCount > 0) {
+        throw new AppError(
+          'O Administrador Geral não pode alternar de residência sem antes transferir a liderança.',
+          403,
+          'CANNOT_SWITCH_HOUSE_AS_GENERAL_ADMIN'
+        );
+      }
+    }
+
     const house = await this.houseRepo.findById(targetHouseId);
     if (!house) {
       throw new AppError('Residência não encontrada.', 404, 'HOUSE_NOT_FOUND');

@@ -7,9 +7,10 @@ interface SocketCallbacks {
   onVacationChanged?: (data: { userId: string; name: string; vacation_mode: boolean }) => void;
   onSwapRequested?: (data: { taskId: string; taskTitle: string; requesterName: string; reason: string }) => void;
   onPresence?: (data: { houseId: string; onlineCount: number; onlineUserIds: string[]; users: any[] }) => void;
-  onMembersUpdated?: () => void;
+  onMembersUpdated?: (data?: any) => void;
   onActivityLog?: (log: any) => void;
   onTaskCreated?: (task: any) => void;
+  onTaskUpdated?: (data: any) => void;
   onTaskDeleted?: (data: { taskId: string }) => void;
   onTaskStatusChanged?: (data: { taskId: string; status: string }) => void;
   onNoteCreated?: (note: any) => void;
@@ -43,10 +44,11 @@ export function useHouseSocket(
     const handleVacationChanged = (data: any) => callbacksRef.current?.onVacationChanged?.(data);
     const handleSwapRequested = (data: any) => callbacksRef.current?.onSwapRequested?.(data);
     const handlePresence = (data: any) => callbacksRef.current?.onPresence?.(data);
-    const handleMembersUpdated = () => callbacksRef.current?.onMembersUpdated?.();
+    const handleMembersUpdated = (data: any) => callbacksRef.current?.onMembersUpdated?.(data);
     const handleActivityLog = (log: any) => callbacksRef.current?.onActivityLog?.(log);
 
     const handleTaskCreated = (task: any) => callbacksRef.current?.onTaskCreated?.(task);
+    const handleTaskUpdated = (data: any) => callbacksRef.current?.onTaskUpdated?.(data);
     const handleTaskDeleted = (data: any) => callbacksRef.current?.onTaskDeleted?.(data);
     const handleTaskStatusChanged = (data: any) => callbacksRef.current?.onTaskStatusChanged?.(data);
     const handleNoteCreated = (note: any) => callbacksRef.current?.onNoteCreated?.(note);
@@ -59,6 +61,7 @@ export function useHouseSocket(
 
     socket.on('task:locked', handleTaskLocked);
     socket.on('task:unlocked', handleTaskUnlocked);
+    socket.on('task:updated', handleTaskUpdated);
     socket.on('member:vacation_changed', handleVacationChanged);
     socket.on('task:swap_requested', handleSwapRequested);
     socket.on('house:presence', handlePresence);
@@ -66,6 +69,7 @@ export function useHouseSocket(
     socket.on('house:activity_log', handleActivityLog);
 
     socket.on('house:task_created', handleTaskCreated);
+    socket.on('house:task_updated', handleTaskUpdated);
     socket.on('house:task_deleted', handleTaskDeleted);
     socket.on('house:task_status_changed', handleTaskStatusChanged);
     socket.on('house:note_created', handleNoteCreated);
@@ -79,6 +83,7 @@ export function useHouseSocket(
     return () => {
       socket.off('task:locked', handleTaskLocked);
       socket.off('task:unlocked', handleTaskUnlocked);
+      socket.off('task:updated', handleTaskUpdated);
       socket.off('member:vacation_changed', handleVacationChanged);
       socket.off('task:swap_requested', handleSwapRequested);
       socket.off('house:presence', handlePresence);
@@ -86,6 +91,7 @@ export function useHouseSocket(
       socket.off('house:activity_log', handleActivityLog);
 
       socket.off('house:task_created', handleTaskCreated);
+      socket.off('house:task_updated', handleTaskUpdated);
       socket.off('house:task_deleted', handleTaskDeleted);
       socket.off('house:task_status_changed', handleTaskStatusChanged);
       socket.off('house:note_created', handleNoteCreated);

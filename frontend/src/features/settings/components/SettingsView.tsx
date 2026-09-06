@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { SystemPreferences, HouseRule, FamilyMember } from '../../../types.js';
 import { MemberActionDropdown } from './MemberActionDropdown.js';
 
@@ -22,6 +22,8 @@ interface SettingsViewProps {
   houseName?: string;
   onRegenerateCode?: () => void;
   onShowToast?: (msg: string) => void;
+  installPromptEvent?: any;
+  onInstallAccepted?: () => void;
 }
 
 export const SettingsView: React.FC<SettingsViewProps> = ({
@@ -44,9 +46,55 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   houseName,
   onRegenerateCode,
   onShowToast,
+  installPromptEvent,
+  onInstallAccepted,
 }) => {
   const [nightMode, setNightMode] = useState(preferences.nightMode);
   const [isCopied, setIsCopied] = useState(false);
+  const [isIosInstallModalOpen, setIsIosInstallModalOpen] = useState(false);
+  const [isInstalled, setIsInstalled] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    return (
+      window.matchMedia('(display-mode: standalone)').matches ||
+      (window.navigator as any).standalone === true
+    );
+  });
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const mediaQuery = window.matchMedia('(display-mode: standalone)');
+    const handleMediaChange = (e: MediaQueryListEvent) => {
+      setIsInstalled(e.matches);
+    };
+    mediaQuery.addEventListener('change', handleMediaChange);
+    return () => mediaQuery.removeEventListener('change', handleMediaChange);
+  }, []);
+
+  const handleInstallApp = async () => {
+    if (isInstalled) {
+      onShowToast?.('O Domus já está instalado e funcionando como aplicativo!');
+      return;
+    }
+
+    if (installPromptEvent) {
+      try {
+        await installPromptEvent.prompt();
+        const choiceResult = await installPromptEvent.userChoice;
+        if (choiceResult && choiceResult.outcome === 'accepted') {
+          onInstallAccepted?.();
+          setIsInstalled(true);
+          onShowToast?.('Instalação do Domus solicitada com sucesso!');
+        }
+        return;
+      } catch (err) {
+        console.warn('Falha ao acionar instalação nativa, exibindo instruções:', err);
+        setIsIosInstallModalOpen(true);
+        return;
+      }
+    }
+
+    setIsIosInstallModalOpen(true);
+  };
 
   const copyToClipboardFallback = (text: string): boolean => {
     try {
@@ -87,8 +135,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
   const handleShareCode = async () => {
     if (!houseInviteCode) return;
-    const shareTitle = `Convite para ${houseName || 'DOMUS'}`;
-    const shareText = `Olá! Venha fazer parte da residência "${houseName || 'DOMUS'}" no DOMUS. Use o nosso código de convite: ${houseInviteCode}`;
+    const shareTitle = `Convite para ${houseName || 'Domus'}`;
+    const shareText = `Olá! Venha fazer parte da residência "${houseName || 'Domus'}" no Domus. Use o nosso código de convite: ${houseInviteCode}`;
     const shareData = {
       title: shareTitle,
       text: shareText,
@@ -215,6 +263,71 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     <span>Regenerar Código</span>
                   </button>
                 )}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Card Aplicativo Domus (PWA) */}
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-[#d9e5e3] flex flex-col justify-between">
+          <div>
+            <div className="flex justify-between items-start mb-2">
+              <div className="flex items-center gap-2 text-[#16302e]">
+                <span className="material-symbols-outlined text-2xl text-[#7b5800]">install_mobile</span>
+                <h3 className="text-lg font-bold">Aplicativo Domus</h3>
+              </div>
+              <span
+                className={`text-[10px] font-extrabold uppercase px-2.5 py-1 rounded-lg tracking-wider ${
+                  isInstalled
+                    ? 'bg-emerald-100 text-emerald-800'
+                    : 'bg-[#fff8e6] text-[#7b5800] border border-[#ffca5e]'
+                }`}
+              >
+                {isInstalled ? '✓ Instalado' : 'Disponível'}
+              </span>
+            </div>
+
+            <p className="text-xs text-[#414847] leading-relaxed mb-4">
+              Instale o Domus no seu celular ou computador para ter acesso instantâneo na tela inicial, navegação imersiva em tela inteira e experiência fluida de app nativo.
+            </p>
+
+            <div className="bg-[#f0fcfa] border border-[#c1c8c6] rounded-2xl p-4 flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div
+                  className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold ${
+                    isInstalled ? 'bg-emerald-600 text-white' : 'bg-[#16302e] text-[#ffca5e]'
+                  }`}
+                >
+                  <span className="material-symbols-outlined text-xl">
+                    {isInstalled ? 'check_circle' : 'download'}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-[10px] font-bold uppercase text-[#727877] block">
+                    {isInstalled ? 'Modo Nativo Ativo' : 'Instalação Direta'}
+                  </span>
+                  <span className="text-sm font-black text-[#16302e]">
+                    {isInstalled ? 'Domus instalado neste aparelho' : 'Tornar este site um aplicativo'}
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 w-full sm:w-auto">
+                <button
+                  type="button"
+                  onClick={handleInstallApp}
+                  className={`w-full sm:w-auto px-4 py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer shadow-xs min-h-[42px] ${
+                    isInstalled
+                      ? 'bg-emerald-50 text-emerald-800 border border-emerald-300 hover:bg-emerald-100'
+                      : 'bg-[#ffca5e] hover:bg-[#f5be4f] text-[#755400] font-black'
+                  }`}
+                  title={isInstalled ? 'Aplicativo instalado' : 'Instalar Domus no dispositivo'}
+                >
+                  <span className="material-symbols-outlined text-base">
+                    {isInstalled ? 'verified' : 'add_to_home_screen'}
+                  </span>
+                  <span>{isInstalled ? 'Aplicativo Instalado' : 'Instalar Aplicativo'}</span>
+                </button>
               </div>
             </div>
           </div>
@@ -463,6 +576,69 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Modal Instruções de Instalação Manual (iOS / Navegadores) */}
+      {isIosInstallModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl border border-[#d9e5e3] space-y-5 animate-in zoom-in-95 duration-200">
+            <div className="flex justify-between items-start">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-2xl bg-[#fff8e6] border border-[#ffca5e] text-[#7b5800] flex items-center justify-center">
+                  <span className="material-symbols-outlined text-2xl">install_mobile</span>
+                </div>
+                <div>
+                  <h3 className="text-lg font-black text-[#16302e]">Instalar o Domus</h3>
+                  <p className="text-xs text-[#727877]">Adicione à tela inicial em 3 passos</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsIosInstallModalOpen(false)}
+                className="text-[#727877] hover:text-[#16302e] p-1 rounded-lg transition-colors cursor-pointer"
+              >
+                <span className="material-symbols-outlined text-xl">close</span>
+              </button>
+            </div>
+
+            <div className="space-y-3 bg-[#f0fcfa] p-4 rounded-2xl border border-[#d9e5e3] text-xs text-[#16302e]">
+              <div className="flex items-start gap-3">
+                <span className="w-6 h-6 rounded-full bg-[#ffca5e] text-[#755400] font-black text-xs flex items-center justify-center shrink-0 mt-0.5">
+                  1
+                </span>
+                <p>
+                  No navegador (Safari no iPhone ou Chrome/Edge), toque no botão de <strong>Compartilhar</strong> <span className="material-symbols-outlined inline-block align-middle text-sm">ios_share</span> ou no menu de três pontos <span className="material-symbols-outlined inline-block align-middle text-sm">more_vert</span>.
+                </p>
+              </div>
+
+              <div className="flex items-start gap-3">
+                <span className="w-6 h-6 rounded-full bg-[#ffca5e] text-[#755400] font-black text-xs flex items-center justify-center shrink-0 mt-0.5">
+                  2
+                </span>
+                <p>
+                  Role as opções e clique em <strong>"Adicionar à Tela de Início"</strong> ou <strong>"Instalar aplicativo"</strong>.
+                </p>
+              </div>
+
+              <div className="flex items-start gap-3">
+                <span className="w-6 h-6 rounded-full bg-[#ffca5e] text-[#755400] font-black text-xs flex items-center justify-center shrink-0 mt-0.5">
+                  3
+                </span>
+                <p>
+                  Confirme tocando em <strong>Adicionar</strong> ou <strong>Instalar</strong>. O ícone do Domus ficará disponível na sua tela principal!
+                </p>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setIsIosInstallModalOpen(false)}
+              className="w-full py-3 bg-[#16302e] hover:bg-[#213836] text-white rounded-2xl text-xs font-bold transition-all shadow-xs cursor-pointer"
+            >
+              Entendido!
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

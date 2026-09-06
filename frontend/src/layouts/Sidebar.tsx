@@ -62,25 +62,22 @@ export const Sidebar: React.FC<SidebarProps> = ({
   return (
     <>
       {/* Mobile Slide-Over Sidebar Drawer */}
-      <div
-        className={`md:hidden fixed inset-0 z-50 flex h-[100dvh] max-h-[100dvh] overflow-hidden transition-all duration-300 ${
-          isMobileOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
-        }`}
-      >
-        {/* Backdrop Overlay */}
-        <div
-          className={`fixed inset-0 bg-black/60 backdrop-blur-xs transition-opacity duration-300 ${
-            isMobileOpen ? 'opacity-100' : 'opacity-0'
-          }`}
-          onClick={onCloseMobile}
-        />
+      {isMobileOpen && (
+        <div className="md:hidden fixed inset-0 z-50 flex h-[100dvh] max-h-[100dvh] overflow-hidden animate-in fade-in duration-200">
+          {/* Backdrop Overlay */}
+          <div
+            className="fixed inset-0 bg-black/60 backdrop-blur-xs"
+            onClick={onCloseMobile}
+          />
 
-        {/* Slide-In Drawer */}
-        <aside
-          className={`relative w-72 max-w-[80%] bg-[#16302e] h-full h-[100dvh] max-h-[100dvh] shadow-2xl flex flex-col justify-between py-5 px-4 z-50 overflow-y-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden transform transition-transform duration-300 ease-in-out ${
-            isMobileOpen ? 'translate-x-0' : '-translate-x-full'
-          }`}
-        >
+          {/* Slide-In Drawer */}
+          <aside
+            className="relative w-72 max-w-[80%] bg-[#16302e] h-full h-[100dvh] max-h-[100dvh] shadow-2xl flex flex-col justify-between px-4 z-50 overflow-y-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden animate-in slide-in-from-left duration-200"
+            style={{
+              paddingTop: 'calc(1.25rem + env(safe-area-inset-top, 0px))',
+              paddingBottom: 'calc(1.25rem + env(safe-area-inset-bottom, 0px))',
+            }}
+          >
           {/* Top Bar with Brand & Close Button */}
           <div className="flex items-center justify-between border-b border-[#2d4644] pb-4 mb-4">
             <div className="flex items-center gap-2">
@@ -88,13 +85,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 roofing
               </span>
               <span className="text-lg font-black tracking-tight text-white">
-                DOMUS
+                Domus
               </span>
             </div>
             <button
               onClick={onCloseMobile}
-              className="text-[#98b3b0] hover:text-white p-1 rounded-full hover:bg-[#2d4644] transition-colors cursor-pointer"
+              className="text-[#98b3b0] hover:text-white p-1 rounded-full hover:bg-[#2d4644] transition-all active:scale-[0.96] cursor-pointer"
               title="Fechar Menu"
+              aria-label="Fechar Menu"
             >
               <span className="material-symbols-outlined text-2xl">close</span>
             </button>
@@ -134,11 +132,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     onTabChange(item.id);
                     onCloseMobile?.();
                   }}
-                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-xs font-bold transition-all cursor-pointer ${
+                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-xs font-bold transition-all active:scale-[0.96] cursor-pointer ${
                     isActive
-                      ? 'bg-[#f0fcfa] text-[#16302e] shadow-md'
+                      ? 'bg-[#F4F9F7] text-[#16302e] shadow-md'
                       : 'text-[#98b3b0] hover:text-white hover:bg-[#2d4644]/50'
                   }`}
+                  aria-label={item.label}
+                  aria-current={isActive ? 'page' : undefined}
                 >
                   <span
                     className={`material-symbols-outlined text-lg ${
@@ -157,7 +157,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <div className="border-t border-[#2d4644] pt-4 mt-6">
             <div className="flex items-center justify-between mb-2 px-1">
               <h3 className="text-[10px] font-bold text-[#98b3b0] opacity-70 uppercase tracking-widest">
-                MEMBROS ONLINE ({activeUsers.length})
+                MEMBROS ONLINE (<span className="tabular-nums">{activeUsers.length}</span>)
               </h3>
             </div>
             <div className="flex items-center -space-x-2 px-1 mb-4">
@@ -186,7 +186,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     onSwitchHouseClick();
                     onCloseMobile?.();
                   }}
-                  className="text-[#98b3b0] hover:text-[#ffca5e] flex items-center gap-2.5 px-2 py-2 text-xs font-semibold w-full transition-colors rounded-xl hover:bg-[#2d4644]/40 cursor-pointer"
+                  className="text-[#98b3b0] hover:text-[#ffca5e] flex items-center gap-2.5 px-2 py-2 text-xs font-semibold w-full transition-all rounded-xl hover:bg-[#2d4644]/40 active:scale-[0.96] cursor-pointer"
+                  aria-label="Trocar Residência"
                 >
                   <span className="material-symbols-outlined text-base text-[#ffca5e]">apartment</span>
                   <span>Trocar Residência</span>
@@ -197,7 +198,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   onLogoutClick();
                   onCloseMobile?.();
                 }}
-                className="text-[#98b3b0] hover:text-rose-300 flex items-center gap-2.5 px-2 py-2 text-xs font-semibold w-full transition-colors rounded-xl hover:bg-[#2d4644]/40 cursor-pointer"
+                className="text-[#98b3b0] hover:text-rose-300 flex items-center gap-2.5 px-2 py-2 text-xs font-semibold w-full transition-all rounded-xl hover:bg-[#2d4644]/40 active:scale-[0.96] cursor-pointer"
+                aria-label="Sair da Conta"
               >
                 <span className="material-symbols-outlined text-base">logout</span>
                 <span>Sair da Conta</span>
@@ -206,8 +208,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </div>
         </aside>
       </div>
-      {/* Desktop Sidebar (hidden on mobile, fixed no scroll on desktop) */}
-      <aside className="hidden md:flex fixed left-0 top-0 h-screen h-[100dvh] w-[250px] lg:w-[280px] bg-[#16302e] shadow-none flex-col justify-between py-4 lg:py-6 z-50 transition-all duration-300 overflow-hidden [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+    )}
+    {/* Desktop Sidebar (hidden on mobile, fixed no scroll on desktop) */}
+      <aside className="hidden md:flex fixed left-0 top-0 h-[100dvh] w-[250px] lg:w-[280px] bg-[#16302e] shadow-none flex-col justify-between py-4 lg:py-6 z-50 transition-all duration-300 overflow-hidden [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
         {/* Profile Area */}
         <div className="flex flex-col items-center justify-center px-5 mb-2 lg:mb-4 shrink-0">
           <div
@@ -236,7 +239,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         >
           {/* Animated Indicator with Inverted Border-Radius Curves */}
           <div
-            className={`absolute top-0 left-3 lg:left-3.5 right-0 pointer-events-none transition-transform duration-350 ease-[cubic-bezier(0.4,0,0.2,1)] z-0 ${
+            className={`absolute top-0 left-3 lg:left-3.5 right-0 pointer-events-none transition-transform duration-250 ease-[cubic-bezier(0.2,0,0,1)] z-0 ${
               indicatorStyle.ready ? 'opacity-100' : 'opacity-0'
             }`}
             style={{
@@ -244,7 +247,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               transform: `translateY(${indicatorStyle.top}px)`,
             }}
           >
-            <div className="w-full h-full bg-[#f0fcfa] rounded-l-full relative">
+            <div className="w-full h-full bg-[#F4F9F7] rounded-l-full relative">
               <div className="sidebar-curve-top" />
               <div className="sidebar-curve-bottom" />
             </div>
@@ -258,11 +261,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 key={item.id}
                 data-nav-item={item.id}
                 onClick={() => onTabChange(item.id)}
-                className={`relative z-10 flex items-center gap-3.5 px-6 lg:px-7 py-2.5 lg:py-3 text-left w-full cursor-pointer focus:outline-none transition-colors duration-200 group ${
+                className={`relative z-10 flex items-center gap-3.5 px-6 lg:px-7 py-2.5 lg:py-3 text-left w-full cursor-pointer focus:outline-none transition-all duration-200 active:scale-[0.96] group ${
                   isActive
                     ? 'active text-[#16302e]'
                     : 'text-[#98b3b0] hover:text-white'
                 }`}
+                aria-label={item.label}
+                aria-current={isActive ? 'page' : undefined}
               >
                 <span
                   className={`material-symbols-outlined text-lg lg:text-xl transition-colors duration-200 ${
@@ -291,7 +296,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <h3 className="text-[10px] font-bold text-[#98b3b0] opacity-70 uppercase tracking-widest">
               MORADORES ONLINE
             </h3>
-            <span className="text-[10px] text-[#ffca5e] font-bold">
+            <span className="text-[10px] text-[#ffca5e] font-bold tabular-nums">
               {activeUsers.length} Online
             </span>
           </div>
@@ -319,7 +324,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
           {onSwitchHouseClick && (
             <button
               onClick={onSwitchHouseClick}
-              className="text-[#98b3b0] opacity-75 hover:opacity-100 hover:text-[#ffca5e] flex items-center gap-2.5 transition-all duration-200 text-xs font-semibold w-full py-1"
+              className="text-[#98b3b0] opacity-75 hover:opacity-100 hover:text-[#ffca5e] flex items-center gap-2.5 transition-all duration-200 active:scale-[0.96] text-xs font-semibold w-full py-1 cursor-pointer"
+              aria-label="Trocar Residência"
             >
               <span className="material-symbols-outlined text-base text-[#ffca5e]">apartment</span>
               <span>Trocar Residência</span>
@@ -327,7 +333,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
           )}
           <button
             onClick={onLogoutClick}
-            className="text-[#98b3b0] opacity-75 hover:opacity-100 hover:text-rose-300 flex items-center gap-2.5 transition-all duration-200 text-xs font-semibold w-full py-1"
+            className="text-[#98b3b0] opacity-75 hover:opacity-100 hover:text-rose-300 flex items-center gap-2.5 transition-all duration-200 active:scale-[0.96] text-xs font-semibold w-full py-1 cursor-pointer"
+            aria-label="Sair da Conta"
           >
             <span className="material-symbols-outlined text-base">logout</span>
             <span>Sair da Conta</span>

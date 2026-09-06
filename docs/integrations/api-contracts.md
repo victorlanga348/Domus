@@ -61,6 +61,38 @@
   - `400 Bad Request`: Token Google (`credential`) ausente ou malformatado.
   - `401 Unauthorized`: Token Google inválido ou expirado.
 
+### `POST /api/auth/register`
+- **Descrição:** Registra uma nova conta de morador. O campo `pin` é estritamente opcional (se omitido, o sistema aplica hash Bcrypt padrão `0000`).
+- **Payload:**
+  ```json
+  {
+    "name": "Nome Completo",
+    "email": "morador@exemplo.com",
+    "password": "senha_segura_min_6",
+    "pin": "1234" // Opcional (4 a 6 dígitos). Omitido no formulário padrão web/mobile.
+  }
+  ```
+- **Resposta (201):**
+  ```json
+  {
+    "status": "success",
+    "data": {
+      "token": "eyJhbGciOi...",
+      "user": {
+        "id": "uuid",
+        "name": "Nome Completo",
+        "email": "morador@exemplo.com",
+        "role": "MEMBER",
+        "vacation_mode": false,
+        "house_id": null
+      }
+    }
+  }
+  ```
+- **Erros:**
+  - `400 Bad Request`: Nome, e-mail inválido, senha curta (< 6 caracteres) ou PIN inválido (< 4 ou > 6 dígitos quando fornecido).
+  - `409 Conflict`: E-mail já cadastrado.
+
 ---
 
 ## 3. Endpoints de Tarefas (`/api/tasks`)
@@ -92,6 +124,40 @@
 ### `POST /api/tasks/:id/block`
 - **Payload:** `{ "reason": "Falta de produto de limpeza" }`
 - **Resposta (200):** Tarefa com status `BLOCKED`.
+
+### `PUT /api/tasks/:id` (e `PATCH /api/tasks/:id`)
+- **Descrição:** Atualiza título, descrição, turno, frequência e sincroniza a lista de participantes da tarefa, recalculando o `rotation_index` com preservação determinística da vez da escala e salto de membros em férias.
+- **Autorização:** Exclusivo para **Admin Geral** e **Sub-Admins** (`role === 'ADMIN' | 'SUB_ADMIN'`).
+- **Headers:** `x-user-id`, `x-user-role`
+- **Payload:**
+  ```json
+  {
+    "title": "Lavar a louça do jantar",
+    "shift": "MORNING",
+    "frequency": "DAILY",
+    "participant_ids": ["uuid-1", "uuid-2", "uuid-3"]
+  }
+  ```
+- **Resposta (200):**
+  ```json
+  {
+    "status": "success",
+    "message": "Tarefa atualizada com sucesso.",
+    "task": {
+      "id": "uuid-task",
+      "title": "Lavar a louça do jantar",
+      "rotation_index": 1,
+      "shift": "MORNING",
+      "frequency": "DAILY",
+      "participants": [
+        { "id": "uuid-tp-1", "user_id": "uuid-1", "user": { "id": "uuid-1", "name": "Ana", "vacation_mode": false } }
+      ]
+    }
+  }
+  ```
+- **Erros:**
+  - `403 Forbidden`: `FORBIDDEN_TASK_UPDATE` para moradores sem papel de administração.
+  - `404 Not Found`: `TASK_NOT_FOUND` se o ID da tarefa não existir.
 
 ---
 
@@ -214,5 +280,6 @@
 - **`house:leave`:** Saída da sala da residência com `{ houseId }`.
 - **`house:presence`:** Broadcast emitido para todos os dispositivos conectados à residência contendo `onlineCount`, `onlineUserIds` e lista de usuários.
 - **`house:code_regenerated`:** Broadcast emitido quando o Admin Geral regenera o código de convite da casa (`{ houseId, invite_code }`).
+- **`house:members_updated`:** Broadcast emitido quando ocorre alteração de membros (promoção, rebaixamento, adição, remoção ou transferência de liderança) com payload `{ houseId, members }`, atualizando cargos e permissões de todos os aparelhos conectados sem reload.
 - **`task:locked` / `task:unlocked`:** Sincronização em tempo real de travas de tarefas entre aparelhos.
 - **`room:join` / `room:leave` / `room:presence` / `room:new_message`:** Sincronização em tempo real de mensagens e presenças em salas privadas.

@@ -26,7 +26,6 @@ export const AuthView: React.FC<AuthViewProps> = ({ onAuthSuccess, onShowToast }
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [pin, setPin] = useState('');
 
   const handleGoogleCredentialResponse = async (response: any) => {
     if (!response || !response.credential) {
@@ -109,18 +108,17 @@ export const AuthView: React.FC<AuthViewProps> = ({ onAuthSuccess, onShowToast }
 
     try {
       if (isRegister) {
-        if (!name.trim() || !email.trim() || !password || !pin) {
+        if (!name.trim() || !email.trim() || !password) {
           throw new Error('Preencha todos os campos obrigatórios.');
         }
-        if (pin.length < 4 || pin.length > 6) {
-          throw new Error('O PIN deve conter entre 4 e 6 dígitos.');
+        if (password.length < 6) {
+          throw new Error('A senha deve conter no mínimo 6 caracteres.');
         }
 
         const data = await authApi.register({
           name: name.trim(),
           email: email.trim().toLowerCase(),
           password,
-          pin: pin.trim(),
         });
 
         onShowToast?.(`Conta criada com sucesso! Bem-vindo, ${data.user.name}.`);
@@ -288,25 +286,6 @@ export const AuthView: React.FC<AuthViewProps> = ({ onAuthSuccess, onShowToast }
             />
           </div>
 
-          {isRegister && (
-            <div>
-              <label className="block text-xs font-bold text-[#16302e] mb-1">
-                PIN de Execução Rápida (4 a 6 dígitos)
-              </label>
-              <input
-                type="password"
-                required
-                maxLength={6}
-                value={pin}
-                onChange={(e) => setPin(e.target.value.replace(/\D/g, ''))}
-                placeholder="ex: 1234"
-                className="w-full p-3 bg-[#f0fcfa] border border-[#c1c8c6] rounded-xl text-xs text-center tracking-widest font-black focus:outline-none focus:border-[#7b5800]"
-              />
-              <p className="text-[10px] text-[#727877] mt-1">
-                Usado para confirmar conclusão de tarefas sem precisar digitar a senha completa.
-              </p>
-            </div>
-          )}
 
           <button
             type="submit"

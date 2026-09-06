@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
+  <!-- Fundo Institucional DOMUS em tom ardósia-floresta nobre -->
+  <rect width="512" height="512" rx="112" fill="#16302e"/>
+  
+  <!-- Chaminé / Detalhe Arquitetural Superior -->
+  <path d="M334 178V130H374V210L334 178Z" fill="#ffca5e"/>
+  
+  <!-- Frontão Principal do Lar / Teto Geométrico em Âmbar Dourado -->
+  <path d="M256 120L100 246H142L256 156L370 246H412L256 120Z" fill="#ffca5e"/>
+  
+  <!-- Viga de Apoio e Sustentação Horizontal -->
+  <rect x="144" y="268" width="224" height="20" rx="10" fill="#ffca5e"/>
+  
+  <!-- Portal de Entrada / Acolhimento do Lar -->
+  <path d="M208 392V356C208 329.49 229.49 308 256 308C282.51 308 304 329.49 304 356V392H208Z" fill="#ffca5e"/>
+  <path d="M226 392V362C226 345.431 239.431 332 256 332C272.569 332 286 345.431 286 362V392H226Z" fill="#16302e"/>
+</svg>

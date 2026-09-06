@@ -46,3 +46,13 @@ stateDiagram-v2
 ### 4.3 Gestão e Adição de Membros
 - **Regra Estrita:** Nenhum morador comum pode convidar ou adicionar novos membros à residência.
 - **Autoridade Permitida:** Apenas o **Admin Geral** e os **Sub-Admins** possuem acesso às telas e ações de cadastro de novos moradores.
+
+### 4.4 Edição de Escala de Rodízio & Preservação da Vez
+- **Autoridade Permitida:** Exclusivo para **Admin Geral** e **Sub-Admins** (`role === 'ADMIN' | 'SUB_ADMIN'`). Moradores comuns recebem HTTP 403 Forbidden no backend e não visualizam botões de edição no frontend.
+- **Motor de Preservação de Escala (`Rotation-Preserving Engine`):**
+  1. Ao salvar alterações nos participantes de uma tarefa de rodízio, o sistema identifica quem é o morador com a vez ativa (`currentAssigneeId`).
+  2. Ordena a nova lista de participantes em ordem alfabética canônica (A-Z).
+  3. Se o morador atual permanece na nova lista, seu índice na lista reordenada é atribuído ao `rotation_index`, garantindo que **a pessoa da vez não perca seu turno** mesmo com a adição de participantes anteriores na ordem alfabética.
+  4. Se o morador atual foi excluído da lista, o `rotation_index` avança de forma suave e circular para o próximo sucessor na sequência que permaneça ativo.
+  5. Moradores em modo férias (`vacation_mode: true`) são pulados automaticamente na determinação da vez ativa (`isNext: true`), sendo identificados na interface com o badge `🏖️ Férias (fora da escala ativa)`.
+

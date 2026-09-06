@@ -42,5 +42,17 @@
   - Botão de ação: "Nomear Sucessor e Sair da Residência" (com indicador de loading durante a transação atômica no backend).
 - **Casos Especiais:** Moradores regulares e o Admin Geral quando for o único morador na residência visualizam confirmação direta sem necessidade de seletor de sucessor.
 
+### 1.9 Gaveta de Alertas & Notificações (`NotificationsDrawer`)
+- **Objetivo:** Centralizar alertas operacionais de tarefas pendentes e feed de novidades recentes da residência.
+- **Política Híbrida de Retenção (TTL 48h com Preservação de Histórico):**
+  - **Histórico & Auditoria (Imutável):** Nenhum log é apagado do banco de dados (`ActivityLog` / PostgreSQL) nem da aba de **Relatórios** (`ReportsView`), preservando 100% dos dados para governança, gráficos e estatísticas.
+  - **Feed do Sino:**
+    - **Notificações Não Lidas:** Permanecem visíveis independentemente da idade até leitura ou ação expressa do usuário, alimentando o badge vermelho do sino.
+    - **Notificações Lidas:** Permanecem visíveis por até **48 horas** (`TTL = 48h * 3600 * 1000`) após sua criação/leitura, sendo filtradas automaticamente depois deste período para manter o drawer limpo e rápido.
+    - **Botão "Limpar lidas":** Permite ao morador esvaziar visualmente da gaveta as notificações lidas a qualquer momento sem afetar o histórico.
+    - **Botão "Marcar lidas":** Marca todas as notificações visíveis como lidas.
+    - **Rodapé Informativo:** Link discreto no rodapé *"Exibindo atividades de 48h • Histórico em Relatórios"*, permitindo navegação direta para o histórico irrestrito.
+
+
 
 

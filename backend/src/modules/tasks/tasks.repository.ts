@@ -11,6 +11,15 @@ export interface CreateTaskInput {
   participant_ids: string[];
 }
 
+export interface UpdateTaskInput {
+  title?: string;
+  description?: string | null;
+  shift?: Shift;
+  frequency?: Frequency;
+  participant_ids?: string[];
+  rotation_index?: number;
+}
+
 export type TaskWithDetails = Prisma.TaskGetPayload<{
   include: {
     participants: {
@@ -156,6 +165,49 @@ export class TaskRepository {
         locked_at: null,
         last_block_reason: null,
       },
+    });
+  }
+
+  async update(id: string, data: UpdateTaskInput): Promise<TaskWithDetails> {
+    return prisma.$transaction(async (tx) => {
+      await tx.task.update({
+        where: { id },
+        data: {
+          ...(data.title !== undefined && { title: data.title }),
+          ...(data.description !== undefined && { description: data.description }),
+          ...(data.shift !== undefined && { shift: data.shift }),
+          ...(data.frequency !== undefined && { frequency: data.frequency }),
+          ...(data.rotation_index !== undefined && { rotation_index: data.rotation_index }),
+        },
+      });
+
+      if (data.participant_ids !== undefined) {
+        await tx.taskParticipant.deleteMany({
+          where: { task_id: id },
+        });
+
+        if (data.participant_ids.length > 0) {
+          await tx.taskParticipant.createMany({
+            data: data.participant_ids.map((userId) => ({
+              task_id: id,
+              user_id: userId,
+            })),
+          });
+        }
+      }
+
+      return tx.task.findUniqueOrThrow({
+        where: { id },
+        include: {
+          participants: {
+            include: {
+              user: true,
+            },
+          },
+          locked_by: true,
+          creator: true,
+        },
+      });
     });
   }
 }

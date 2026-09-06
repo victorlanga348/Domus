@@ -532,19 +532,76 @@ export const AddMemberModal: React.FC<{
 };
 
 /* --- Notifications Drawer --- */
+function getLogTimestamp(log: ActivityLog): number {
+  if (typeof log.timestamp === 'number' && !isNaN(log.timestamp) && log.timestamp > 0) {
+    return log.timestamp;
+  }
+  if (log.created_at) {
+    const t = new Date(log.created_at).getTime();
+    if (!isNaN(t) && t > 0) return t;
+  }
+  if (log.id && log.id.startsWith('log_')) {
+    const parts = log.id.split('_');
+    const t = Number(parts[1]);
+    if (!isNaN(t) && t > 1600000000000) return t;
+  }
+  return Date.now();
+}
+
 export const NotificationsDrawer: React.FC<{
   isOpen: boolean;
   onClose: () => void;
   activityLogs: ActivityLog[];
   tasks?: HouseTask[];
   onTaskStatusChange?: (taskId: string, newStatus: HouseTask['status']) => void;
-}> = ({ isOpen, onClose, activityLogs, tasks = [], onTaskStatusChange }) => {
+  readNotificationIds?: string[];
+  notificationsClearedAt?: number;
+  onClearReadNotifications?: () => void;
+  onMarkAllAsRead?: () => void;
+  onNavigateToReports?: () => void;
+}> = ({
+  isOpen,
+  onClose,
+  activityLogs,
+  tasks = [],
+  onTaskStatusChange,
+  readNotificationIds = [],
+  notificationsClearedAt = 0,
+  onClearReadNotifications,
+  onMarkAllAsRead,
+  onNavigateToReports,
+}) => {
   const [activeTab, setActiveTab] = useState<'alerts' | 'notifications'>('alerts');
 
   if (!isOpen) return null;
 
+  const TTL_48H_MS = 48 * 60 * 60 * 1000;
+  const now = Date.now();
+  const readSet = new Set(readNotificationIds);
+
   // Pending tasks that are upcoming or have advance notice set
   const alertTasks = tasks.filter((t) => t.status === 'pending');
+
+  // Filtro Híbrido TTL 48h com Preservação de Histórico:
+  // - Não lidas: permanecem visíveis até leitura do morador.
+  // - Lidas: saem automaticamente após 48h de sua criação ou se limpas manualmente pelo botão.
+  const drawerNotifications = activityLogs.filter((log) => {
+    const isRead = readSet.has(log.id);
+    if (!isRead) return true; // Não lidas nunca são descartadas por tempo
+
+    const logTime = getLogTimestamp(log);
+    const isExpiredTTL = now - logTime > TTL_48H_MS;
+    if (isExpiredTTL) return false;
+
+    if (notificationsClearedAt && logTime <= notificationsClearedAt) {
+      return false;
+    }
+
+    return true;
+  });
+
+  const unreadCountInDrawer = drawerNotifications.filter((l) => !readSet.has(l.id)).length;
+  const readCountInDrawer = drawerNotifications.filter((l) => readSet.has(l.id)).length;
 
   return (
     <div
@@ -553,7 +610,11 @@ export const NotificationsDrawer: React.FC<{
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="bg-white w-full max-w-sm h-full h-[100dvh] max-h-[100dvh] p-5 shadow-2xl flex flex-col justify-between border-l border-[#d9e5e3] overflow-y-auto animate-in slide-in-from-right duration-200"
+        className="bg-white w-full max-w-sm h-full h-[100dvh] max-h-[100dvh] px-5 shadow-2xl flex flex-col justify-between border-l border-[#d9e5e3] overflow-y-auto animate-in slide-in-from-right duration-200"
+        style={{
+          paddingTop: 'calc(1.25rem + env(safe-area-inset-top, 0px))',
+          paddingBottom: 'calc(1.25rem + env(safe-area-inset-bottom, 0px))',
+        }}
       >
         <div>
           {/* Header */}
@@ -562,7 +623,12 @@ export const NotificationsDrawer: React.FC<{
               <span className="material-symbols-outlined text-xl text-[#7b5800]">notifications_active</span>
               <h3 className="text-base font-bold">Alertas & Notificações</h3>
             </div>
-            <button onClick={onClose} className="text-[#727877] hover:text-[#16302e] p-1">
+            <button
+              type="button"
+              onClick={onClose}
+              className="text-[#727877] hover:text-[#16302e] p-1 cursor-pointer"
+              aria-label="Fechar painel de notificações"
+            >
               <span className="material-symbols-outlined text-lg">close</span>
             </button>
           </div>
@@ -571,7 +637,7 @@ export const NotificationsDrawer: React.FC<{
           <div className="flex items-center gap-1 bg-[#f0fcfa] p-1 rounded-xl border border-[#d0dddb] mb-4">
             <button
               onClick={() => setActiveTab('alerts')}
-              className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1 ${
+              className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1 cursor-pointer ${
                 activeTab === 'alerts'
                   ? 'bg-[#16302e] text-white shadow-xs'
                   : 'text-[#727877] hover:text-[#16302e]'
@@ -582,20 +648,20 @@ export const NotificationsDrawer: React.FC<{
             </button>
             <button
               onClick={() => setActiveTab('notifications')}
-              className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1 ${
+              className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1 cursor-pointer ${
                 activeTab === 'notifications'
                   ? 'bg-[#16302e] text-white shadow-xs'
                   : 'text-[#727877] hover:text-[#16302e]'
               }`}
             >
               <span className="material-symbols-outlined text-sm">check_circle</span>
-              <span>Notificações ({activityLogs.length})</span>
+              <span>Notificações ({drawerNotifications.length})</span>
             </button>
           </div>
 
           {/* TAB 1: ALERTAS DE HORÁRIO DE ATIVIDADES */}
           {activeTab === 'alerts' && (
-            <div className="space-y-2.5 max-h-[68vh] overflow-y-auto pr-1">
+            <div className="space-y-2.5 max-h-[64vh] overflow-y-auto pr-1">
               <p className="text-[11px] font-bold text-[#727877] uppercase tracking-wider mb-2">
                 Atividades prestes a acontecer ou pendentes
               </p>
@@ -654,7 +720,7 @@ export const NotificationsDrawer: React.FC<{
                       {onTaskStatusChange && (
                         <button
                           onClick={() => onTaskStatusChange(task.id, 'completed')}
-                          className="px-2.5 py-1 bg-[#16302e] hover:bg-[#2d4644] active:scale-95 text-white text-[11px] font-bold rounded-lg flex items-center gap-1 transition-all shadow-2xs shrink-0"
+                          className="px-2.5 py-1 bg-[#16302e] hover:bg-[#2d4644] active:scale-95 text-white text-[11px] font-bold rounded-lg flex items-center gap-1 transition-all shadow-2xs shrink-0 cursor-pointer"
                         >
                           <span className="material-symbols-outlined text-xs">check_circle</span>
                           <span>Concluir</span>
@@ -669,52 +735,123 @@ export const NotificationsDrawer: React.FC<{
 
           {/* TAB 2: NOTIFICAÇÕES DE EVENTOS / O QUE ACONTECEU */}
           {activeTab === 'notifications' && (
-            <div className="space-y-2.5 max-h-[68vh] overflow-y-auto pr-1">
-              <p className="text-[11px] font-bold text-[#727877] uppercase tracking-wider mb-2">
-                Histórico de atividades realizadas no site
-              </p>
+            <div className="space-y-2.5 max-h-[64vh] overflow-y-auto pr-1">
+              <div className="flex items-center justify-between gap-1.5 mb-2">
+                <p className="text-[11px] font-bold text-[#727877] uppercase tracking-wider">
+                  Atividades Recentes (48h)
+                </p>
+                <div className="flex items-center gap-1">
+                  {unreadCountInDrawer > 0 && onMarkAllAsRead && (
+                    <button
+                      type="button"
+                      onClick={onMarkAllAsRead}
+                      className="text-[10px] font-bold text-[#7b5800] hover:text-[#5d4200] hover:bg-[#fff8e6] px-2 py-0.5 rounded-md border border-[#ffca5e]/60 flex items-center gap-1 transition-all active:scale-95 cursor-pointer"
+                      title="Marcar todas como lidas"
+                    >
+                      <span className="material-symbols-outlined text-xs">done_all</span>
+                      <span>Marcar lidas</span>
+                    </button>
+                  )}
+                  {readCountInDrawer > 0 && onClearReadNotifications && (
+                    <button
+                      type="button"
+                      onClick={onClearReadNotifications}
+                      className="text-[10px] font-bold text-[#727877] hover:text-rose-700 hover:bg-rose-50 px-2 py-0.5 rounded-md border border-[#d0dddb] flex items-center gap-1 transition-all active:scale-95 cursor-pointer"
+                      title="Limpar notificações lidas da gaveta"
+                    >
+                      <span className="material-symbols-outlined text-xs">delete_sweep</span>
+                      <span>Limpar lidas</span>
+                    </button>
+                  )}
+                </div>
+              </div>
 
-              {activityLogs.length === 0 ? (
-                <div className="text-center py-10 text-[#727877] space-y-1 bg-[#f0fcfa] rounded-2xl p-4 border border-[#e4f0ee]">
-                  <span className="material-symbols-outlined text-3xl text-[#98b3b0]">history</span>
-                  <p className="text-xs font-bold text-[#16302e]">Nenhuma notificação recente.</p>
+              {drawerNotifications.length === 0 ? (
+                <div className="text-center py-8 text-[#727877] space-y-2 bg-[#f0fcfa] rounded-2xl p-4 border border-[#e4f0ee]">
+                  <span className="material-symbols-outlined text-3xl text-[#98b3b0]">check_circle</span>
+                  <p className="text-xs font-bold text-[#16302e]">Nenhuma novidade recente (48h).</p>
+                  <p className="text-[11px] text-[#727877]">
+                    Todas as notificações anteriores estão preservadas no histórico de auditoria.
+                  </p>
+                  {onNavigateToReports && (
+                    <button
+                      type="button"
+                      onClick={onNavigateToReports}
+                      className="mt-1 px-3 py-1.5 bg-white border border-[#d0dddb] hover:border-[#16302e] text-[#16302e] rounded-xl text-xs font-bold transition-all shadow-2xs inline-flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <span className="material-symbols-outlined text-sm text-[#7b5800]">description</span>
+                      <span>Acessar Relatórios</span>
+                    </button>
+                  )}
                 </div>
               ) : (
-                activityLogs.map((log) => (
-                  <div
-                    key={log.id}
-                    className="p-3 rounded-2xl bg-[#f0fcfa] border border-[#d0dddb] flex items-start justify-between gap-2 shadow-2xs hover:border-[#16302e] transition-all"
-                  >
-                    <div className="flex items-start gap-2 min-w-0">
-                      <div className="w-7 h-7 rounded-lg bg-white border border-[#d0dddb] flex items-center justify-center text-[#16302e] shrink-0 mt-0.5">
-                        <span className="material-symbols-outlined text-sm">
-                          {log.title.includes('concluída') || log.title.includes('Concluir')
-                            ? 'task_alt'
-                            : log.title.includes('excluída')
-                            ? 'delete'
-                            : 'notifications'}
-                        </span>
-                      </div>
-                      <div className="min-w-0">
-                        <p className="text-xs font-bold text-[#16302e] leading-snug">{log.title}</p>
-                        <p className="text-[10px] text-[#727877] mt-0.5 font-medium">
-                          {log.timeAgo} • Por: {log.author || log.userName || 'Sistema'}
-                        </p>
+                drawerNotifications.map((log) => {
+                  const isUnread = !readSet.has(log.id);
+                  return (
+                    <div
+                      key={log.id}
+                      className={`p-3 rounded-2xl border flex items-start justify-between gap-2 shadow-2xs transition-all ${
+                        isUnread
+                          ? 'bg-[#fffdf7] border-[#ffca5e] hover:border-[#7b5800]'
+                          : 'bg-[#f0fcfa] border-[#d0dddb] hover:border-[#16302e]'
+                      }`}
+                    >
+                      <div className="flex items-start gap-2 min-w-0">
+                        <div
+                          className={`w-7 h-7 rounded-lg border flex items-center justify-center shrink-0 mt-0.5 ${
+                            isUnread
+                              ? 'bg-[#fff8e6] border-[#ffca5e] text-[#7b5800]'
+                              : 'bg-white border-[#d0dddb] text-[#16302e]'
+                          }`}
+                        >
+                          <span className="material-symbols-outlined text-sm">
+                            {log.title.includes('concluída') || log.title.includes('Concluir')
+                              ? 'task_alt'
+                              : log.title.includes('excluída')
+                              ? 'delete'
+                              : 'notifications'}
+                          </span>
+                        </div>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-1.5">
+                            <p className="text-xs font-bold text-[#16302e] leading-snug truncate">{log.title}</p>
+                            {isUnread && (
+                              <span className="w-1.5 h-1.5 rounded-full bg-[#ffca5e] shrink-0" title="Não lida" />
+                            )}
+                          </div>
+                          <p className="text-[10px] text-[#727877] mt-0.5 font-medium">
+                            {log.timeAgo} • Por: {log.author || 'Sistema'}
+                          </p>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))
+                  );
+                })
               )}
             </div>
           )}
         </div>
 
-        <button
-          onClick={onClose}
-          className="w-full py-2.5 mt-4 bg-[#16302e] text-white text-xs font-bold uppercase rounded-xl hover:bg-[#2d4644] transition-all"
-        >
-          Fechar Notificações
-        </button>
+        {/* Discreet Footer with link to Reports & Close Button */}
+        <div className="space-y-3 pt-3 border-t border-[#e4f0ee]">
+          <button
+            type="button"
+            onClick={onNavigateToReports || onClose}
+            className="w-full text-[11px] text-[#727877] hover:text-[#16302e] hover:underline flex items-center justify-center gap-1 py-1 cursor-pointer transition-colors"
+            title="Ver histórico completo de atividades na aba Relatórios"
+          >
+            <span className="material-symbols-outlined text-sm text-[#7b5800]">history_toggle_off</span>
+            <span>Exibindo atividades de 48h • <strong>Histórico em Relatórios</strong></span>
+          </button>
+
+          <button
+            type="button"
+            onClick={onClose}
+            className="w-full py-2.5 bg-[#16302e] text-white text-xs font-bold uppercase rounded-xl hover:bg-[#2d4644] active:scale-[0.98] transition-all cursor-pointer"
+          >
+            Fechar Notificações
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -789,7 +926,11 @@ export const FamilyMembersDrawer: React.FC<{
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="bg-white w-full max-w-md h-full h-[100dvh] max-h-[100dvh] p-6 shadow-2xl flex flex-col justify-between border-l border-[#d9e5e3] overflow-y-auto animate-in slide-in-from-right duration-200"
+        className="bg-white w-full max-w-md h-full h-[100dvh] max-h-[100dvh] px-6 shadow-2xl flex flex-col justify-between border-l border-[#d9e5e3] overflow-y-auto animate-in slide-in-from-right duration-200"
+        style={{
+          paddingTop: 'calc(1.5rem + env(safe-area-inset-top, 0px))',
+          paddingBottom: 'calc(1.5rem + env(safe-area-inset-bottom, 0px))',
+        }}
       >
         <div>
           {/* Header */}

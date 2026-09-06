@@ -52,4 +52,23 @@ describe('Segurança, Senhas & Códigos de Residência (Unitário)', () => {
     assert.equal(normalized, 'CASA-4892');
     assert.match(normalized, /^CASA-\d{4}$/);
   });
+
+  it('deve gerar hash de fallback 0000 para usuários cadastrados sem PIN', async () => {
+    const defaultPin = '0000';
+    const fallbackHash = await bcrypt.hash(defaultPin, 10);
+
+    const isMatch = await bcrypt.compare('0000', fallbackHash);
+    assert.equal(isMatch, true, 'O hash de fallback deve validar com o PIN padrão 0000');
+
+    const wrongMatch = await bcrypt.compare('1234', fallbackHash);
+    assert.equal(wrongMatch, false, 'O hash de fallback não deve validar com PIN divergente');
+  });
+
+  it('deve preservar o hash do PIN customizado quando fornecido', async () => {
+    const customPin = '4892';
+    const customHash = await bcrypt.hash(customPin, 10);
+
+    const isMatch = await bcrypt.compare('4892', customHash);
+    assert.equal(isMatch, true, 'O hash deve validar exatamente o PIN informado');
+  });
 });

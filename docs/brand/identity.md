@@ -32,3 +32,19 @@ O **DOMUS** posiciona-se como um *Living System* de alto padrão: sereno, sofist
 - **Respeito à Atenção:** Proibido o uso de animações contínuas decorativas (ex.: `animate-bounce` em toasts, `animate-pulse` perpétuo em botões).
 - **Entrada e Saída Limpa:** Diálogos e notificações utilizam transições discretas (`duration-200` com fade e leve translação vertical).
 - **Sem Dependências Efêmeras:** Interfaces não dependem de URLs externas arbitrárias para compor o layout básico ou fundos de cartões.
+
+---
+
+## 6. Logotipo Oficial, Favicon & Assets PWA
+- **Conceito Visual do Símbolo:**
+  - Frontão arquitetural residencial minimalista em âmbar dourado (`#ffca5e`) com chaminé e portal de acolhimento.
+  - Fundo institucional em tom ardósia-floresta profundo (`#16302e`).
+  - Geometria calculada com zona de segurança central de 80% para plena compatibilidade com formatos adaptativos (*maskable*) do Android (círculos, esquilos e lágrimas sem corte de borda).
+- **Especificações de Arquivos e Assets:**
+  - `favicon.svg`: Vetor SVG oficial em alta resolução com suporte nativo a temas do navegador.
+  - `favicon.ico` / `favicon.png`: Formato rasterizado 48x48 para compatibilidade universal.
+  - `apple-touch-icon.png`: Ícone de 180x180 com cantos automáticos do iOS Safari.
+  - `icons/icon-192x192.png`: PWA standard (192x192) com suporte a `any` e `maskable`.
+  - `icons/icon-512x512.png`: PWA splash e alta resolução (512x512) com suporte a `any` e `maskable`.
+  - `icons/domus-logo.svg`: Master vetorial para material gráfico e telas institucionais.
+

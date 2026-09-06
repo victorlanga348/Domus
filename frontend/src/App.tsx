@@ -40,6 +40,7 @@ import {
   useHouseSocket,
   emitHouseLog,
   emitTaskCreated,
+  emitTaskUpdated,
   emitTaskDeleted,
   emitTaskStatusChanged,
   emitNoteCreated,
@@ -48,6 +49,7 @@ import {
   emitRuleCreated,
   emitRuleDeleted,
   emitRotationAdvanced,
+  emitMembersUpdated,
 } from './shared/socket/index.js';
 
 function mapBackendTaskToHouseTask(task: any, currentMembers: FamilyMember[]): HouseTask {
@@ -62,6 +64,17 @@ function mapBackendTaskToHouseTask(task: any, currentMembers: FamilyMember[]): H
 
   let assignee: any = null;
   const isRotation = Boolean(task.participants && task.participants.length > 1);
+  const rawParticipants = task.participants || [];
+  const participantIds = rawParticipants.map((p: any) => p.user_id || p.user?.id || p.id).filter(Boolean);
+  const participants = rawParticipants.map((p: any) => {
+    const u = p.user || p;
+    return {
+      id: u.id,
+      name: u.name,
+      avatar: u.avatar_url || currentMembers.find((m) => m.id === u.id)?.avatar,
+      vacation_mode: Boolean(u.vacation_mode),
+    };
+  });
 
   if (isRotation) {
     const sorted = [...task.participants].map((p: any) => p.user || p).sort((a: any, b: any) =>
@@ -99,6 +112,8 @@ function mapBackendTaskToHouseTask(task: any, currentMembers: FamilyMember[]): H
     nextMemberAvatar: assigneeAvatar,
     icon: 'task_alt',
     isRotation,
+    participantIds,
+    participants,
     frequency:
       task.frequency === 'DAILY'
         ? 'Diária'
@@ -110,6 +125,65 @@ function mapBackendTaskToHouseTask(task: any, currentMembers: FamilyMember[]): H
     completedBy: task.status === 'COMPLETED' ? (task.locked_by?.name || 'Concluído') : undefined,
     completedById: task.status === 'COMPLETED' ? (task.locked_by?.id || undefined) : undefined,
   };
+}
+
+function mapBackendTasksToRotations(backendTasks: any[], currentMembers: FamilyMember[]): TaskRotation[] {
+  const rotationTasks = backendTasks.filter((t) => t.participants && t.participants.length > 1);
+  return rotationTasks.map((t) => {
+    const sorted = [...t.participants].map((p: any) => p.user || p).sort((a: any, b: any) =>
+      (a?.name || '').localeCompare(b?.name || '', 'pt-BR', { sensitivity: 'base' })
+    );
+    const poolSize = sorted.length;
+    const baseIndex = (((t.rotation_index || 0) % poolSize) + poolSize) % poolSize;
+    let nextIdx = baseIndex;
+    for (let i = 0; i < poolSize; i++) {
+      const cand = sorted[(baseIndex + i) % poolSize];
+      if (!cand?.vacation_mode) {
+        nextIdx = (baseIndex + i) % poolSize;
+        break;
+      }
+    }
+
+    const queue = sorted.map((u: any, idx: number) => ({
+      id: u.id,
+      name: u.name,
+      avatar:
+        u.avatar_url ||
+        currentMembers.find((m) => m.id === u.id)?.avatar ||
+        `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(u.name)}`,
+      isNext: idx === nextIdx,
+      vacation_mode: Boolean(u.vacation_mode),
+    }));
+
+    const nextUser = queue.find((q) => q.isNext) || queue[0];
+    const freq =
+      t.frequency === 'DAILY'
+        ? 'Diária'
+        : t.frequency === 'WEEKLY'
+        ? 'Semanal'
+        : t.frequency === 'MONTHLY'
+        ? 'Mensal'
+        : 'Única (Um só dia)';
+
+    let period: 'morning' | 'afternoon' | 'night' = 'morning';
+    if (t.shift === 'AFTERNOON') period = 'afternoon';
+    if (t.shift === 'NIGHT') period = 'night';
+
+    return {
+      id: t.id,
+      taskId: t.id,
+      title: t.title,
+      schedule: `${freq} • Turno ${period === 'morning' ? 'Manhã' : period === 'afternoon' ? 'Tarde' : 'Noite'}`,
+      nextMember: nextUser?.name || 'Morador',
+      nextMemberAvatar: nextUser?.avatar || '',
+      queue,
+      frequency: freq,
+      poolSelection: 'Participantes selecionados',
+      icon: 'sync',
+      period,
+      participantIds: t.participants.map((p: any) => p.user_id || p.user?.id || p.id),
+    };
+  });
 }
 
 function mapBackendLogToActivityLog(log: any): ActivityLog {
@@ -126,7 +200,9 @@ function mapBackendLogToActivityLog(log: any): ActivityLog {
     title: log.comment || (log.action_type === 'COMPLETED' ? `Concluiu a tarefa` : log.action_type),
     timeAgo,
     author: log.user?.name || 'Morador',
-    type: log.action_type === 'COMPLETED' ? 'task' : 'system',
+    type: log.action_type === 'COMPLETED' && Boolean(log.task_id) ? 'task' : 'system',
+    created_at: log.created_at || new Date().toISOString(),
+    timestamp: time.getTime(),
   };
 }
 
@@ -173,11 +249,35 @@ export default function App() {
     return saved ? JSON.parse(saved) : null;
   });
 
-  // 3. Navegação & Abas
-  const [currentTab, setCurrentTab] = useState<TabType>('dashboard');
-  const [subTab, setSubTab] = useState<string>('bulletin');
+  // 3. Navegação & Abas (Persistidas para manter o estado após bloqueio/reativação do celular)
+  const [currentTab, setCurrentTab] = useState<TabType>(() => {
+    const saved = localStorage.getItem('domus_active_tab') as TabType | null;
+    return saved && ['dashboard', 'tasks', 'reports', 'statistics', 'settings'].includes(saved) ? saved : 'dashboard';
+  });
+  const [subTab, setSubTab] = useState<string>(() => {
+    return localStorage.getItem('domus_active_subtab') || 'bulletin';
+  });
   const [vacationMode, setVacationMode] = useState<boolean>(() => authUser?.vacation_mode || false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [deferredInstallPrompt, setDeferredInstallPrompt] = useState<any>(null);
+
+  useEffect(() => {
+    localStorage.setItem('domus_active_tab', currentTab);
+  }, [currentTab]);
+
+  useEffect(() => {
+    localStorage.setItem('domus_active_subtab', subTab);
+  }, [subTab]);
+
+  // Captura o evento nativo de instalação do PWA para uso nas Configurações
+  useEffect(() => {
+    const handleBeforeInstallPrompt = (e: Event) => {
+      e.preventDefault();
+      setDeferredInstallPrompt(e);
+    };
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    return () => window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+  }, []);
 
   // 4. Estados Reais por Residência
   const houseKey = currentHouse ? `domus_house_${currentHouse.id}` : null;
@@ -245,6 +345,25 @@ export default function App() {
     return [];
   });
 
+  const [readNotificationIds, setReadNotificationIds] = useState<string[]>(() => {
+    if (!houseKey) return [];
+    const saved = localStorage.getItem(`${houseKey}_read_notifications`);
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch {
+        return [];
+      }
+    }
+    return [];
+  });
+
+  const [notificationsClearedAt, setNotificationsClearedAt] = useState<number>(() => {
+    if (!houseKey) return 0;
+    const saved = localStorage.getItem(`${houseKey}_notifications_cleared_at`);
+    return saved ? Number(saved) || 0 : 0;
+  });
+
   const [preferences, setPreferences] = useState<SystemPreferences>(() => {
     if (!houseKey) return INITIAL_PREFERENCES;
     const saved = localStorage.getItem(`${houseKey}_prefs`);
@@ -299,6 +418,8 @@ export default function App() {
       localStorage.setItem(`${houseKey}_expenses`, JSON.stringify(expenses));
       localStorage.setItem(`${houseKey}_rules`, JSON.stringify(houseRules));
       localStorage.setItem(`${houseKey}_logs`, JSON.stringify(activityLogs));
+      localStorage.setItem(`${houseKey}_read_notifications`, JSON.stringify(readNotificationIds));
+      localStorage.setItem(`${houseKey}_notifications_cleared_at`, String(notificationsClearedAt));
       localStorage.setItem(`${houseKey}_prefs`, JSON.stringify(preferences));
       localStorage.setItem(`${houseKey}_notes`, JSON.stringify(muralNotes));
       localStorage.setItem(`${houseKey}_statuses`, JSON.stringify(memberStatuses));
@@ -311,6 +432,8 @@ export default function App() {
     expenses,
     houseRules,
     activityLogs,
+    readNotificationIds,
+    notificationsClearedAt,
     preferences,
     muralNotes,
     memberStatuses,
@@ -326,20 +449,25 @@ export default function App() {
     (
       title: string,
       author?: string,
-      actionType: 'COMPLETED' | 'FAILED' | 'BLOCKED' | 'LOCKED' | 'ROTATED' = 'COMPLETED',
+      actionType?: 'COMPLETED' | 'FAILED' | 'BLOCKED' | 'LOCKED' | 'ROTATED',
       taskId?: string
     ) => {
+      const isTaskCompleted = actionType === 'COMPLETED' && Boolean(taskId);
+      const nowTs = Date.now();
       const newLog: ActivityLog = {
-        id: `log_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+        id: `log_${nowTs}_${Math.random().toString(36).substring(2, 6)}`,
         title,
         timeAgo: 'Agora mesmo',
         author: author || authUser?.name || 'Morador',
-        type: actionType === 'COMPLETED' ? 'task' : 'system',
+        type: isTaskCompleted ? 'task' : 'system',
+        created_at: new Date(nowTs).toISOString(),
+        timestamp: nowTs,
       };
       setActivityLogs((prev) => [newLog, ...prev]);
       if (currentHouse?.id) {
         emitHouseLog(currentHouse.id, newLog);
-        if (authUser?.id) {
+        // Apenas persiste na tabela ActivityLog do backend se houver ação de tarefa e taskId válidos
+        if (authUser?.id && actionType && taskId) {
           activityLogsApi
             .createLog({
               house_id: currentHouse.id,
@@ -372,6 +500,8 @@ export default function App() {
               bm.avatar_url ||
               existing?.avatar ||
               `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(bm.name)}`,
+            statusTag: bm.vacation_mode ? 'Férias' : existing?.statusTag,
+            vacation_mode: Boolean(bm.vacation_mode ?? existing?.vacation_mode),
           };
         });
 
@@ -391,6 +521,14 @@ export default function App() {
       dashboardApi
         .getDashboardData(currentHouse.id, authUser.id)
         .then((data) => {
+          if (data?.house) {
+            setCurrentHouse((prev) => ({
+              ...(prev || {}),
+              id: data.house.id,
+              name: data.house.name,
+              invite_code: data.house.invite_code,
+            }));
+          }
           if (data?.members && data.members.length > 0) {
             handleSyncMembers(data.members);
           }
@@ -408,6 +546,10 @@ export default function App() {
         .then((backendTasks) => {
           if (Array.isArray(backendTasks) && backendTasks.length > 0) {
             setTasks(backendTasks.map((t) => mapBackendTaskToHouseTask(t, familyMembers)));
+            const generatedRotations = mapBackendTasksToRotations(backendTasks, familyMembers);
+            if (generatedRotations.length > 0) {
+              setRotations(generatedRotations);
+            }
           }
         })
         .catch((err) => {
@@ -437,7 +579,14 @@ export default function App() {
           setOnlineUserIds(presenceData.onlineUserIds);
         }
       },
-      onMembersUpdated: () => {
+      onMembersUpdated: (data: any) => {
+        if (data?.members && Array.isArray(data.members)) {
+          setFamilyMembers(data.members);
+          if (houseKey) {
+            localStorage.setItem(`${houseKey}_members`, JSON.stringify(data.members));
+          }
+          return;
+        }
         if (currentHouse?.id && authUser?.id) {
           dashboardApi
             .getDashboardData(currentHouse.id, authUser.id)
@@ -458,6 +607,33 @@ export default function App() {
           if (prev.some((t) => t.id === incomingTask.id)) return prev;
           return [incomingTask, ...prev];
         });
+      },
+      onTaskUpdated: (incomingData: any) => {
+        const taskPayload = incomingData?.task || incomingData;
+        if (taskPayload?.id) {
+          const mapped = mapBackendTaskToHouseTask(taskPayload, familyMembers);
+          setTasks((prev) => prev.map((t) => (t.id === mapped.id ? mapped : t)));
+          setRotations((prev) => {
+            const generated = mapBackendTasksToRotations([taskPayload], familyMembers);
+            if (generated.length === 0) return prev.filter((r) => r.id !== mapped.id && r.taskId !== mapped.id);
+            const exists = prev.some((r) => r.id === mapped.id || r.taskId === mapped.id);
+            if (exists) return prev.map((r) => (r.id === mapped.id || r.taskId === mapped.id ? generated[0] : r));
+            return [...generated, ...prev];
+          });
+        }
+      },
+      onVacationChanged: ({ userId, vacation_mode }: { userId: string; vacation_mode: boolean }) => {
+        setFamilyMembers((prev) =>
+          prev.map((m) => (m.id === userId ? { ...m, vacation_mode, statusTag: vacation_mode ? 'Férias' : undefined } : m))
+        );
+        if (currentHouse?.id && authUser?.id) {
+          tasksApi.getTasks(currentHouse.id, authUser.id).then((backendTasks) => {
+            if (Array.isArray(backendTasks)) {
+              setTasks(backendTasks.map((t) => mapBackendTaskToHouseTask(t, familyMembers)));
+              setRotations(mapBackendTasksToRotations(backendTasks, familyMembers));
+            }
+          }).catch(() => {});
+        }
       },
       onTaskDeleted: ({ taskId }: { taskId: string }) => {
         setTasks((prev) => prev.filter((t) => t.id !== taskId));
@@ -542,6 +718,51 @@ export default function App() {
     return online.length > 0 ? online : familyMembers;
   }, [familyMembers, onlineUserIds]);
 
+  // Contagem estrita de notificações não vistas para o indicador do sino
+  const unreadNotificationCount = useMemo(() => {
+    const readSet = new Set(readNotificationIds);
+    return activityLogs.filter((log) => !readSet.has(log.id)).length;
+  }, [activityLogs, readNotificationIds]);
+
+  // Ao abrir o painel de notificações, marca todos os logs correntes como lidos
+  const handleOpenNotifications = useCallback(() => {
+    setIsNotificationsOpen(true);
+    const currentIds = activityLogs.map((log) => log.id);
+    setReadNotificationIds((prev) => {
+      const updated = Array.from(new Set([...prev, ...currentIds]));
+      if (houseKey) {
+        localStorage.setItem(`${houseKey}_read_notifications`, JSON.stringify(updated));
+      }
+      return updated;
+    });
+  }, [activityLogs, houseKey]);
+
+  const handleClearReadNotifications = useCallback(() => {
+    const now = Date.now();
+    setNotificationsClearedAt(now);
+    if (houseKey) {
+      localStorage.setItem(`${houseKey}_notifications_cleared_at`, String(now));
+    }
+    showToast('Notificações lidas foram limpas da gaveta.');
+  }, [houseKey, showToast]);
+
+  const handleMarkAllAsRead = useCallback(() => {
+    const currentIds = activityLogs.map((log) => log.id);
+    setReadNotificationIds((prev) => {
+      const updated = Array.from(new Set([...prev, ...currentIds]));
+      if (houseKey) {
+        localStorage.setItem(`${houseKey}_read_notifications`, JSON.stringify(updated));
+      }
+      return updated;
+    });
+    showToast('Todas as notificações foram marcadas como lidas.');
+  }, [activityLogs, houseKey, showToast]);
+
+  const handleNavigateToReports = useCallback(() => {
+    setIsNotificationsOpen(false);
+    setCurrentTab('reports');
+  }, []);
+
   const handleAuthSuccess = (user: AuthUser, token: string) => {
     setAuthUser(user);
     setAuthToken(token);
@@ -551,7 +772,7 @@ export default function App() {
       setCurrentHouse({
         id: user.house_id,
         name: 'Minha Residência',
-        invite_code: 'CASA-DOMUS',
+        invite_code: '',
       });
     }
   };
@@ -610,6 +831,12 @@ export default function App() {
   };
 
   const handleSwitchHouse = () => {
+    const isGeneralAdmin = currentUser.role === 'Admin Geral' || authUser?.role === 'ADMIN';
+    const otherMembers = familyMembers.filter((m) => m.id !== authUser?.id && m.email !== authUser?.email);
+    if (isGeneralAdmin && otherMembers.length > 0) {
+      showToast('Como Admin Geral, você não pode trocar de residência sem antes transferir a liderança.');
+      return;
+    }
     setCurrentHouse(null);
     localStorage.removeItem('domus_auth_house');
     showToast('Alternando de residência. Escolha uma residência salva ou funde uma nova.');
@@ -658,8 +885,11 @@ export default function App() {
     setExpenses([]);
     setHouseRules([]);
     setActivityLogs([]);
+    setReadNotificationIds([]);
     setMuralNotes([]);
     setMemberStatuses([]);
+    setCurrentTab('dashboard');
+    setSubTab('bulletin');
     showToast('Sessão encerrada.');
   };
 
@@ -668,6 +898,11 @@ export default function App() {
     setVacationMode(next);
     if (authUser) {
       setAuthUser({ ...authUser, vacation_mode: next });
+    }
+    if (authUser?.id) {
+      tasksApi.toggleVacation(authUser.id).catch((err) => {
+        console.warn('[Vacation] Erro ao persistir modo férias no backend:', err);
+      });
     }
     recordHouseActivity(`${authUser?.name || 'Morador'} ${next ? 'ativou' : 'desativou'} o modo férias.`);
     showToast(next ? 'Modo Férias Ativado: Você foi temporariamente pausado do rodízio.' : 'Modo Férias Desativado: Retornando à escala normal.');
@@ -733,7 +968,14 @@ export default function App() {
     };
 
     const matchedMember = familyMembers.find((m) => m.name === newTask.nextMember);
-    const participantIds = matchedMember ? [matchedMember.id] : authUser?.id ? [authUser.id] : [];
+    const participantIds =
+      newTask.participantIds && newTask.participantIds.length > 0
+        ? newTask.participantIds
+        : matchedMember
+        ? [matchedMember.id]
+        : authUser?.id
+        ? [authUser.id]
+        : [];
 
     let taskObj: HouseTask;
     if (currentHouse?.id && authUser?.id) {
@@ -765,11 +1007,89 @@ export default function App() {
     }
 
     setTasks((prev) => [taskObj, ...prev]);
+    if (taskObj.isRotation) {
+      setRotations((prev) => {
+        if (prev.some((r) => r.id === taskObj.id || r.taskId === taskObj.id)) return prev;
+        const newRot = mapBackendTasksToRotations([taskObj], familyMembers);
+        return [...newRot, ...prev];
+      });
+    }
+
     if (currentHouse?.id) {
       emitTaskCreated(currentHouse.id, taskObj);
     }
     recordHouseActivity(`Nova tarefa "${taskObj.title}" criada.`, authUser?.name, 'ROTATED', taskObj.id);
     showToast(`Tarefa "${taskObj.title}" criada com sucesso!`);
+  };
+
+  const handleUpdateTask = async (
+    taskId: string,
+    data: {
+      title: string;
+      period: 'morning' | 'afternoon' | 'night';
+      frequency: string;
+      participantIds: string[];
+    }
+  ) => {
+    const shiftMap: Record<string, 'MORNING' | 'AFTERNOON' | 'NIGHT'> = {
+      morning: 'MORNING',
+      afternoon: 'AFTERNOON',
+      night: 'NIGHT',
+    };
+
+    const frequencyMap: Record<string, 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'ONCE'> = {
+      'Diária': 'DAILY',
+      'Semanal': 'WEEKLY',
+      'Mensal': 'MONTHLY',
+      'Única (Um só dia)': 'ONCE',
+    };
+
+    if (currentHouse?.id && authUser?.id) {
+      try {
+        const result = await tasksApi.updateTask(
+          taskId,
+          {
+            title: data.title,
+            shift: shiftMap[data.period] || 'MORNING',
+            frequency: frequencyMap[data.frequency] || 'DAILY',
+            participant_ids: data.participantIds,
+          },
+          authUser.id,
+          currentUser.role
+        );
+
+        const updatedTaskObj = mapBackendTaskToHouseTask(result.task, familyMembers);
+        setTasks((prev) => prev.map((t) => (t.id === taskId ? updatedTaskObj : t)));
+
+        // Sincroniza a lista de rodízios
+        setRotations((prev) => {
+          const generated = mapBackendTasksToRotations([result.task], familyMembers);
+          if (generated.length === 0) {
+            return prev.filter((r) => r.id !== taskId && r.taskId !== taskId);
+          }
+          const exists = prev.some((r) => r.id === taskId || r.taskId === taskId);
+          if (exists) {
+            return prev.map((r) => (r.id === taskId || r.taskId === taskId ? generated[0] : r));
+          }
+          return [...generated, ...prev];
+        });
+
+        if (currentHouse?.id) {
+          emitTaskUpdated(currentHouse.id, updatedTaskObj);
+        }
+
+        recordHouseActivity(
+          `Escala de rodízio da tarefa "${data.title}" foi atualizada por ${authUser.name}.`,
+          authUser.name,
+          'ROTATED',
+          taskId
+        );
+        showToast('Escala de rodízio atualizada com sucesso!');
+      } catch (err: any) {
+        showToast(err.message || 'Erro ao atualizar escala de rodízio.');
+        throw err;
+      }
+    }
   };
 
   const handleDeleteTask = async (taskId: string) => {
@@ -926,7 +1246,14 @@ export default function App() {
       return;
     }
     const newMember: FamilyMember = { ...member, id: `m_${Date.now()}` };
-    setFamilyMembers((prev) => [...prev, newMember]);
+    const updated = [...familyMembers, newMember];
+    setFamilyMembers(updated);
+    if (houseKey) {
+      localStorage.setItem(`${houseKey}_members`, JSON.stringify(updated));
+    }
+    if (currentHouse?.id) {
+      emitMembersUpdated(currentHouse.id, { members: updated });
+    }
     recordHouseActivity(`Novo membro adicionado: ${member.name} (${member.role})`);
     showToast(`Membro ${member.name} adicionado com sucesso!`);
   };
@@ -936,17 +1263,31 @@ export default function App() {
       showToast('Você não pode se auto-remover pelas configurações. Use a opção Trocar ou Sair da Residência.');
       return;
     }
-    setFamilyMembers((prev) => prev.filter((m) => m.id !== memberId));
+    const updated = familyMembers.filter((m) => m.id !== memberId);
+    setFamilyMembers(updated);
     setMemberStatuses((prev) => prev.filter((s) => s.id !== memberId));
+    if (houseKey) {
+      localStorage.setItem(`${houseKey}_members`, JSON.stringify(updated));
+    }
+    if (currentHouse?.id) {
+      emitMembersUpdated(currentHouse.id, { members: updated });
+    }
     recordHouseActivity(`${memberName} foi removido da residência por ${authUser?.name || 'Administrador'}`);
     showToast(`Membro ${memberName} removido da residência.`);
   };
 
   const handlePromoteToAdmin = (memberId: string) => {
     const member = familyMembers.find((m) => m.id === memberId);
-    setFamilyMembers((prev) =>
-      prev.map((m) => (m.id === memberId ? { ...m, role: 'Admin' } : m))
+    const updated: FamilyMember[] = familyMembers.map((m) =>
+      m.id === memberId ? { ...m, role: 'Admin' as const } : m
     );
+    setFamilyMembers(updated);
+    if (houseKey) {
+      localStorage.setItem(`${houseKey}_members`, JSON.stringify(updated));
+    }
+    if (currentHouse?.id) {
+      emitMembersUpdated(currentHouse.id, { members: updated });
+    }
     if (member) {
       recordHouseActivity(`${member.name} foi promovido a Administrador Normal por ${authUser?.name}`);
     }
@@ -955,9 +1296,16 @@ export default function App() {
 
   const handleDemoteToResident = (memberId: string) => {
     const member = familyMembers.find((m) => m.id === memberId);
-    setFamilyMembers((prev) =>
-      prev.map((m) => (m.id === memberId ? { ...m, role: 'Resident' } : m))
+    const updated: FamilyMember[] = familyMembers.map((m) =>
+      m.id === memberId ? { ...m, role: 'Resident' as const } : m
     );
+    setFamilyMembers(updated);
+    if (houseKey) {
+      localStorage.setItem(`${houseKey}_members`, JSON.stringify(updated));
+    }
+    if (currentHouse?.id) {
+      emitMembersUpdated(currentHouse.id, { members: updated });
+    }
     if (member) {
       recordHouseActivity(`${member.name} foi destituído para Morador regular por ${authUser?.name}`);
     }
@@ -977,19 +1325,19 @@ export default function App() {
   const handleConfirmLeadershipTransfer = () => {
     if (!transferTarget) return;
 
+    let updated: FamilyMember[] = [];
     if (transferTarget.member) {
       const targetId = transferTarget.member.id;
-      setFamilyMembers((prev) =>
-        prev.map((m) => {
-          if (m.id === targetId) {
-            return { ...m, role: 'Admin Geral', isPrimary: true };
-          }
-          if (m.role === 'Admin Geral' || m.id === authUser?.id) {
-            return { ...m, role: 'Admin', isPrimary: false };
-          }
-          return m;
-        })
-      );
+      updated = familyMembers.map((m) => {
+        if (m.id === targetId) {
+          return { ...m, role: 'Admin Geral' as const, isPrimary: true };
+        }
+        if (m.role === 'Admin Geral' || m.id === authUser?.id) {
+          return { ...m, role: 'Admin' as const, isPrimary: false };
+        }
+        return m;
+      });
+      setFamilyMembers(updated);
       recordHouseActivity(`Liderança da residência transferida para ${transferTarget.member.name}`);
       showToast(`Liderança transferida para ${transferTarget.member.name}! Você agora é Admin Normal.`);
     } else if (transferTarget.newMemberData) {
@@ -999,14 +1347,22 @@ export default function App() {
         role: 'Admin Geral',
         isPrimary: true,
       };
-      setFamilyMembers((prev) => [
-        ...prev.map((m) =>
+      updated = [
+        ...familyMembers.map((m) =>
           m.role === 'Admin Geral' || m.id === authUser?.id ? { ...m, role: 'Admin' as const, isPrimary: false } : m
         ),
         newCreatedMember,
-      ]);
+      ];
+      setFamilyMembers(updated);
       recordHouseActivity(`Novo Admin Geral nomeado: ${transferTarget.newMemberData.name}`);
       showToast(`Novo Admin Geral ${transferTarget.newMemberData.name} cadastrado! Você agora é Admin Normal.`);
+    }
+
+    if (houseKey && updated.length > 0) {
+      localStorage.setItem(`${houseKey}_members`, JSON.stringify(updated));
+    }
+    if (currentHouse?.id && updated.length > 0) {
+      emitMembersUpdated(currentHouse.id, { members: updated });
     }
 
     setIsTransferModalOpen(false);
@@ -1099,7 +1455,10 @@ export default function App() {
       <>
         <AuthView onAuthSuccess={handleAuthSuccess} />
         {toastMessage && (
-          <div className="fixed bottom-6 right-6 z-50 bg-[#16302e] text-white px-5 py-3 rounded-2xl shadow-lg border border-[#2d4644] text-xs font-semibold flex items-center gap-3 animate-in fade-in slide-in-from-bottom-2 duration-200">
+          <div
+            className="fixed bottom-6 right-6 z-50 bg-[#16302e] text-white px-5 py-3 rounded-2xl shadow-lg border border-[#2d4644] text-xs font-semibold flex items-center gap-3 animate-in fade-in slide-in-from-bottom-2 duration-200"
+            style={{ bottom: 'calc(1.5rem + env(safe-area-inset-bottom, 0px))' }}
+          >
             <span className="material-symbols-outlined text-[#ffca5e] text-base">info</span>
             <span>{toastMessage}</span>
           </div>
@@ -1119,7 +1478,10 @@ export default function App() {
           onLogout={handleLogout}
         />
         {toastMessage && (
-          <div className="fixed bottom-6 right-6 z-50 bg-[#16302e] text-white px-5 py-3 rounded-2xl shadow-lg border border-[#2d4644] text-xs font-semibold flex items-center gap-3 animate-in fade-in slide-in-from-bottom-2 duration-200">
+          <div
+            className="fixed bottom-6 right-6 z-50 bg-[#16302e] text-white px-5 py-3 rounded-2xl shadow-lg border border-[#2d4644] text-xs font-semibold flex items-center gap-3 animate-in fade-in slide-in-from-bottom-2 duration-200"
+            style={{ bottom: 'calc(1.5rem + env(safe-area-inset-bottom, 0px))' }}
+          >
             <span className="material-symbols-outlined text-[#ffca5e] text-base">info</span>
             <span>{toastMessage}</span>
           </div>
@@ -1128,9 +1490,9 @@ export default function App() {
     );
   }
 
-  // Nível 3: Autenticado e com Residência ➔ Aplicação Principal DOMUS
+  // Nível 3: Autenticado e com Residência ➔ Aplicação Principal Domus
   return (
-    <div className="flex h-screen h-[100dvh] max-h-[100dvh] w-full max-w-full bg-[#e4f0ee] overflow-hidden text-[#131e1d]">
+    <div className="flex min-h-[100dvh] w-full max-w-full bg-[#F4F9F7] text-[#131e1d]">
       {/* Sidebar Navigation */}
       <Sidebar
         currentTab={currentTab}
@@ -1150,7 +1512,7 @@ export default function App() {
       />
 
       {/* Main Content Area */}
-      <main className="ml-0 md:ml-[250px] lg:ml-[280px] flex-1 min-w-0 max-w-full flex flex-col bg-[#f0fcfa] h-full overflow-y-auto overflow-x-hidden relative">
+      <main className="ml-0 md:ml-[250px] lg:ml-[280px] flex-1 min-w-0 max-w-full flex flex-col bg-[#F4F9F7] min-h-[100dvh] relative">
         {/* Top Header */}
         <Header
           currentTab={currentTab}
@@ -1158,20 +1520,25 @@ export default function App() {
           onSubTabChange={setSubTab}
           vacationMode={vacationMode}
           onToggleVacationMode={handleToggleVacationMode}
-          unreadNotificationCount={activityLogs.length}
-          onOpenNotifications={() => setIsNotificationsOpen(true)}
+          unreadNotificationCount={unreadNotificationCount}
+          onOpenNotifications={handleOpenNotifications}
           onOpenMembersDrawer={() => setIsMembersDrawerOpen(true)}
           onSwitchHouse={handleSwitchHouse}
           onToggleMobileMenu={() => setIsMobileMenuOpen((prev) => !prev)}
         />
 
         {/* Dynamic View Canvas */}
-        <div className="flex-1 min-w-0 max-w-full pb-6 md:pb-12 overflow-x-hidden">
+        <div
+          className="flex-1 min-w-0 max-w-full pb-6 md:pb-12"
+          style={{ paddingBottom: 'calc(1.5rem + env(safe-area-inset-bottom, 0px))' }}
+        >
           {currentTab === 'dashboard' && (
             <DashboardView
               currentUserId={authUser.id}
               currentUserName={authUser.name}
               currentHouseId={currentHouse.id}
+              houseName={currentHouse?.name}
+              houseInviteCode={currentHouse?.invite_code}
               subTab={subTab}
               vacationMode={vacationMode}
               onShowToast={showToast}
@@ -1180,6 +1547,14 @@ export default function App() {
               onDeleteMuralNote={handleDeleteMuralNote}
               familyMembers={familyMembers}
               onSyncMembers={handleSyncMembers}
+              onSyncHouse={(house) => {
+                setCurrentHouse((prev) => ({
+                  ...(prev || {}),
+                  id: house.id,
+                  name: house.name,
+                  invite_code: house.invite_code,
+                }));
+              }}
             />
           )}
 
@@ -1192,6 +1567,7 @@ export default function App() {
               currentUserRole={currentUser.role}
               currentUserName={authUser?.name}
               onAddTask={handleAddTask}
+              onUpdateTask={handleUpdateTask}
               onTaskStatusChange={handleTaskStatusChange}
               onDeleteTask={handleDeleteTask}
               onRotateNext={handleRotateNext}
@@ -1220,6 +1596,8 @@ export default function App() {
               houseName={currentHouse?.name}
               onRegenerateCode={() => setIsRegenerateCodeModalOpen(true)}
               onShowToast={showToast}
+              installPromptEvent={deferredInstallPrompt}
+              onInstallAccepted={() => setDeferredInstallPrompt(null)}
             />
           )}
 
@@ -1248,7 +1626,10 @@ export default function App() {
 
       {/* Toast Notification Banner */}
       {toastMessage && (
-        <div className="fixed bottom-6 right-6 z-50 bg-[#16302e] text-white px-5 py-3 rounded-2xl shadow-lg border border-[#2d4644] text-xs font-semibold flex items-center gap-3 animate-in fade-in slide-in-from-bottom-2 duration-200">
+        <div
+          className="fixed bottom-6 right-6 z-50 bg-[#16302e] text-white px-5 py-3 rounded-2xl shadow-lg border border-[#2d4644] text-xs font-semibold flex items-center gap-3 animate-in fade-in slide-in-from-bottom-2 duration-200"
+          style={{ bottom: 'calc(1.5rem + env(safe-area-inset-bottom, 0px))' }}
+        >
           <span className="material-symbols-outlined text-[#ffca5e] text-base">info</span>
           <span>{toastMessage}</span>
         </div>
@@ -1298,6 +1679,11 @@ export default function App() {
         activityLogs={activityLogs}
         tasks={tasks}
         onTaskStatusChange={handleTaskStatusChange}
+        readNotificationIds={readNotificationIds}
+        notificationsClearedAt={notificationsClearedAt}
+        onClearReadNotifications={handleClearReadNotifications}
+        onMarkAllAsRead={handleMarkAllAsRead}
+        onNavigateToReports={handleNavigateToReports}
       />
 
       <FamilyMembersDrawer
