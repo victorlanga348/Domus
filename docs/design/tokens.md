@@ -13,6 +13,7 @@
 | `--accent-amber`  | `#f59e0b` (`amber-500`)   | Status `LOCKED`, alertas e pendências |
 | `--accent-rose`   | `#f43f5e` (`rose-500`)    | Status `BLOCKED`, alertas críticos |
 | `--accent-indigo` | `#6366f1` (`indigo-500`)  | Botões primários e seleções ativas |
+| `--color-domus-surface` | `#F4F9F7` | Fundo principal da aplicação e barras do PWA |
 
 ---
 

@@ -134,7 +134,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   }}
                   className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-xs font-bold transition-all active:scale-[0.96] cursor-pointer ${
                     isActive
-                      ? 'bg-[#f0fcfa] text-[#16302e] shadow-md'
+                      ? 'bg-[#F4F9F7] text-[#16302e] shadow-md'
                       : 'text-[#98b3b0] hover:text-white hover:bg-[#2d4644]/50'
                   }`}
                   aria-label={item.label}
@@ -247,7 +247,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               transform: `translateY(${indicatorStyle.top}px)`,
             }}
           >
-            <div className="w-full h-full bg-[#f0fcfa] rounded-l-full relative">
+            <div className="w-full h-full bg-[#F4F9F7] rounded-l-full relative">
               <div className="sidebar-curve-top" />
               <div className="sidebar-curve-bottom" />
             </div>

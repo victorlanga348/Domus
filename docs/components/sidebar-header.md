@@ -6,7 +6,7 @@
   - `household`: Dados da residência ativa.
   - `onSwitchUser`: Callback para troca de perfil rápido ou reautenticação.
 - **Acessibilidade & PWA Safe Area:**
-  - Suporte nativo a Safe Area Inset Top (`padding-top: env(safe-area-inset-top, 0px)`): o elemento `<header>` possui posicionamento `sticky top-0 z-50` com fundo sólido `#f0fcfa` estendendo-se até o topo físico da tela, em perfeita fusão com a `theme-color: #f0fcfa` do sistema.
+  - Suporte nativo a Safe Area Inset Top (`padding-top: env(safe-area-inset-top, 0px)`): o elemento `<header>` possui posicionamento `sticky top-0 z-50` com fundo sólido `#F4F9F7` estendendo-se até o topo físico da tela, em perfeita fusão com a `theme-color: #F4F9F7` do sistema.
   - Container interno flex com altura mínima `min-h-[56px] sm:min-h-[64px]` garantindo que os botões (menu sanduíche, modo férias, notificações, moradores) e o título "Domus" fiquem centralizados e confortavelmente alinhados abaixo do notch / Dynamic Island.
   - Botão de alternância com `aria-label` descritivo.
   - Indicador visual claro do status da conexão/casa.
@@ -28,8 +28,8 @@
   - `isMobileOpen`: Booleano para controle do drawer mobile.
   - `onCloseMobile`: Callback de fechamento do drawer mobile.
 - **Animação & Estilo Visual (Desktop Cut-Out):**
-  - **Fusão Contínua:** O item ativo possui fundo `#f0fcfa` contínuo com o canvas principal (`<main>`), sem bordas ou sombras divisórias.
-  - **Abas Invertidas (Inverted Border-Radius):** Cantos côncavos superior (`.sidebar-curve-top`) e inferior (`.sidebar-curve-bottom`) com `box-shadow` negativo calibrado para `#f0fcfa`, conectando a barra lateral escura ao painel claro.
+  - **Fusão Contínua:** O item ativo possui fundo `#F4F9F7` contínuo com o canvas principal (`<main>`), sem bordas ou sombras divisórias.
+  - **Abas Invertidas (Inverted Border-Radius):** Cantos côncavos superior (`.sidebar-curve-top`) e inferior (`.sidebar-curve-bottom`) com `box-shadow` negativo calibrado para `#F4F9F7`, conectando a barra lateral escura ao painel claro.
   - **Indicador Deslizante:** Transição vertical fluida (`transform: translateY`) ancorada em `top: 0` com timing `0.35s cubic-bezier(0.4, 0, 0.2, 1)`, acionada exclusivamente por evento de clique (`onTabChange` / rota ativa) com classe `.active`, sem transições por hover.
 - **Responsividade, Viewport Dinâmico & PWA Safe Areas:**
   - **Drawer Mobile Desmontado quando Inativo:** O drawer móvel é renderizado condicionalmente (`{isMobileOpen && (...)}`), sendo totalmente removido da árvore do DOM quando fechado. Isso elimina 100% de animações de fechamento involuntárias ou flashes de transição quando o celular é reativado após bloqueio de tela.

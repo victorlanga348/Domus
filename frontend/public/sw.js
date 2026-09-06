@@ -1,15 +1,15 @@
-// Domus - Progressive Web App Service Worker (Network Pass-Through)
-// Mantém registro ativo para habilitar instalação nativa PWA no Android/Chrome
+// Domus - Progressive Web App Service Worker (Network Pass-Through com fallback de cache)
+// Habilita instalação nativa PWA no Android/Chrome e iOS
 
-self.addEventListener('install', () => {
+self.addEventListener('install', (e) => {
   self.skipWaiting();
 });
 
-self.addEventListener('activate', (event) => {
-  event.waitUntil(self.clients.claim());
+self.addEventListener('activate', (e) => {
+  e.waitUntil(clients.claim());
 });
 
-// Pass-through total: requisições sempre diretas à rede sem bloqueio ou cache defasado
-self.addEventListener('fetch', (event) => {
-  event.respondWith(fetch(event.request));
+self.addEventListener('fetch', (e) => {
+  // Pass-through fetch padrão com fallback resiliente para cache
+  e.respondWith(fetch(e.request).catch(() => caches.match(e.request)));
 });

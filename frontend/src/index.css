@@ -9,9 +9,10 @@
     max-width: 100%;
     min-height: 100%;
     min-height: 100dvh;
-    background-color: #f0fcfa;
+    background-color: #F4F9F7;
     box-sizing: border-box;
     touch-action: manipulation;
+    overscroll-behavior-y: none;
   }
 
   /* Previne auto-zoom no iOS Safari e Android (mínimo de 16px para campos focáveis no mobile) */
@@ -37,7 +38,7 @@
     --color-domus-secondary: #7b5800;
     --color-domus-secondary-container: #ffca5e;
     --color-domus-on-secondary-container: #755400;
-    --color-domus-surface: #f0fcfa;
+    --color-domus-surface: #F4F9F7;
     --color-domus-surface-container: #e4f0ee;
     --color-domus-surface-container-low: #eaf6f4;
     --color-domus-surface-lowest: #ffffff;
@@ -118,7 +119,7 @@
   height: 20px;
   background: transparent;
   border-bottom-right-radius: 20px;
-  box-shadow: 6px 6px 0 6px #f0fcfa;
+  box-shadow: 6px 6px 0 6px #F4F9F7;
   pointer-events: none;
 }
 
@@ -130,7 +131,7 @@
   height: 20px;
   background: transparent;
   border-top-right-radius: 20px;
-  box-shadow: 6px -6px 0 6px #f0fcfa;
+  box-shadow: 6px -6px 0 6px #F4F9F7;
   pointer-events: none;
 }
 

@@ -111,7 +111,10 @@ export const HouseholdSelectionView: React.FC<HouseholdSelectionViewProps> = ({
         </div>
 
         {/* Footer */}
-        <footer className="pt-6 border-t border-[#d8eae6] flex flex-col sm:flex-row items-center justify-between text-[11px] text-[#5e7e7a] gap-3">
+        <footer
+          className="pt-6 pb-safe border-t border-[#d8eae6] flex flex-col sm:flex-row items-center justify-between text-[11px] text-[#5e7e7a] gap-3"
+          style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom, 0px))' }}
+        >
           <span className="font-bold tracking-wider text-[#16302e]">DOMUS</span>
           
           <div className="flex items-center gap-5">

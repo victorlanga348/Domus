@@ -25,8 +25,8 @@ export const Header: React.FC<HeaderProps> = ({
 }) => {
   return (
     <header
-      className="sticky top-0 z-50 bg-[#f0fcfa] border-b border-[#e4f0ee] w-full max-w-full min-w-0 pt-safe"
-      style={{ backgroundColor: '#f0fcfa', paddingTop: 'env(safe-area-inset-top, 0px)' }}
+      className="sticky top-0 z-50 bg-[#F4F9F7] border-b border-[#e4f0ee] w-full max-w-full min-w-0 pt-safe"
+      style={{ backgroundColor: '#F4F9F7', paddingTop: 'env(safe-area-inset-top, 0px)' }}
     >
       <div className="px-2.5 sm:px-8 py-2.5 sm:py-3.5 flex items-center justify-between w-full max-w-full min-w-0 min-h-[56px] sm:min-h-[64px]">
         <div className="flex items-center gap-1 sm:gap-3 min-w-0 shrink-0">
@@ -71,7 +71,7 @@ export const Header: React.FC<HeaderProps> = ({
             >
               <span className="material-symbols-outlined text-xl sm:text-2xl">notifications</span>
               {unreadNotificationCount > 0 && (
-                <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-[#7b5800] rounded-full border border-[#f0fcfa]"></span>
+                <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-[#7b5800] rounded-full border border-[#F4F9F7]"></span>
               )}
             </button>
 

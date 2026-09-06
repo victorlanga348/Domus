@@ -23,17 +23,12 @@ if (typeof window !== 'undefined') {
   };
 }
 
-// Registro formal do Service Worker PWA para Android/Chrome
-if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
+// Registro do Service Worker PWA para instalação nativa no Android e iOS
+if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker
-      .register('/sw.js')
-      .then((reg) => {
-        console.log('[Domus PWA] Service Worker ativo:', reg.scope);
-      })
-      .catch((err) => {
-        console.warn('[Domus PWA] Erro ao registrar Service Worker:', err);
-      });
+    navigator.serviceWorker.register('/sw.js').catch((err) => {
+      console.warn('[Domus PWA] Erro ao registrar Service Worker:', err);
+    });
   });
 }
 

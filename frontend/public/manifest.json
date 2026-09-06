@@ -1,15 +1,12 @@
 {
-  "name": "DOMUS - Living System",
+  "name": "DOMUS",
   "short_name": "DOMUS",
-  "description": "Sistema de governança, tarefas e convivência residencial compartilhada.",
   "start_url": "/",
-  "scope": "/",
+  "id": "/",
   "display": "standalone",
+  "background_color": "#F4F9F7",
+  "theme_color": "#F4F9F7",
   "orientation": "portrait-primary",
-  "background_color": "#16302e",
-  "theme_color": "#16302e",
-  "lang": "pt-PT",
-  "categories": ["lifestyle", "productivity", "utilities"],
   "icons": [
     {
       "src": "/icons/icon-192x192.png",
@@ -18,27 +15,10 @@
       "purpose": "any"
     },
     {
-      "src": "/icons/icon-192x192.png",
-      "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "maskable"
-    },
-    {
       "src": "/icons/icon-512x512.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any"
-    },
-    {
-      "src": "/icons/icon-512x512.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "maskable"
-    },
-    {
-      "src": "/favicon.svg",
-      "sizes": "any",
-      "type": "image/svg+xml"
+      "purpose": "maskable any"
     }
   ]
 }

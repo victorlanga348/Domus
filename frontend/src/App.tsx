@@ -1262,7 +1262,7 @@ export default function App() {
 
   // Nível 3: Autenticado e com Residência ➔ Aplicação Principal Domus
   return (
-    <div className="flex min-h-[100dvh] w-full max-w-full bg-[#f0fcfa] text-[#131e1d]">
+    <div className="flex min-h-[100dvh] w-full max-w-full bg-[#F4F9F7] text-[#131e1d]">
       {/* Sidebar Navigation */}
       <Sidebar
         currentTab={currentTab}
@@ -1282,7 +1282,7 @@ export default function App() {
       />
 
       {/* Main Content Area */}
-      <main className="ml-0 md:ml-[250px] lg:ml-[280px] flex-1 min-w-0 max-w-full flex flex-col bg-[#f0fcfa] min-h-[100dvh] relative">
+      <main className="ml-0 md:ml-[250px] lg:ml-[280px] flex-1 min-w-0 max-w-full flex flex-col bg-[#F4F9F7] min-h-[100dvh] relative">
         {/* Top Header */}
         <Header
           currentTab={currentTab}

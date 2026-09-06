@@ -66,14 +66,15 @@
 ## 7. Experiência PWA & Instalação em Tela Cheia (Standalone)
 - **Modo de Exibição:** `display: "standalone"`, eliminando barras de navegação do browser (Safari e Chrome) para sensação de aplicativo nativo.
 - **Área Segura (Safe Area) & Altura Total:** Respeitar rigorosamente `env(safe-area-inset-top)` e `env(safe-area-inset-bottom)` com `viewport-fit=cover` ativo:
-  - **Fundo Global:** `html`, `body` e `#root` configurados com `background-color: #f0fcfa` e `min-h-[100dvh]` para eliminar qualquer faixa branca no rodapé ou overscroll.
-  - **Cabeçalho:** Fundo sólido `#f0fcfa` preenchendo até o topo físico (`top: 0`, `z-50`) com `padding-top: env(safe-area-inset-top, 0px)` e altura flex interna `min-h-[56px] sm:min-h-[64px]` centralizando os ícones.
-  - **Barras Inferiores & Rodapé:** Elementos fixos (toasts, botões de ação e fim de página) posicionados com `padding-bottom / bottom: calc(... + env(safe-area-inset-bottom, 0px))` para evitar sobreposição pela barra de gestos do sistema.
-- **Barra de Status do Sistema:** Sincronizada com tema do cabeçalho (`theme-color: #f0fcfa` e `apple-mobile-web-app-status-bar-style: default`), garantindo contraste legível dos ícones do SO e fusão visual perfeita com o topo do aplicativo.
+  - **Fundo Global:** `html`, `body` e `#root` configurados com `background-color: #F4F9F7`, `min-h-[100dvh]` e `overscroll-behavior-y: none` para eliminar qualquer faixa branca no rodapé, efeito elástico involuntário ou corte de barras.
+  - **Cabeçalho:** Fundo sólido `#F4F9F7` preenchendo até o topo físico (`top: 0`, `z-50`) com `padding-top: env(safe-area-inset-top, 0px)` e altura flex interna `min-h-[56px] sm:min-h-[64px]` centralizando os ícones.
+  - **Barras Inferiores & Rodapé:** Elementos fixos (toasts, botões de ação e rodapés de tela) posicionados com `padding-bottom / bottom: calc(... + env(safe-area-inset-bottom, 0px))` para evitar sobreposição pela barra de gestos do sistema (Home Indicator).
+- **Barra de Status do Sistema:** Sincronizada com tema do cabeçalho (`theme-color: #F4F9F7` e `apple-mobile-web-app-status-bar-style: default`), garantindo contraste legível dos ícones do SO e fusão visual perfeita com o topo do aplicativo.
 - **Arquitetura de Instalação PWA (Android 1-Click & iOS):**
-  - **Android (Chrome):** Service Worker pass-through `/sw.js` registrado no evento `load`, viabilizando o disparo do evento `beforeinstallprompt` e instalação nativa com 1 clique direto para a tela inicial.
-  - **iOS (Safari):** Orientação visual clara através de modal ilustrado instruindo o usuário a tocar em "Compartilhar" -> "Adicionar à Tela de Início" (conforme restrição nativa do WebKit da Apple).
-  - **Pass-through de Rede Total:** O Service Worker repassa 100% das requisições via `fetch(event.request)` direto para a rede, garantindo que APIs, WebSockets e rotas em tempo real nunca exibam dados defasados.
+  - **Manifesto Canônico (`/manifest.json`):** Configurado com `name: "DOMUS"`, `short_name: "DOMUS"`, `start_url: "/"`, `id: "/"`, `display: "standalone"`, `background_color: "#F4F9F7"`, `theme_color: "#F4F9F7"`, e ícones em `/icons/icon-192x192.png` (`any`) e `/icons/icon-512x512.png` (`maskable any`).
+  - **Android (Chrome):** Service Worker `/sw.js` com ciclo de vida ativo (`skipWaiting`, `clients.claim`) e fetch pass-through padrão com fallback de cache, registrado no evento `load` da janela, liberando o prompt nativo de instalação ("Instalar aplicativo") e splash screen real.
+  - **iOS (Safari):** Metatags dedicadas no `<head>` (`apple-mobile-web-app-capable: yes`, `apple-mobile-web-app-title: DOMUS`, `apple-touch-icon`) permitindo instalação em tela cheia via "Compartilhar" -> "Adicionar à Tela de Início".
+  - **Pass-through de Rede Total:** O Service Worker repassa requisições via `fetch(event.request).catch(() => caches.match(event.request))` sem reter cache defasado, preservando WebSockets e APIs em tempo real.
 - **Estabilidade ao Despertar (Wake from Sleep & Reativação Instantânea):**
   - O estado do painel principal é hidratado imediatamente a partir do cache local (`${houseKey}_dashboard_cache`). Quando a tela do celular é ligada ou reaberta, o conteúdo real é renderizado em < 16ms sem exibição de skeletons transitórios e sem saltos de layout ("pulada"). A sincronização com a API e WebSocket acontece em segundo plano de forma silenciosa.
 
