@@ -174,12 +174,25 @@ export default function App() {
     return saved ? JSON.parse(saved) : null;
   });
 
-  // 3. Navegação & Abas
-  const [currentTab, setCurrentTab] = useState<TabType>('dashboard');
-  const [subTab, setSubTab] = useState<string>('bulletin');
+  // 3. Navegação & Abas (Persistidas para manter o estado após bloqueio/reativação do celular)
+  const [currentTab, setCurrentTab] = useState<TabType>(() => {
+    const saved = localStorage.getItem('domus_active_tab') as TabType | null;
+    return saved && ['dashboard', 'tasks', 'reports', 'statistics', 'settings'].includes(saved) ? saved : 'dashboard';
+  });
+  const [subTab, setSubTab] = useState<string>(() => {
+    return localStorage.getItem('domus_active_subtab') || 'bulletin';
+  });
   const [vacationMode, setVacationMode] = useState<boolean>(() => authUser?.vacation_mode || false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [deferredInstallPrompt, setDeferredInstallPrompt] = useState<any>(null);
+
+  useEffect(() => {
+    localStorage.setItem('domus_active_tab', currentTab);
+  }, [currentTab]);
+
+  useEffect(() => {
+    localStorage.setItem('domus_active_subtab', subTab);
+  }, [subTab]);
 
   // Captura o evento nativo de instalação do PWA para uso nas Configurações
   useEffect(() => {
@@ -722,6 +735,8 @@ export default function App() {
     setReadNotificationIds([]);
     setMuralNotes([]);
     setMemberStatuses([]);
+    setCurrentTab('dashboard');
+    setSubTab('bulletin');
     showToast('Sessão encerrada.');
   };
 

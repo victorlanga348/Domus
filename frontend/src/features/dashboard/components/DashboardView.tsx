@@ -36,8 +36,25 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   familyMembers = [],
   onSyncMembers,
 }) => {
-  const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
-  const [loading, setLoading] = useState(true);
+  const cacheKey = currentHouseId ? `domus_house_${currentHouseId}_dashboard_cache` : null;
+
+  const [dashboardData, setDashboardData] = useState<DashboardData | null>(() => {
+    if (!cacheKey) return null;
+    const cached = localStorage.getItem(cacheKey);
+    if (cached) {
+      try {
+        return JSON.parse(cached);
+      } catch {
+        return null;
+      }
+    }
+    return null;
+  });
+
+  const [loading, setLoading] = useState(() => {
+    if (!cacheKey) return true;
+    return !localStorage.getItem(cacheKey);
+  });
 
   // Modal Novo Recado
   const [isAddNoteModalOpen, setIsAddNoteModalOpen] = useState(false);
@@ -50,10 +67,15 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
   const fetchDashboard = useCallback(async () => {
     try {
-      setLoading(true);
+      if (!dashboardData) {
+        setLoading(true);
+      }
       const data = await dashboardApi.getDashboardData(currentHouseId, currentUserId);
       if (data) {
         setDashboardData(data);
+        if (cacheKey) {
+          localStorage.setItem(cacheKey, JSON.stringify(data));
+        }
         if (data.house) {
           onSyncHouse?.(data.house);
         }
@@ -66,7 +88,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     } finally {
       setLoading(false);
     }
-  }, [currentHouseId, currentUserId, onSyncHouse, onSyncMembers]);
+  }, [currentHouseId, currentUserId, cacheKey, dashboardData, onSyncHouse, onSyncMembers]);
 
   useEffect(() => {
     fetchDashboard();

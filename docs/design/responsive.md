@@ -74,4 +74,6 @@
   - **Android (Chrome):** Service Worker pass-through `/sw.js` registrado no evento `load`, viabilizando o disparo do evento `beforeinstallprompt` e instalação nativa com 1 clique direto para a tela inicial.
   - **iOS (Safari):** Orientação visual clara através de modal ilustrado instruindo o usuário a tocar em "Compartilhar" -> "Adicionar à Tela de Início" (conforme restrição nativa do WebKit da Apple).
   - **Pass-through de Rede Total:** O Service Worker repassa 100% das requisições via `fetch(event.request)` direto para a rede, garantindo que APIs, WebSockets e rotas em tempo real nunca exibam dados defasados.
+- **Estabilidade ao Despertar (Wake from Sleep & Reativação Instantânea):**
+  - O estado do painel principal é hidratado imediatamente a partir do cache local (`${houseKey}_dashboard_cache`). Quando a tela do celular é ligada ou reaberta, o conteúdo real é renderizado em < 16ms sem exibição de skeletons transitórios e sem saltos de layout ("pulada"). A sincronização com a API e WebSocket acontece em segundo plano de forma silenciosa.
 
