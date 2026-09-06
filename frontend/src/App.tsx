@@ -127,7 +127,7 @@ function mapBackendLogToActivityLog(log: any): ActivityLog {
     title: log.comment || (log.action_type === 'COMPLETED' ? `Concluiu a tarefa` : log.action_type),
     timeAgo,
     author: log.user?.name || 'Morador',
-    type: log.action_type === 'COMPLETED' ? 'task' : 'system',
+    type: log.action_type === 'COMPLETED' && Boolean(log.task_id) ? 'task' : 'system',
   };
 }
 
@@ -366,20 +366,22 @@ export default function App() {
     (
       title: string,
       author?: string,
-      actionType: 'COMPLETED' | 'FAILED' | 'BLOCKED' | 'LOCKED' | 'ROTATED' = 'COMPLETED',
+      actionType?: 'COMPLETED' | 'FAILED' | 'BLOCKED' | 'LOCKED' | 'ROTATED',
       taskId?: string
     ) => {
+      const isTaskCompleted = actionType === 'COMPLETED' && Boolean(taskId);
       const newLog: ActivityLog = {
         id: `log_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
         title,
         timeAgo: 'Agora mesmo',
         author: author || authUser?.name || 'Morador',
-        type: actionType === 'COMPLETED' ? 'task' : 'system',
+        type: isTaskCompleted ? 'task' : 'system',
       };
       setActivityLogs((prev) => [newLog, ...prev]);
       if (currentHouse?.id) {
         emitHouseLog(currentHouse.id, newLog);
-        if (authUser?.id) {
+        // Apenas persiste na tabela ActivityLog do backend se houver ação de tarefa e taskId válidos
+        if (authUser?.id && actionType && taskId) {
           activityLogsApi
             .createLog({
               house_id: currentHouse.id,
@@ -684,6 +686,12 @@ export default function App() {
   };
 
   const handleSwitchHouse = () => {
+    const isGeneralAdmin = currentUser.role === 'Admin Geral' || authUser?.role === 'ADMIN';
+    const otherMembers = familyMembers.filter((m) => m.id !== authUser?.id && m.email !== authUser?.email);
+    if (isGeneralAdmin && otherMembers.length > 0) {
+      showToast('Como Admin Geral, você não pode trocar de residência sem antes transferir a liderança.');
+      return;
+    }
     setCurrentHouse(null);
     localStorage.removeItem('domus_auth_house');
     showToast('Alternando de residência. Escolha uma residência salva ou funde uma nova.');
@@ -745,6 +753,11 @@ export default function App() {
     setVacationMode(next);
     if (authUser) {
       setAuthUser({ ...authUser, vacation_mode: next });
+    }
+    if (authUser?.id) {
+      tasksApi.toggleVacation(authUser.id).catch((err) => {
+        console.warn('[Vacation] Erro ao persistir modo férias no backend:', err);
+      });
     }
     recordHouseActivity(`${authUser?.name || 'Morador'} ${next ? 'ativou' : 'desativou'} o modo férias.`);
     showToast(next ? 'Modo Férias Ativado: Você foi temporariamente pausado do rodízio.' : 'Modo Férias Desativado: Retornando à escala normal.');

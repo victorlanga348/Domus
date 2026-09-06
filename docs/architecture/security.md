@@ -71,6 +71,11 @@ Para atender a dispositivos compartilhados (ex: tablet fixo na cozinha) e celula
 - Ao sair da residência (`leaveHouse`), o vínculo do usuário é desfeito (`house_id = null`) e sua role é redefinida para `MEMBER`.
 - Ao reingressar via submissão do código de convite (`joinHouse`), qualquer usuário (mesmo que tenha sido Admin anteriormente) ingressa estritamente como **Morador** (`role: 'MEMBER'`). Privilégios administrativos só podem ser restabelecidos por ação deliberada do `Admin Geral` ativo.
 
+### 6.4 Bloqueio de Alternância de Residência para Admin Geral Ativo (`switchHouse`)
+- O **Admin Geral** não pode alternar para outra residência (`switchHouse`) enquanto existirem outros moradores vinculados à residência atual sem antes transferir formalmente a liderança.
+- **Backend:** A rota `POST /api/houses/switch` intercepta e rejeita a tentativa com status `403 Forbidden` (`CANNOT_SWITCH_HOUSE_AS_GENERAL_ADMIN`).
+- **Frontend:** O método centralizador `handleSwitchHouse()` verifica a role do usuário e a presença de outros integrantes, exibindo notificação explicativa e impedindo a navegação antes da transferência de cargo.
+
 ---
 
 ## 7. Controle de Acesso Baseado em Papéis (RBAC): Tarefas & Membros

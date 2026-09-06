@@ -46,10 +46,11 @@ export class AnalyticsService {
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
-    // Buscar logs de atividade do mês atual
+    // Buscar logs de atividade associados a tarefas reais do mês atual
     const monthLogs = await prisma.activityLog.findMany({
       where: {
         house_id: houseId,
+        task_id: { not: null },
         created_at: { gte: startOfMonth },
       },
       include: {
@@ -62,8 +63,8 @@ export class AnalyticsService {
       },
     });
 
-    // 1. Contribuição por Membro
-    const completedLogs = monthLogs.filter((log) => log.action_type === 'COMPLETED');
+    // 1. Contribuição por Membro (apenas conclusões reais de tarefas)
+    const completedLogs = monthLogs.filter((log) => log.action_type === 'COMPLETED' && Boolean(log.task_id));
     const totalCompleted = completedLogs.length;
 
     const userCompletedMap = new Map<string, number>();
@@ -89,8 +90,8 @@ export class AnalyticsService {
       : null;
 
     // 3. Índice de Harmonia (0 a 100)
-    const failedCount = monthLogs.filter((log) => log.action_type === 'FAILED').length;
-    const blockedCount = monthLogs.filter((log) => log.action_type === 'BLOCKED').length;
+    const failedCount = monthLogs.filter((log) => log.action_type === 'FAILED' && Boolean(log.task_id)).length;
+    const blockedCount = monthLogs.filter((log) => log.action_type === 'BLOCKED' && Boolean(log.task_id)).length;
     const totalInteractions = totalCompleted + failedCount + blockedCount;
 
     let harmonyScore = 100;

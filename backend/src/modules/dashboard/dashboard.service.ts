@@ -135,6 +135,7 @@ export class DashboardService {
       where: {
         house_id: houseId,
         action_type: 'COMPLETED',
+        task_id: { not: null },
         created_at: { gte: startOfToday },
       },
     });
