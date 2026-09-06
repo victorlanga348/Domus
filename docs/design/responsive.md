@@ -95,6 +95,10 @@
   - Painel lateral desliza pela esquerda via hardware GPU (`will-change-transform`, `translate-x-0` vs `-translate-x-full`) com curva de desaceleração suave de app nativo (`cubic-bezier(0.32, 0.72, 0, 1)`).
   - Links de navegação entram em cascata (*stagger* progressivo de 30ms com `opacity` e deslocamento lateral `translate-x-2` -> `translate-x-0`) e feedback tátil `active:scale-[0.98]`.
   - Respeito integral a Safe Area física superior (`env(safe-area-inset-top)`) e inferior (`env(safe-area-inset-bottom)`).
+- **Contadores Progressivos (Count-Up / Number Rolling):**
+  - Componente `AnimatedCounter` baseado em `requestAnimationFrame` com desaceleração exponencial (`easeOutExpo`), utilizado no score da "Saúde da Convivência" e nos cards de métricas de tarefas em `StatisticsView`.
+  - Contadores secundários entram com atraso progressivo (100ms) e o badge de status realiza transição de entrada suave (`scale-95 opacity-0` -> `scale-100 opacity-100`) ao término da contagem.
+  - Botão de atualização com rotação contínua (`animate-spin`) e recálculo com nova animação de contagem ao concluir.
 - **Acessibilidade Motora & Redução de Movimento:**
   - Todas as animações e transições respeitam `@media (prefers-reduced-motion: reduce)`, desativando efeitos para evitar desconforto em usuários com sensibilidade vestibular.
 
