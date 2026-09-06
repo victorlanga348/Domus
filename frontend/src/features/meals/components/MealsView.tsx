@@ -15,6 +15,7 @@ export const MealsView: React.FC<MealsViewProps> = ({
   onUpdateMeal,
   onDeleteMeal,
   onToggleLock,
+  onClearMeals,
 }) => {
   // Determine current day of week as initial selection
   const currentDayIndex = new Date().getDay(); // 0 = Dom, 1 = Seg, ...
@@ -38,6 +39,7 @@ export const MealsView: React.FC<MealsViewProps> = ({
 
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isClearConfirmOpen, setIsClearConfirmOpen] = useState(false);
   const [editingMeal, setEditingMeal] = useState<MealItem | null>(null);
   const [modalDay, setModalDay] = useState<DayOfWeek>(selectedDay);
   const [modalPeriod, setModalPeriod] = useState<MealType>('breakfast');
@@ -185,6 +187,18 @@ export const MealsView: React.FC<MealsViewProps> = ({
                 {isLocked ? 'lock_open' : 'lock'}
               </span>
               <span>{isLocked ? 'Destrancar' : 'Trancar Cardápio'}</span>
+            </button>
+          )}
+
+          {/* Clear Menu Action (Available when meals exist and user has edit rights) */}
+          {canEdit && (mealPlan.meals?.length || 0) > 0 && onClearMeals && (
+            <button
+              onClick={() => setIsClearConfirmOpen(true)}
+              className="px-3 py-2 rounded-xl text-xs font-bold text-red-600 bg-red-50 hover:bg-red-100 transition-colors flex items-center gap-1.5 border border-red-200 min-h-[40px] cursor-pointer"
+              title="Esvaziar todos os pratos cadastrados da semana"
+            >
+              <span className="material-symbols-outlined text-base">delete_sweep</span>
+              <span className="hidden sm:inline">Limpar Cardápio</span>
             </button>
           )}
 
@@ -362,6 +376,56 @@ export const MealsView: React.FC<MealsViewProps> = ({
         defaultPeriod={modalPeriod}
         familyMembers={familyMembers}
       />
+
+      {/* Clear Menu Confirmation Modal */}
+      {isClearConfirmOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#131e1d]/60 backdrop-blur-xs animate-in fade-in duration-200"
+          role="dialog"
+          aria-modal="true"
+        >
+          <div className="bg-white w-full max-w-sm rounded-2xl sm:rounded-3xl border border-[#d0dddb] shadow-2xl p-5 sm:p-6 space-y-4">
+            <div className="flex items-center gap-3 text-red-600">
+              <span className="w-10 h-10 rounded-2xl bg-red-50 border border-red-200 flex items-center justify-center shrink-0">
+                <span className="material-symbols-outlined text-2xl">warning</span>
+              </span>
+              <div>
+                <h3 className="text-sm sm:text-base font-black text-[#16302e]">
+                  Esvaziar Cardápio?
+                </h3>
+                <p className="text-[11px] text-[#727877] font-semibold">
+                  Esta ação não pode ser desfeita
+                </p>
+              </div>
+            </div>
+
+            <p className="text-xs text-[#727877] leading-relaxed">
+              Tem certeza que deseja remover todos os pratos cadastrados para a semana? O cardápio ficará completamente vazio, pronto para um novo planejamento.
+            </p>
+
+            <div className="flex items-center justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setIsClearConfirmOpen(false)}
+                className="px-4 py-2 rounded-xl text-xs font-bold text-[#727877] hover:bg-[#f0fcfa] transition-colors min-h-[40px] cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  onClearMeals?.();
+                  setIsClearConfirmOpen(false);
+                }}
+                className="px-4 py-2 rounded-xl text-xs font-black bg-red-600 text-white hover:bg-red-700 transition-colors shadow-xs flex items-center gap-1.5 min-h-[40px] cursor-pointer"
+              >
+                <span className="material-symbols-outlined text-base">delete_sweep</span>
+                <span>Sim, Esvaziar</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

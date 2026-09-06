@@ -393,10 +393,21 @@ export default function App() {
     const saved = localStorage.getItem(`${houseKey}_meals`);
     if (saved) {
       try {
-        return JSON.parse(saved);
+        const parsed = JSON.parse(saved);
+        const cleanMeals = (parsed.meals || []).filter(
+          (m: any) =>
+            !m.id?.startsWith('meal_mon_') &&
+            !m.id?.startsWith('meal_tue_') &&
+            !m.id?.startsWith('meal_wed_') &&
+            !m.id?.startsWith('meal_thu_') &&
+            !m.id?.startsWith('meal_fri_') &&
+            !m.id?.startsWith('meal_sat_') &&
+            !m.id?.startsWith('meal_sun_')
+        );
+        return { ...parsed, meals: cleanMeals };
       } catch {}
     }
-    return createDefaultMealPlan(currentHouse?.id || '', familyMembers);
+    return createDefaultMealPlan(currentHouse?.id || '');
   });
 
   // Modal Visibility States
@@ -880,12 +891,23 @@ export default function App() {
     const cachedMealsRaw = localStorage.getItem(`${key}_meals`);
     if (cachedMealsRaw) {
       try {
-        setMealPlan(JSON.parse(cachedMealsRaw));
+        const parsed = JSON.parse(cachedMealsRaw);
+        const cleanMeals = (parsed.meals || []).filter(
+          (m: any) =>
+            !m.id?.startsWith('meal_mon_') &&
+            !m.id?.startsWith('meal_tue_') &&
+            !m.id?.startsWith('meal_wed_') &&
+            !m.id?.startsWith('meal_thu_') &&
+            !m.id?.startsWith('meal_fri_') &&
+            !m.id?.startsWith('meal_sat_') &&
+            !m.id?.startsWith('meal_sun_')
+        );
+        setMealPlan({ ...parsed, meals: cleanMeals });
       } catch {
-        setMealPlan(createDefaultMealPlan(houseData.house.id, membersList));
+        setMealPlan(createDefaultMealPlan(houseData.house.id));
       }
     } else {
-      setMealPlan(createDefaultMealPlan(houseData.house.id, membersList));
+      setMealPlan(createDefaultMealPlan(houseData.house.id));
     }
   };
 
@@ -1556,6 +1578,21 @@ export default function App() {
     [houseKey, currentHouse?.id, showToast]
   );
 
+  const handleClearMeals = useCallback(() => {
+    setMealPlan((prev) => {
+      const updatedPlan: HouseMealPlan = {
+        ...prev,
+        meals: [],
+      };
+      if (houseKey) {
+        localStorage.setItem(`${houseKey}_meals`, JSON.stringify(updatedPlan));
+      }
+      return updatedPlan;
+    });
+
+    showToast('Cardápio esvaziado com sucesso. Pronto para novos pratos!');
+  }, [houseKey, showToast]);
+
   const handleToggleMealLock = useCallback(() => {
     if (currentUser.role !== 'Admin Geral') {
       showToast('Apenas o Administrador Geral pode trancar ou destrancar o cardápio.');
@@ -1731,6 +1768,7 @@ export default function App() {
               onUpdateMeal={handleUpdateMeal}
               onDeleteMeal={handleDeleteMeal}
               onToggleLock={handleToggleMealLock}
+              onClearMeals={handleClearMeals}
             />
           )}
 
