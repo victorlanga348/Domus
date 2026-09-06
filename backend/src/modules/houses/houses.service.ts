@@ -460,4 +460,112 @@ export class HouseService {
       invite_code: updatedHouse.invite_code,
     };
   }
+
+  /**
+   * 7. removeMember:
+   * Remove um morador da residência, desvinculando-o no banco (house_id: null, role: MEMBER).
+   * Regras de RBAC:
+   * - Apenas Admin Geral (ADMIN) ou Sub-Administrador (Admin) podem remover moradores.
+   * - Ninguém pode remover o Admin Geral da residência (target.role !== 'ADMIN').
+   * - O usuário não pode auto-remover-se por este método (deve usar leaveHouse).
+   * - O morador deve pertencer à residência do solicitante.
+   */
+  async removeMember(requesterId: string, targetMemberId: string, requesterRole?: string, houseId?: string) {
+    if (!requesterId || !targetMemberId) {
+      throw new AppError('Parâmetros obrigatórios ausentes (requesterId e targetMemberId).', 400, 'MISSING_PARAMS');
+    }
+
+    if (requesterId === targetMemberId) {
+      throw new AppError('Você não pode se auto-remover pelas configurações. Use a opção de sair da residência.', 400, 'CANNOT_REMOVE_SELF');
+    }
+
+    const requester = await prisma.user.findUnique({
+      where: { id: requesterId },
+    });
+
+    if (!requester || !requester.house_id) {
+      throw new AppError('Usuário solicitante não encontrado ou não pertence a uma residência ativa.', 404, 'REQUESTER_NOT_FOUND');
+    }
+
+    const effectiveHouseId = houseId || requester.house_id;
+    if (requester.house_id !== effectiveHouseId) {
+      throw new AppError('Você não pertence a esta residência.', 403, 'FORBIDDEN');
+    }
+
+    const isGeneralAdmin = requester.role === 'ADMIN';
+    const isSubAdmin = requesterRole === 'Admin' || requesterRole === 'ADMIN';
+
+    if (!isGeneralAdmin && !isSubAdmin) {
+      throw new AppError('Apenas administradores podem remover membros da residência.', 403, 'FORBIDDEN');
+    }
+
+    const target = await prisma.user.findUnique({
+      where: { id: targetMemberId },
+    });
+
+    if (!target || target.house_id !== effectiveHouseId) {
+      return {
+        success: true,
+        message: 'Morador já desvinculado da residência.',
+      };
+    }
+
+    if (target.role === 'ADMIN') {
+      throw new AppError('O Administrador Geral não pode ser removido da residência.', 403, 'CANNOT_REMOVE_GENERAL_ADMIN');
+    }
+
+    return prisma.$transaction(async (tx) => {
+      // 1. Desvincular usuário da casa e resetar cargo para MEMBER
+      const updatedTarget = await tx.user.update({
+        where: { id: targetMemberId },
+        data: {
+          house_id: null,
+          role: 'MEMBER',
+        },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          role: true,
+          house_id: true,
+        },
+      });
+
+      // 2. Remover participações de tarefas na residência
+      await tx.taskParticipant.deleteMany({
+        where: {
+          user_id: targetMemberId,
+          task: { house_id: effectiveHouseId },
+        },
+      });
+
+      // 3. Registrar log de atividade da residência
+      await tx.activityLog.create({
+        data: {
+          user_id: requesterId,
+          house_id: effectiveHouseId,
+          action_type: 'ROTATED',
+          comment: `${target.name} foi removido da residência por ${requester.name}.`,
+        },
+      });
+
+      // 4. Notificar via WebSocket
+      try {
+        const { emitToHouse } = await import('../../shared/socket/socketServer.js');
+        emitToHouse(effectiveHouseId, 'house:member_removed', {
+          userId: targetMemberId,
+          name: target.name,
+          removedBy: requester.name,
+        });
+        emitToHouse(effectiveHouseId, 'house:members_updated', {
+          houseId: effectiveHouseId,
+        });
+      } catch {}
+
+      return {
+        success: true,
+        removedUser: updatedTarget,
+      };
+    });
+  }
 }

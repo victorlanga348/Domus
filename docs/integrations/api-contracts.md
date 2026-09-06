@@ -256,6 +256,16 @@
   - **Exclusão de Casa Vazia:** Se o solicitante for o único morador na residência (0 membros restantes), a residência e todos os seus registros são excluídos em definitivo do banco de dados de forma atômica para evitar registros órfãos.
 - **Resposta (200):** `{ "status": "success", "data": { "user": {...}, "newAdmin": {...}, "houseDeleted": boolean } }`
 
+### `POST /api/houses/remove-member` (ou `/api/house/remove-member`)
+- Remove e desvincula um morador da residência no PostgreSQL (`house_id = null`, `role = 'MEMBER'`), remove participações de tarefas e registra auditoria.
+- **Payload:** `{ "houseId": "uuid-house", "memberId": "uuid-member", "requesterId": "uuid-requester", "requesterRole": "Admin Geral | Admin" }`
+- **Autorização (RBAC):**
+  - Apenas `Admin Geral` (`ADMIN`) ou `Admin` auxiliar podem remover membros.
+  - Bloqueado com `403 CANNOT_REMOVE_GENERAL_ADMIN` caso o alvo seja o Administrador Geral da casa.
+  - Bloqueado com `400 CANNOT_REMOVE_SELF` caso o usuário tente se auto-remover (deve usar `POST /api/houses/leave`).
+- **Resposta (200):** `{ "status": "success", "data": { "success": true, "removedUser": {...} } }`
+- **Broadcast:** Emite eventos WebSocket `house:member_removed` e `house:members_updated`.
+
 ### `POST /api/houses/:id/regenerate-code` (ou `PATCH /api/houses/:id/code`)
 - Invalida o código de convite anterior e gera um novo código no padrão `CASA-XXXX` garantindo unicidade `@unique`.
 - **Autorização:** Apenas o `Admin Geral` (`ADMIN`) ativo da residência pode executar esta operação.

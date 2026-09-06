@@ -164,7 +164,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             </div>
             <p className="text-xs text-[#727877] mt-0.5 flex items-center gap-1.5">
               <span className="material-symbols-outlined text-sm text-[#7b5800]">group</span>
-              <span>Total de Moradores: <strong className="tabular-nums">{familyMembers.length || dashboardData?.members?.length || 1}</strong></span>
+              <span>Total de Moradores: <strong className="tabular-nums">{familyMembers && familyMembers.length > 0 ? familyMembers.length : (dashboardData?.members?.length || 1)}</strong></span>
             </p>
           </div>
         </div>

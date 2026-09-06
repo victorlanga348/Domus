@@ -879,10 +879,6 @@ export const FamilyMembersDrawer: React.FC<{
   onOpenAddMemberModal?: () => void;
   currentUserRole?: FamilyMember['role'];
   currentUserId?: string;
-  onPromoteToAdmin?: (memberId: string) => void;
-  onDemoteToResident?: (memberId: string) => void;
-  onTransferGeneralAdmin?: (member: FamilyMember) => void;
-  onRemoveMember?: (memberId: string, memberName: string) => void;
 }> = ({
   isOpen,
   onClose,
@@ -892,10 +888,6 @@ export const FamilyMembersDrawer: React.FC<{
   onOpenAddMemberModal,
   currentUserRole = 'Admin Geral',
   currentUserId,
-  onPromoteToAdmin,
-  onDemoteToResident,
-  onTransferGeneralAdmin,
-  onRemoveMember,
 }) => {
   useBodyScrollLock(isOpen);
   const [editingMemberId, setEditingMemberId] = useState<string | null>(null);
@@ -954,7 +946,7 @@ export const FamilyMembersDrawer: React.FC<{
               </div>
               <div>
                 <h3 className="text-lg font-black tracking-tight">Membros da Residência</h3>
-                <p className="text-xs text-[#727877]">Status, localizações e governança</p>
+                <p className="text-xs text-[#727877]">Status e localizações dos moradores</p>
               </div>
             </div>
             <button
@@ -974,13 +966,7 @@ export const FamilyMembersDrawer: React.FC<{
               const isEditing = editingMemberId === member.id;
               const isTargetGeneralAdmin = member.role === 'Admin Geral';
               const isTargetAdmin = member.role === 'Admin';
-              const isTargetResident = member.role === 'Resident';
               const isSelf = member.id === currentUserId;
-
-              const canRemoveThisMember =
-                !isSelf &&
-                ((isGeneralAdmin && !isTargetGeneralAdmin) ||
-                  (isAdmin && !isTargetGeneralAdmin && !isTargetAdmin));
 
               return (
                 <div
@@ -1044,59 +1030,6 @@ export const FamilyMembersDrawer: React.FC<{
                       )}
                     </div>
                   </div>
-
-                  {/* Ações Administrativas de Governança e Remoção */}
-                  {(isGeneralAdmin || canRemoveThisMember) && !isSelf && (
-                    <div className="pt-2 border-t border-[#d0dddb] flex items-center justify-end gap-2 flex-wrap">
-                      {isGeneralAdmin && isTargetResident && onPromoteToAdmin && (
-                        <button
-                          type="button"
-                          onClick={() => onPromoteToAdmin(member.id)}
-                          className="px-2 py-1 bg-[#16302e] hover:bg-[#2d4644] text-white rounded-lg text-[10px] font-bold flex items-center gap-1 transition-all"
-                          title="Promover a Administrador Normal"
-                        >
-                          <span className="material-symbols-outlined text-xs">shield_person</span>
-                          <span>Tornar Admin</span>
-                        </button>
-                      )}
-
-                      {isGeneralAdmin && isTargetAdmin && onDemoteToResident && (
-                        <button
-                          type="button"
-                          onClick={() => onDemoteToResident(member.id)}
-                          className="px-2 py-1 bg-white hover:bg-amber-50 text-[#7b5800] border border-[#ffca5e] rounded-lg text-[10px] font-bold flex items-center gap-1 transition-all"
-                          title="Destituir para Morador"
-                        >
-                          <span className="material-symbols-outlined text-xs">arrow_downward</span>
-                          <span>Despromover</span>
-                        </button>
-                      )}
-
-                      {isGeneralAdmin && onTransferGeneralAdmin && (
-                        <button
-                          type="button"
-                          onClick={() => onTransferGeneralAdmin(member)}
-                          className="px-2 py-1 bg-[#fff8e6] hover:bg-[#ffeec2] text-[#7b5800] border border-[#ffca5e] rounded-lg text-[10px] font-black flex items-center gap-1 transition-all"
-                          title="Transferir Liderança da Residência"
-                        >
-                          <span className="material-symbols-outlined text-xs">workspace_premium</span>
-                          <span>Passar Admin Geral</span>
-                        </button>
-                      )}
-
-                      {canRemoveThisMember && onRemoveMember && (
-                        <button
-                          type="button"
-                          onClick={() => onRemoveMember(member.id, member.name)}
-                          className="px-2 py-1 bg-white hover:bg-rose-50 text-rose-700 border border-rose-300 rounded-lg text-[10px] font-bold flex items-center gap-1 transition-all"
-                          title="Remover Morador da Residência"
-                        >
-                          <span className="material-symbols-outlined text-xs">person_remove</span>
-                          <span>Remover</span>
-                        </button>
-                      )}
-                    </div>
-                  )}
 
                   {/* Formulário Inline de Edição de Status (Apenas para o próprio morador) */}
                   {isEditing && isSelf && (

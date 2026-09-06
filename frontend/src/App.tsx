@@ -1365,22 +1365,41 @@ export default function App() {
     showToast(`Membro ${member.name} adicionado com sucesso!`);
   };
 
-  const handleRemoveMember = (memberId: string, memberName: string) => {
+  const handleRemoveMember = async (memberId: string, memberName: string) => {
     if (memberId === authUser?.id) {
       showToast('Você não pode se auto-remover pelas configurações. Use a opção Trocar ou Sair da Residência.');
       return;
     }
-    const updated = familyMembers.filter((m) => m.id !== memberId);
-    setFamilyMembers(updated);
-    setMemberStatuses((prev) => prev.filter((s) => s.id !== memberId));
-    if (houseKey) {
-      localStorage.setItem(`${houseKey}_members`, JSON.stringify(updated));
+
+    try {
+      if (currentHouse?.id && authUser?.id) {
+        await authApi.removeMember(
+          currentHouse.id,
+          memberId,
+          authUser.id,
+          currentUser.role,
+          authToken || undefined
+        );
+      }
+
+      const updated = familyMembers.filter((m) => m.id !== memberId);
+      setFamilyMembers(updated);
+      setMemberStatuses((prev) => prev.filter((s) => s.id !== memberId));
+      if (houseKey) {
+        localStorage.setItem(`${houseKey}_members`, JSON.stringify(updated));
+        if (currentHouse?.id) {
+          localStorage.removeItem(`domus_dashboard_${currentHouse.id}`);
+        }
+      }
+      if (currentHouse?.id) {
+        emitMembersUpdated(currentHouse.id, { members: updated });
+      }
+      recordHouseActivity(`${memberName} foi removido da residência por ${authUser?.name || 'Administrador'}`);
+      showToast(`Membro ${memberName} removido da residência.`);
+    } catch (err: any) {
+      console.error('[DOMUS] Erro ao remover membro:', err);
+      showToast(err.message || 'Erro ao remover morador da residência.');
     }
-    if (currentHouse?.id) {
-      emitMembersUpdated(currentHouse.id, { members: updated });
-    }
-    recordHouseActivity(`${memberName} foi removido da residência por ${authUser?.name || 'Administrador'}`);
-    showToast(`Membro ${memberName} removido da residência.`);
   };
 
   const handlePromoteToAdmin = (memberId: string) => {
@@ -1976,10 +1995,6 @@ export default function App() {
         onOpenAddMemberModal={() => setIsAddMemberOpen(true)}
         currentUserRole={currentUser.role}
         currentUserId={authUser.id}
-        onPromoteToAdmin={handlePromoteToAdmin}
-        onDemoteToResident={handleDemoteToResident}
-        onTransferGeneralAdmin={handleInitiateTransferGeneralAdmin}
-        onRemoveMember={handleRemoveMember}
       />
 
       <LeaveHouseModal

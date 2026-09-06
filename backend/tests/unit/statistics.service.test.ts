@@ -182,3 +182,80 @@ describe('HousesService (Governança de Alternância de Residência para Admin G
     assert.equal(result.allowed, true);
   });
 });
+
+/**
+ * Validação de permissão de remoção de membro (idêntica à regra de houses.service.ts)
+ */
+function validateRemoveMember(
+  requester: MockUser,
+  target: MockUser,
+  requesterRole?: string
+): { allowed: boolean; errorCode?: string } {
+  if (requester.id === target.id) {
+    return { allowed: false, errorCode: 'CANNOT_REMOVE_SELF' };
+  }
+  if (requester.house_id !== target.house_id) {
+    return { allowed: false, errorCode: 'FORBIDDEN' };
+  }
+  if (target.role === 'ADMIN') {
+    return { allowed: false, errorCode: 'CANNOT_REMOVE_GENERAL_ADMIN' };
+  }
+  const isGeneralAdmin = requester.role === 'ADMIN';
+  const isSubAdmin = requesterRole === 'Admin' || requesterRole === 'ADMIN';
+  if (!isGeneralAdmin && !isSubAdmin) {
+    return { allowed: false, errorCode: 'FORBIDDEN' };
+  }
+  return { allowed: true };
+}
+
+describe('HousesService (Governança de Remoção de Membros)', () => {
+  const generalAdmin: MockUser = {
+    id: 'admin-1',
+    name: 'Carlos (Admin Geral)',
+    role: 'ADMIN',
+    house_id: 'house-1',
+  };
+
+  const subAdmin: MockUser = {
+    id: 'subadmin-1',
+    name: 'Beatriz (Sub-Admin)',
+    role: 'MEMBER',
+    house_id: 'house-1',
+  };
+
+  const resident: MockUser = {
+    id: 'resident-1',
+    name: 'Daniel (Morador)',
+    role: 'MEMBER',
+    house_id: 'house-1',
+  };
+
+  it('deve impedir que o usuário se auto-remova pela função de remoção', () => {
+    const result = validateRemoveMember(generalAdmin, generalAdmin);
+    assert.equal(result.allowed, false);
+    assert.equal(result.errorCode, 'CANNOT_REMOVE_SELF');
+  });
+
+  it('deve impedir a remoção do Administrador Geral da residência', () => {
+    const result = validateRemoveMember(subAdmin, generalAdmin, 'Admin');
+    assert.equal(result.allowed, false);
+    assert.equal(result.errorCode, 'CANNOT_REMOVE_GENERAL_ADMIN');
+  });
+
+  it('deve permitir que o Admin Geral remova um morador regular', () => {
+    const result = validateRemoveMember(generalAdmin, resident);
+    assert.equal(result.allowed, true);
+  });
+
+  it('deve permitir que um Sub-Admin remova um morador regular', () => {
+    const result = validateRemoveMember(subAdmin, resident, 'Admin');
+    assert.equal(result.allowed, true);
+  });
+
+  it('deve impedir que um morador regular (MEMBER sem cargo Admin) remova outros moradores', () => {
+    const result = validateRemoveMember(resident, subAdmin, 'Resident');
+    assert.equal(result.allowed, false);
+    assert.equal(result.errorCode, 'FORBIDDEN');
+  });
+});
+

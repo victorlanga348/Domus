@@ -29,9 +29,7 @@
 ### 1.7 Gaveta de Membros da Família (`FamilyMembersDrawer`)
 - **Exibição:** Lista em tempo real de status, localização e papéis com layout anti-sobreposição.
 - **Privacidade & Salvamento Resiliente de Status:** Apenas o próprio usuário autenticado visualiza o botão de editar seu status e localização ("Meu Status"). A gravação opera via `upsert` com suporte a `id` e `name`, transmitindo imediatamente via WebSocket (`house:status_changed`) para todos os dispositivos na mesma residência.
-- **Ações Administrativas & Remoção:**
-  - Admin Geral: Pode promover residentes a Admin, destituir Admins para Residentes, transferir liderança geral e remover moradores/admins da residência.
-  - Admin Normal: Pode remover apenas moradores regulares (`Resident`/`Guest`).
+- **Foco Estrito em Status & Localização:** A gaveta destina-se exclusivamente à visualização de presença, status e localização em tempo real. Ações administrativas de governança (promover a admin, despromover a morador, transferir liderança e remover membros da residência) ocorrem exclusivamente na aba de **Configurações** (`SettingsView.tsx` através do `MemberActionDropdown.tsx`).
 
 ### 1.8 Modal de Saída & Sucessão Obrigatória de Admin Geral (`LeaveHouseModal`)
 - **Objetivo:** Permitir que moradores saiam da residência ativa de forma segura e transparente.

@@ -98,4 +98,38 @@ export class HouseController {
       next(error);
     }
   };
+
+  removeMember = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const requesterId =
+        req.userId ||
+        (req.headers['x-user-id'] as string) ||
+        req.body.requesterId ||
+        req.body.userId ||
+        req.body.user_id;
+      const requesterRole =
+        req.user?.role ||
+        (req.headers['x-user-role'] as string) ||
+        req.body.requesterRole;
+      const targetMemberId =
+        req.params.memberId ||
+        req.body.memberId ||
+        req.body.targetUserId ||
+        req.body.targetMemberId;
+      const houseId =
+        (req.headers['x-house-id'] as string) ||
+        req.body.houseId ||
+        (req.query.houseId as string);
+
+      const result = await this.houseService.removeMember(
+        requesterId,
+        targetMemberId,
+        requesterRole,
+        houseId
+      );
+      res.status(200).json({ status: 'success', data: result });
+    } catch (error) {
+      next(error);
+    }
+  };
 }
