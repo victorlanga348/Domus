@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { HouseTask, TaskRotation, FamilyMember } from '../../../types';
-import { ConfirmActionModal } from '../../../components/index.js';
+import { ConfirmActionModal, TasksSkeleton } from '../../../components/index.js';
 
 interface TasksRotationsViewProps {
   tasks: HouseTask[];
   rotations: TaskRotation[];
   familyMembers: FamilyMember[];
+  loading?: boolean;
   currentUserId?: string;
   currentUserRole?: string;
   currentUserName?: string;
@@ -21,6 +22,7 @@ export const TasksRotationsView: React.FC<TasksRotationsViewProps> = ({
   tasks,
   rotations,
   familyMembers,
+  loading = false,
   currentUserId,
   currentUserRole = 'Resident',
   currentUserName,
@@ -253,6 +255,10 @@ export const TasksRotationsView: React.FC<TasksRotationsViewProps> = ({
       setSelectedRotationMembers(rot.queue.map((q) => q.name));
     }
   };
+
+  if (loading) {
+    return <TasksSkeleton />;
+  }
 
   return (
     <div className="p-3 sm:p-5 max-w-5xl mx-auto w-full space-y-3.5 sm:space-y-5">

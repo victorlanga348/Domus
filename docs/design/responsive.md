@@ -62,9 +62,13 @@
 
 ## 7. Experiência PWA & Instalação em Tela Cheia (Standalone)
 - **Modo de Exibição:** `display: "standalone"`, eliminando barras de navegação do browser (Safari e Chrome) para sensação de aplicativo nativo.
-- **Área Segura (Safe Area):** Respeitar rigorosamente `env(safe-area-inset-top)` e `env(safe-area-inset-bottom)` com `viewport-fit=cover` ativo:
-  - **Cabeçalho:** Fundo uniforme preenchendo até a borda superior (`top: 0`) com `padding-top: env(safe-area-inset-top, 0px)` e conteúdo flex centralizado logo abaixo do notch / Dynamic Island.
+- **Área Segura (Safe Area) & Altura Total:** Respeitar rigorosamente `env(safe-area-inset-top)` e `env(safe-area-inset-bottom)` com `viewport-fit=cover` ativo:
+  - **Fundo Global:** `html`, `body` e `#root` configurados com `background-color: #f0fcfa` e `min-h-[100dvh]` para eliminar qualquer faixa branca no rodapé ou overscroll.
+  - **Cabeçalho:** Fundo sólido `#f0fcfa` preenchendo até o topo físico (`top: 0`, `z-50`) com `padding-top: env(safe-area-inset-top, 0px)` e altura flex interna `min-h-[56px] sm:min-h-[64px]` centralizando os ícones.
   - **Barras Inferiores & Rodapé:** Elementos fixos (toasts, botões de ação e fim de página) posicionados com `padding-bottom / bottom: calc(... + env(safe-area-inset-bottom, 0px))` para evitar sobreposição pela barra de gestos do sistema.
-- **Barra de Status do Sistema:** Sincronizada com tema claro (`theme-color: #ffffff` e `apple-mobile-web-app-status-bar-style: default`), garantindo contraste legível dos ícones do SO sobre o topo da aplicação.
-- **Arquitetura de Instalação Sem Bloqueio de Cache:** A experiência instalável opera via `manifest.webmanifest` e meta tags nativas de tela cheia. O Service Worker atua exclusivamente com rotina de bypass e auto-desregistro, garantindo conexão direta e imediata de rede sem retenção indevida de cache ou interferência em WebSockets e rotas de API em tempo real.
+- **Barra de Status do Sistema:** Sincronizada com tema do cabeçalho (`theme-color: #f0fcfa` e `apple-mobile-web-app-status-bar-style: default`), garantindo contraste legível dos ícones do SO e fusão visual perfeita com o topo do aplicativo.
+- **Arquitetura de Instalação PWA (Android 1-Click & iOS):**
+  - **Android (Chrome):** Service Worker pass-through `/sw.js` registrado no evento `load`, viabilizando o disparo do evento `beforeinstallprompt` e instalação nativa com 1 clique direto para a tela inicial.
+  - **iOS (Safari):** Orientação visual clara através de modal ilustrado instruindo o usuário a tocar em "Compartilhar" -> "Adicionar à Tela de Início" (conforme restrição nativa do WebKit da Apple).
+  - **Pass-through de Rede Total:** O Service Worker repassa 100% das requisições via `fetch(event.request)` direto para a rede, garantindo que APIs, WebSockets e rotas em tempo real nunca exibam dados defasados.
 

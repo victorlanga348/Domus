@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { dashboardApi, type DashboardData } from '../api/dashboardApi.js';
 import { useHouseSocket } from '../../../shared/socket/useHouseSocket.js';
 import { MuralNote, FamilyMember } from '../../../types';
+import { DashboardSkeleton } from '../../../components/index.js';
 
 interface DashboardViewProps {
   currentUserId?: string;
@@ -115,6 +116,10 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         return 'bg-[#f3f4f6] border-[#e5e7eb] text-[#1f2937]';
     }
   };
+
+  if (loading && !dashboardData) {
+    return <DashboardSkeleton />;
+  }
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto space-y-6 w-full animate-in fade-in duration-200">

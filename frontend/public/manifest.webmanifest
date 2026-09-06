@@ -1,13 +1,13 @@
 {
-  "name": "Domus - Living System",
+  "name": "Domus",
   "short_name": "Domus",
   "description": "Sistema de governança, tarefas e convivência residencial compartilhada.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait-primary",
-  "background_color": "#ffffff",
-  "theme_color": "#ffffff",
+  "background_color": "#f0fcfa",
+  "theme_color": "#f0fcfa",
   "lang": "pt-PT",
   "categories": ["lifestyle", "productivity", "utilities"],
   "icons": [

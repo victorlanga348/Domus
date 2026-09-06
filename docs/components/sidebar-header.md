@@ -6,7 +6,8 @@
   - `household`: Dados da residência ativa.
   - `onSwitchUser`: Callback para troca de perfil rápido ou reautenticação.
 - **Acessibilidade & PWA Safe Area:**
-  - Suporte nativo a Safe Area Inset Top (`padding-top: env(safe-area-inset-top, 0px)`): o background `#f0fcfa` estende-se até o topo físico da tela, enquanto os botões e o título "Domus" permanecem alinhados logo abaixo da barra de status e notch do sistema.
+  - Suporte nativo a Safe Area Inset Top (`padding-top: env(safe-area-inset-top, 0px)`): o elemento `<header>` possui posicionamento `sticky top-0 z-50` com fundo sólido `#f0fcfa` estendendo-se até o topo físico da tela, em perfeita fusão com a `theme-color: #f0fcfa` do sistema.
+  - Container interno flex com altura mínima `min-h-[56px] sm:min-h-[64px]` garantindo que os botões (menu sanduíche, modo férias, notificações, moradores) e o título "Domus" fiquem centralizados e confortavelmente alinhados abaixo do notch / Dynamic Island.
   - Botão de alternância com `aria-label` descritivo.
   - Indicador visual claro do status da conexão/casa.
 

@@ -23,20 +23,18 @@ if (typeof window !== 'undefined') {
   };
 }
 
-// Desregistro e limpeza preventiva de Service Worker e Caches residuais
+// Registro formal do Service Worker PWA para Android/Chrome
 if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
-  navigator.serviceWorker.getRegistrations().then((registrations) => {
-    for (const registration of registrations) {
-      registration.unregister();
-    }
+  window.addEventListener('load', () => {
+    navigator.serviceWorker
+      .register('/sw.js')
+      .then((reg) => {
+        console.log('[Domus PWA] Service Worker ativo:', reg.scope);
+      })
+      .catch((err) => {
+        console.warn('[Domus PWA] Erro ao registrar Service Worker:', err);
+      });
   });
-  if ('caches' in window) {
-    caches.keys().then((names) => {
-      for (const name of names) {
-        caches.delete(name);
-      }
-    });
-  }
 }
 
 

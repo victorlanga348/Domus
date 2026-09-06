@@ -7,7 +7,7 @@ interface SocketCallbacks {
   onVacationChanged?: (data: { userId: string; name: string; vacation_mode: boolean }) => void;
   onSwapRequested?: (data: { taskId: string; taskTitle: string; requesterName: string; reason: string }) => void;
   onPresence?: (data: { houseId: string; onlineCount: number; onlineUserIds: string[]; users: any[] }) => void;
-  onMembersUpdated?: () => void;
+  onMembersUpdated?: (data?: any) => void;
   onActivityLog?: (log: any) => void;
   onTaskCreated?: (task: any) => void;
   onTaskDeleted?: (data: { taskId: string }) => void;
@@ -43,7 +43,7 @@ export function useHouseSocket(
     const handleVacationChanged = (data: any) => callbacksRef.current?.onVacationChanged?.(data);
     const handleSwapRequested = (data: any) => callbacksRef.current?.onSwapRequested?.(data);
     const handlePresence = (data: any) => callbacksRef.current?.onPresence?.(data);
-    const handleMembersUpdated = () => callbacksRef.current?.onMembersUpdated?.();
+    const handleMembersUpdated = (data: any) => callbacksRef.current?.onMembersUpdated?.(data);
     const handleActivityLog = (log: any) => callbacksRef.current?.onActivityLog?.(log);
 
     const handleTaskCreated = (task: any) => callbacksRef.current?.onTaskCreated?.(task);

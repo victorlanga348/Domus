@@ -153,6 +153,14 @@ export function initSocketServer(httpServer: HttpServer): SocketIOServer {
       }
     });
 
+    // Atualização e Sincronização de Membros / Cargos em tempo real
+    socket.on('house:members_updated', (data: { houseId: string; members?: any[]; update?: any }) => {
+      if (data?.houseId) {
+        io?.to(`house:${data.houseId}`).emit('house:members_updated', data);
+        logger.info(`[WebSocket] Sincronização de membros/cargos transmitida para house:${data.houseId}`);
+      }
+    });
+
     // Regras da Casa em tempo real
     socket.on('house:rule_created', (data: { houseId: string; rule: any }) => {
       if (data?.houseId && data?.rule) {

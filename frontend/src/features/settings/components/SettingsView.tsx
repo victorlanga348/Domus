@@ -72,7 +72,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
   const handleInstallApp = async () => {
     if (isInstalled) {
-      onShowToast?.('O DOMUS já está instalado e funcionando como aplicativo!');
+      onShowToast?.('O Domus já está instalado e funcionando como aplicativo!');
       return;
     }
 
@@ -83,7 +83,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         if (choiceResult && choiceResult.outcome === 'accepted') {
           onInstallAccepted?.();
           setIsInstalled(true);
-          onShowToast?.('Instalação do DOMUS solicitada com sucesso!');
+          onShowToast?.('Instalação do Domus solicitada com sucesso!');
         }
         return;
       } catch (err) {
@@ -135,8 +135,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
   const handleShareCode = async () => {
     if (!houseInviteCode) return;
-    const shareTitle = `Convite para ${houseName || 'DOMUS'}`;
-    const shareText = `Olá! Venha fazer parte da residência "${houseName || 'DOMUS'}" no DOMUS. Use o nosso código de convite: ${houseInviteCode}`;
+    const shareTitle = `Convite para ${houseName || 'Domus'}`;
+    const shareText = `Olá! Venha fazer parte da residência "${houseName || 'Domus'}" no Domus. Use o nosso código de convite: ${houseInviteCode}`;
     const shareData = {
       title: shareTitle,
       text: shareText,
@@ -268,13 +268,13 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           </div>
         </div>
 
-        {/* Card Aplicativo DOMUS (PWA) */}
+        {/* Card Aplicativo Domus (PWA) */}
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-[#d9e5e3] flex flex-col justify-between">
           <div>
             <div className="flex justify-between items-start mb-2">
               <div className="flex items-center gap-2 text-[#16302e]">
                 <span className="material-symbols-outlined text-2xl text-[#7b5800]">install_mobile</span>
-                <h3 className="text-lg font-bold">Aplicativo DOMUS</h3>
+                <h3 className="text-lg font-bold">Aplicativo Domus</h3>
               </div>
               <span
                 className={`text-[10px] font-extrabold uppercase px-2.5 py-1 rounded-lg tracking-wider ${
@@ -288,7 +288,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             </div>
 
             <p className="text-xs text-[#414847] leading-relaxed mb-4">
-              Instale o DOMUS no seu celular ou computador para ter acesso instantâneo na tela inicial, navegação imersiva em tela inteira e experiência fluida de app nativo.
+              Instale o Domus no seu celular ou computador para ter acesso instantâneo na tela inicial, navegação imersiva em tela inteira e experiência fluida de app nativo.
             </p>
 
             <div className="bg-[#f0fcfa] border border-[#c1c8c6] rounded-2xl p-4 flex flex-col sm:flex-row items-center justify-between gap-4">
@@ -307,7 +307,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     {isInstalled ? 'Modo Nativo Ativo' : 'Instalação Direta'}
                   </span>
                   <span className="text-sm font-black text-[#16302e]">
-                    {isInstalled ? 'DOMUS instalado neste aparelho' : 'Tornar este site um aplicativo'}
+                    {isInstalled ? 'Domus instalado neste aparelho' : 'Tornar este site um aplicativo'}
                   </span>
                 </div>
               </div>
@@ -321,7 +321,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                       ? 'bg-emerald-50 text-emerald-800 border border-emerald-300 hover:bg-emerald-100'
                       : 'bg-[#ffca5e] hover:bg-[#f5be4f] text-[#755400] font-black'
                   }`}
-                  title={isInstalled ? 'Aplicativo instalado' : 'Instalar DOMUS no dispositivo'}
+                  title={isInstalled ? 'Aplicativo instalado' : 'Instalar Domus no dispositivo'}
                 >
                   <span className="material-symbols-outlined text-base">
                     {isInstalled ? 'verified' : 'add_to_home_screen'}
@@ -587,7 +587,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   <span className="material-symbols-outlined text-2xl">install_mobile</span>
                 </div>
                 <div>
-                  <h3 className="text-lg font-black text-[#16302e]">Instalar o DOMUS</h3>
+                  <h3 className="text-lg font-black text-[#16302e]">Instalar o Domus</h3>
                   <p className="text-xs text-[#727877]">Adicione à tela inicial em 3 passos</p>
                 </div>
               </div>
@@ -624,7 +624,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   3
                 </span>
                 <p>
-                  Confirme tocando em <strong>Adicionar</strong> ou <strong>Instalar</strong>. O ícone do DOMUS ficará disponível na sua tela principal!
+                  Confirme tocando em <strong>Adicionar</strong> ou <strong>Instalar</strong>. O ícone do Domus ficará disponível na sua tela principal!
                 </p>
               </div>
             </div>

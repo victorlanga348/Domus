@@ -48,6 +48,7 @@ import {
   emitRuleCreated,
   emitRuleDeleted,
   emitRotationAdvanced,
+  emitMembersUpdated,
 } from './shared/socket/index.js';
 
 function mapBackendTaskToHouseTask(task: any, currentMembers: FamilyMember[]): HouseTask {
@@ -456,7 +457,14 @@ export default function App() {
           setOnlineUserIds(presenceData.onlineUserIds);
         }
       },
-      onMembersUpdated: () => {
+      onMembersUpdated: (data: any) => {
+        if (data?.members && Array.isArray(data.members)) {
+          setFamilyMembers(data.members);
+          if (houseKey) {
+            localStorage.setItem(`${houseKey}_members`, JSON.stringify(data.members));
+          }
+          return;
+        }
         if (currentHouse?.id && authUser?.id) {
           dashboardApi
             .getDashboardData(currentHouse.id, authUser.id)
@@ -945,7 +953,14 @@ export default function App() {
       return;
     }
     const newMember: FamilyMember = { ...member, id: `m_${Date.now()}` };
-    setFamilyMembers((prev) => [...prev, newMember]);
+    const updated = [...familyMembers, newMember];
+    setFamilyMembers(updated);
+    if (houseKey) {
+      localStorage.setItem(`${houseKey}_members`, JSON.stringify(updated));
+    }
+    if (currentHouse?.id) {
+      emitMembersUpdated(currentHouse.id, { members: updated });
+    }
     recordHouseActivity(`Novo membro adicionado: ${member.name} (${member.role})`);
     showToast(`Membro ${member.name} adicionado com sucesso!`);
   };
@@ -955,17 +970,31 @@ export default function App() {
       showToast('Você não pode se auto-remover pelas configurações. Use a opção Trocar ou Sair da Residência.');
       return;
     }
-    setFamilyMembers((prev) => prev.filter((m) => m.id !== memberId));
+    const updated = familyMembers.filter((m) => m.id !== memberId);
+    setFamilyMembers(updated);
     setMemberStatuses((prev) => prev.filter((s) => s.id !== memberId));
+    if (houseKey) {
+      localStorage.setItem(`${houseKey}_members`, JSON.stringify(updated));
+    }
+    if (currentHouse?.id) {
+      emitMembersUpdated(currentHouse.id, { members: updated });
+    }
     recordHouseActivity(`${memberName} foi removido da residência por ${authUser?.name || 'Administrador'}`);
     showToast(`Membro ${memberName} removido da residência.`);
   };
 
   const handlePromoteToAdmin = (memberId: string) => {
     const member = familyMembers.find((m) => m.id === memberId);
-    setFamilyMembers((prev) =>
-      prev.map((m) => (m.id === memberId ? { ...m, role: 'Admin' } : m))
+    const updated: FamilyMember[] = familyMembers.map((m) =>
+      m.id === memberId ? { ...m, role: 'Admin' as const } : m
     );
+    setFamilyMembers(updated);
+    if (houseKey) {
+      localStorage.setItem(`${houseKey}_members`, JSON.stringify(updated));
+    }
+    if (currentHouse?.id) {
+      emitMembersUpdated(currentHouse.id, { members: updated });
+    }
     if (member) {
       recordHouseActivity(`${member.name} foi promovido a Administrador Normal por ${authUser?.name}`);
     }
@@ -974,9 +1003,16 @@ export default function App() {
 
   const handleDemoteToResident = (memberId: string) => {
     const member = familyMembers.find((m) => m.id === memberId);
-    setFamilyMembers((prev) =>
-      prev.map((m) => (m.id === memberId ? { ...m, role: 'Resident' } : m))
+    const updated: FamilyMember[] = familyMembers.map((m) =>
+      m.id === memberId ? { ...m, role: 'Resident' as const } : m
     );
+    setFamilyMembers(updated);
+    if (houseKey) {
+      localStorage.setItem(`${houseKey}_members`, JSON.stringify(updated));
+    }
+    if (currentHouse?.id) {
+      emitMembersUpdated(currentHouse.id, { members: updated });
+    }
     if (member) {
       recordHouseActivity(`${member.name} foi destituído para Morador regular por ${authUser?.name}`);
     }
@@ -996,19 +1032,19 @@ export default function App() {
   const handleConfirmLeadershipTransfer = () => {
     if (!transferTarget) return;
 
+    let updated: FamilyMember[] = [];
     if (transferTarget.member) {
       const targetId = transferTarget.member.id;
-      setFamilyMembers((prev) =>
-        prev.map((m) => {
-          if (m.id === targetId) {
-            return { ...m, role: 'Admin Geral', isPrimary: true };
-          }
-          if (m.role === 'Admin Geral' || m.id === authUser?.id) {
-            return { ...m, role: 'Admin', isPrimary: false };
-          }
-          return m;
-        })
-      );
+      updated = familyMembers.map((m) => {
+        if (m.id === targetId) {
+          return { ...m, role: 'Admin Geral' as const, isPrimary: true };
+        }
+        if (m.role === 'Admin Geral' || m.id === authUser?.id) {
+          return { ...m, role: 'Admin' as const, isPrimary: false };
+        }
+        return m;
+      });
+      setFamilyMembers(updated);
       recordHouseActivity(`Liderança da residência transferida para ${transferTarget.member.name}`);
       showToast(`Liderança transferida para ${transferTarget.member.name}! Você agora é Admin Normal.`);
     } else if (transferTarget.newMemberData) {
@@ -1018,14 +1054,22 @@ export default function App() {
         role: 'Admin Geral',
         isPrimary: true,
       };
-      setFamilyMembers((prev) => [
-        ...prev.map((m) =>
+      updated = [
+        ...familyMembers.map((m) =>
           m.role === 'Admin Geral' || m.id === authUser?.id ? { ...m, role: 'Admin' as const, isPrimary: false } : m
         ),
         newCreatedMember,
-      ]);
+      ];
+      setFamilyMembers(updated);
       recordHouseActivity(`Novo Admin Geral nomeado: ${transferTarget.newMemberData.name}`);
       showToast(`Novo Admin Geral ${transferTarget.newMemberData.name} cadastrado! Você agora é Admin Normal.`);
+    }
+
+    if (houseKey && updated.length > 0) {
+      localStorage.setItem(`${houseKey}_members`, JSON.stringify(updated));
+    }
+    if (currentHouse?.id && updated.length > 0) {
+      emitMembersUpdated(currentHouse.id, { members: updated });
     }
 
     setIsTransferModalOpen(false);
@@ -1153,9 +1197,9 @@ export default function App() {
     );
   }
 
-  // Nível 3: Autenticado e com Residência ➔ Aplicação Principal DOMUS
+  // Nível 3: Autenticado e com Residência ➔ Aplicação Principal Domus
   return (
-    <div className="flex h-screen h-[100dvh] max-h-[100dvh] w-full max-w-full bg-[#e4f0ee] overflow-hidden text-[#131e1d]">
+    <div className="flex min-h-[100dvh] w-full max-w-full bg-[#f0fcfa] text-[#131e1d]">
       {/* Sidebar Navigation */}
       <Sidebar
         currentTab={currentTab}
@@ -1175,7 +1219,7 @@ export default function App() {
       />
 
       {/* Main Content Area */}
-      <main className="ml-0 md:ml-[250px] lg:ml-[280px] flex-1 min-w-0 max-w-full flex flex-col bg-[#f0fcfa] h-full overflow-y-auto overflow-x-hidden relative">
+      <main className="ml-0 md:ml-[250px] lg:ml-[280px] flex-1 min-w-0 max-w-full flex flex-col bg-[#f0fcfa] min-h-[100dvh] relative">
         {/* Top Header */}
         <Header
           currentTab={currentTab}

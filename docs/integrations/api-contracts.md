@@ -214,5 +214,6 @@
 - **`house:leave`:** Saída da sala da residência com `{ houseId }`.
 - **`house:presence`:** Broadcast emitido para todos os dispositivos conectados à residência contendo `onlineCount`, `onlineUserIds` e lista de usuários.
 - **`house:code_regenerated`:** Broadcast emitido quando o Admin Geral regenera o código de convite da casa (`{ houseId, invite_code }`).
+- **`house:members_updated`:** Broadcast emitido quando ocorre alteração de membros (promoção, rebaixamento, adição, remoção ou transferência de liderança) com payload `{ houseId, members }`, atualizando cargos e permissões de todos os aparelhos conectados sem reload.
 - **`task:locked` / `task:unlocked`:** Sincronização em tempo real de travas de tarefas entre aparelhos.
 - **`room:join` / `room:leave` / `room:presence` / `room:new_message`:** Sincronização em tempo real de mensagens e presenças em salas privadas.

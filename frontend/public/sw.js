@@ -1,23 +1,15 @@
-// DOMUS - Service Worker de Limpeza e Auto-Desregistro
-// Garante conexão direta e irrestrita sem interferência de cache
+// Domus - Progressive Web App Service Worker (Network Pass-Through)
+// Mantém registro ativo para habilitar instalação nativa PWA no Android/Chrome
 
 self.addEventListener('install', () => {
   self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {
-  event.waitUntil(
-    caches.keys().then((keys) => {
-      return Promise.all(keys.map((k) => caches.delete(k)));
-    }).then(() => {
-      return self.registration.unregister();
-    }).then(() => {
-      return self.clients.claim();
-    })
-  );
+  event.waitUntil(self.clients.claim());
 });
 
-// Pass-through total: NUNCA interceptar requisições
-self.addEventListener('fetch', () => {
-  return;
+// Pass-through total: requisições sempre diretas à rede sem bloqueio ou cache defasado
+self.addEventListener('fetch', (event) => {
+  event.respondWith(fetch(event.request));
 });

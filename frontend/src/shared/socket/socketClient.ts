@@ -126,3 +126,8 @@ export function emitRotationAdvanced(houseId: string, rotationId: string): void 
   const s = getSocket();
   if (houseId && rotationId) s.emit('house:rotation_advanced', { houseId, rotationId });
 }
+
+export function emitMembersUpdated(houseId: string, payload?: any): void {
+  const s = getSocket();
+  if (houseId) s.emit('house:members_updated', { houseId, ...payload });
+}
