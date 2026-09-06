@@ -62,29 +62,22 @@ export const Sidebar: React.FC<SidebarProps> = ({
   return (
     <>
       {/* Mobile Slide-Over Sidebar Drawer */}
-      <div
-        className={`md:hidden fixed inset-0 z-50 flex h-[100dvh] max-h-[100dvh] overflow-hidden transition-all duration-300 ${
-          isMobileOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
-        }`}
-      >
-        {/* Backdrop Overlay */}
-        <div
-          className={`fixed inset-0 bg-black/60 backdrop-blur-xs transition-opacity duration-300 ${
-            isMobileOpen ? 'opacity-100' : 'opacity-0'
-          }`}
-          onClick={onCloseMobile}
-        />
+      {isMobileOpen && (
+        <div className="md:hidden fixed inset-0 z-50 flex h-[100dvh] max-h-[100dvh] overflow-hidden animate-in fade-in duration-200">
+          {/* Backdrop Overlay */}
+          <div
+            className="fixed inset-0 bg-black/60 backdrop-blur-xs"
+            onClick={onCloseMobile}
+          />
 
-        {/* Slide-In Drawer */}
-        <aside
-          className={`relative w-72 max-w-[80%] bg-[#16302e] h-full h-[100dvh] max-h-[100dvh] shadow-2xl flex flex-col justify-between px-4 z-50 overflow-y-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden transform transition-transform duration-300 ease-in-out ${
-            isMobileOpen ? 'translate-x-0' : '-translate-x-full'
-          }`}
-          style={{
-            paddingTop: 'calc(1.25rem + env(safe-area-inset-top, 0px))',
-            paddingBottom: 'calc(1.25rem + env(safe-area-inset-bottom, 0px))',
-          }}
-        >
+          {/* Slide-In Drawer */}
+          <aside
+            className="relative w-72 max-w-[80%] bg-[#16302e] h-full h-[100dvh] max-h-[100dvh] shadow-2xl flex flex-col justify-between px-4 z-50 overflow-y-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden animate-in slide-in-from-left duration-200"
+            style={{
+              paddingTop: 'calc(1.25rem + env(safe-area-inset-top, 0px))',
+              paddingBottom: 'calc(1.25rem + env(safe-area-inset-bottom, 0px))',
+            }}
+          >
           {/* Top Bar with Brand & Close Button */}
           <div className="flex items-center justify-between border-b border-[#2d4644] pb-4 mb-4">
             <div className="flex items-center gap-2">
@@ -215,7 +208,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </div>
         </aside>
       </div>
-      {/* Desktop Sidebar (hidden on mobile, fixed no scroll on desktop) */}
+    )}
+    {/* Desktop Sidebar (hidden on mobile, fixed no scroll on desktop) */}
       <aside className="hidden md:flex fixed left-0 top-0 h-[100dvh] w-[250px] lg:w-[280px] bg-[#16302e] shadow-none flex-col justify-between py-4 lg:py-6 z-50 transition-all duration-300 overflow-hidden [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
         {/* Profile Area */}
         <div className="flex flex-col items-center justify-center px-5 mb-2 lg:mb-4 shrink-0">

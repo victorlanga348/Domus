@@ -31,9 +31,10 @@ Para atender a dispositivos compartilhados (ex: tablet fixo na cozinha) e celula
 
 ---
 
-## 3. Políticas de Senhas e Rate Limiting
-- **Rate Limit de PIN:** Máximo de 5 tentativas consecutivas incorretas por usuário em janela de 10 minutos.
-- **PINs Fracos Proibidos:** Validação contra sequências óbvias (`0000`, `1234`, `1111`).
+## 3. Políticas de Senhas, PIN e Rate Limiting
+- **Simplificação de Cadastro (Eliminação do PIN no Onboarding):** O campo de PIN foi removido do formulário de cadastro web/mobile para eliminar fricção no onboarding. O backend preenche o campo obrigatório `pin_hash` com hash de fallback seguro (`0000`) de forma determinística e transparente (idêntico ao procedimento de login federado via Google OAuth). Caso necessário, o morador pode definir um PIN personalizado posteriormente nas preferências do perfil.
+- **Rate Limit de PIN:** Máximo de 5 tentativas consecutivas incorretas por usuário em janela de 10 minutos na rota `/api/auth/verify-pin`.
+- **PINs Fracos Proibidos:** Validação contra sequências óbvias (`0000`, `1234`, `1111`) em caso de definição explícita pelo usuário.
 
 ---
 

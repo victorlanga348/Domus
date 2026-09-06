@@ -9,7 +9,7 @@ export interface RegisterPayload {
   name: string;
   email: string;
   password: string;
-  pin: string;
+  pin?: string;
 }
 
 export interface HousePayload {

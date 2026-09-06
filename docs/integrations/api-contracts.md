@@ -61,6 +61,38 @@
   - `400 Bad Request`: Token Google (`credential`) ausente ou malformatado.
   - `401 Unauthorized`: Token Google inválido ou expirado.
 
+### `POST /api/auth/register`
+- **Descrição:** Registra uma nova conta de morador. O campo `pin` é estritamente opcional (se omitido, o sistema aplica hash Bcrypt padrão `0000`).
+- **Payload:**
+  ```json
+  {
+    "name": "Nome Completo",
+    "email": "morador@exemplo.com",
+    "password": "senha_segura_min_6",
+    "pin": "1234" // Opcional (4 a 6 dígitos). Omitido no formulário padrão web/mobile.
+  }
+  ```
+- **Resposta (201):**
+  ```json
+  {
+    "status": "success",
+    "data": {
+      "token": "eyJhbGciOi...",
+      "user": {
+        "id": "uuid",
+        "name": "Nome Completo",
+        "email": "morador@exemplo.com",
+        "role": "MEMBER",
+        "vacation_mode": false,
+        "house_id": null
+      }
+    }
+  }
+  ```
+- **Erros:**
+  - `400 Bad Request`: Nome, e-mail inválido, senha curta (< 6 caracteres) ou PIN inválido (< 4 ou > 6 dígitos quando fornecido).
+  - `409 Conflict`: E-mail já cadastrado.
+
 ---
 
 ## 3. Endpoints de Tarefas (`/api/tasks`)
