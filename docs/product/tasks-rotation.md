@@ -72,4 +72,9 @@ stateDiagram-v2
 - **Autoridade:** Exclusiva do Admin Geral (`ADMIN` ou `Admin Geral`).
 - **Comportamento:** Remove a penalidade da falha registrada em caso de imprevisto, doença ou ausência justificada, recalculando as métricas de harmonia da residência.
 
+### 4.8 Visibilidade Universal de Tarefas e Histórico
+- **Regra Fundamental de Convivência:** Todas as tarefas da residência (`house_id`), seus respectivos rodízios, status de conclusão e registros de histórico são **universalmente visíveis por todos os moradores da casa**, sem exceção.
+- **Moradores Novos / Recém-Cadastrados:** Ao ingressar na residência com o código de convite, o novo morador tem acesso imediato à visualização de todas as tarefas já criadas (passadas, em andamento ou futuras) e seus históricos, antes mesmo de ser incluído como participante ativo de alguma escala pelo Admin.
+- **Moradores Não-Participantes:** Um morador que não faça parte do pool de participantes de uma tarefa específica continua visualizando normalmente o card da tarefa, o responsável atual e o histórico, garantindo plena transparência e harmonia operacional na convivência compartilhada.
+
 

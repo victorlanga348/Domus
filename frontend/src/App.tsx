@@ -10,7 +10,6 @@ import {
   FamilyMember,
   HouseTask,
   TaskRotation,
-  ExpenseItem,
   HouseRule,
   ActivityLog,
   SystemPreferences,
@@ -24,16 +23,14 @@ import {
 } from './types';
 import { INITIAL_PREFERENCES } from './data.js';
 import { Sidebar, Header } from './layouts/index.js';
-import { DashboardView, dashboardApi } from './features/dashboard/index.js';
+import { DashboardView, dashboardApi, memberStatusesApi } from './features/dashboard/index.js';
 import { TasksRotationsView, tasksApi } from './features/tasks-rotation/index.js';
-import { MealsView, createDefaultMealPlan, DEFAULT_MEAL_SCHEDULES } from './features/meals/index.js';
-import { SettingsView } from './features/settings/index.js';
+import { MealsView, createDefaultMealPlan, DEFAULT_MEAL_SCHEDULES, mealsApi } from './features/meals/index.js';
+import { SettingsView, rulesApi, preferencesApi } from './features/settings/index.js';
 import { ReportsView } from './features/reports/index.js';
 import { StatisticsView } from './features/statistics/index.js';
 import { activityLogsApi } from './features/activity-logs/index.js';
 import {
-  AddExpenseModal,
-  RequestReimbursementModal,
   AddHouseRuleModal,
   AddMemberModal,
   NotificationsDrawer,
@@ -324,12 +321,6 @@ export default function App() {
     return saved ? JSON.parse(saved) : [];
   });
 
-  const [expenses, setExpenses] = useState<ExpenseItem[]>(() => {
-    if (!houseKey) return [];
-    const saved = localStorage.getItem(`${houseKey}_expenses`);
-    return saved ? JSON.parse(saved) : [];
-  });
-
   const [houseRules, setHouseRules] = useState<HouseRule[]>(() => {
     if (!houseKey) return [];
     const saved = localStorage.getItem(`${houseKey}_rules`);
@@ -426,8 +417,6 @@ export default function App() {
   });
 
   // Modal Visibility States
-  const [isAddExpenseOpen, setIsAddExpenseOpen] = useState(false);
-  const [isReimbursementOpen, setIsReimbursementOpen] = useState(false);
   const [isAddRuleOpen, setIsAddRuleOpen] = useState(false);
   const [isAddMemberOpen, setIsAddMemberOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
@@ -458,7 +447,6 @@ export default function App() {
       localStorage.setItem(`${houseKey}_members`, JSON.stringify(familyMembers));
       localStorage.setItem(`${houseKey}_tasks`, JSON.stringify(tasks));
       localStorage.setItem(`${houseKey}_rotations`, JSON.stringify(rotations));
-      localStorage.setItem(`${houseKey}_expenses`, JSON.stringify(expenses));
       localStorage.setItem(`${houseKey}_rules`, JSON.stringify(houseRules));
       localStorage.setItem(`${houseKey}_logs`, JSON.stringify(activityLogs));
       localStorage.setItem(`${houseKey}_read_notifications`, JSON.stringify(readNotificationIds));
@@ -473,7 +461,6 @@ export default function App() {
     familyMembers,
     tasks,
     rotations,
-    expenses,
     houseRules,
     activityLogs,
     readNotificationIds,
@@ -585,16 +572,14 @@ export default function App() {
           console.warn('[DOMUS] Erro ao sincronizar membros da casa:', err);
         });
 
-      // 2. Tarefas Centrais da Residência (PostgreSQL)
+      // 2. Tarefas Centrais da Residência (PostgreSQL - Visibilidade Universal)
       tasksApi
         .getTasks(currentHouse.id, authUser.id)
         .then((backendTasks) => {
-          if (Array.isArray(backendTasks) && backendTasks.length > 0) {
+          if (Array.isArray(backendTasks)) {
             setTasks(backendTasks.map((t) => mapBackendTaskToHouseTask(t, familyMembers)));
             const generatedRotations = mapBackendTasksToRotations(backendTasks, familyMembers);
-            if (generatedRotations.length > 0) {
-              setRotations(generatedRotations);
-            }
+            setRotations(generatedRotations);
           }
         })
         .catch((err) => {
@@ -611,6 +596,54 @@ export default function App() {
         })
         .catch((err) => {
           console.warn('[DOMUS] Erro ao sincronizar logs de atividade centralizados:', err);
+        });
+
+      // 4. Regras da Residência (PostgreSQL)
+      rulesApi
+        .getRules(currentHouse.id)
+        .then((backendRules) => {
+          if (Array.isArray(backendRules) && backendRules.length > 0) {
+            setHouseRules(backendRules);
+          }
+        })
+        .catch((err) => {
+          console.warn('[DOMUS] Erro ao sincronizar regras da residência:', err);
+        });
+
+      // 5. Preferências da Residência (PostgreSQL)
+      preferencesApi
+        .getPreferences(currentHouse.id)
+        .then((backendPrefs) => {
+          if (backendPrefs) {
+            setPreferences(backendPrefs);
+          }
+        })
+        .catch((err) => {
+          console.warn('[DOMUS] Erro ao sincronizar preferências da residência:', err);
+        });
+
+      // 6. Cardápio / Refeições da Residência (PostgreSQL)
+      mealsApi
+        .getMealPlan(currentHouse.id)
+        .then((backendPlan) => {
+          if (backendPlan) {
+            setMealPlan(backendPlan);
+          }
+        })
+        .catch((err) => {
+          console.warn('[DOMUS] Erro ao sincronizar cardápio da residência:', err);
+        });
+
+      // 7. Status dos Moradores (PostgreSQL)
+      memberStatusesApi
+        .getStatuses(currentHouse.id)
+        .then((backendStatuses) => {
+          if (Array.isArray(backendStatuses) && backendStatuses.length > 0) {
+            setMemberStatuses(backendStatuses);
+          }
+        })
+        .catch((err) => {
+          console.warn('[DOMUS] Erro ao sincronizar status dos moradores:', err);
         });
     }
   }, [currentHouse?.id, authUser?.id, handleSyncMembers]);
@@ -1013,7 +1046,6 @@ export default function App() {
     setFamilyMembers([]);
     setTasks([]);
     setRotations([]);
-    setExpenses([]);
     setHouseRules([]);
     setActivityLogs([]);
     setReadNotificationIds([]);
@@ -1386,30 +1418,52 @@ export default function App() {
     showToast('Rodízio avançado.');
   };
 
-  const handleAddExpense = (expense: Omit<ExpenseItem, 'id'>) => {
-    const newExp: ExpenseItem = { ...expense, id: `exp_${Date.now()}` };
-    setExpenses((prev) => [newExp, ...prev]);
-    recordHouseActivity(`Nova despesa registrada: ${expense.title} (R$ ${expense.amount.toFixed(2)})`);
-    showToast(`Despesa adicionada.`);
-  };
-
-  const handleReimbursement = (amount: number, reason: string) => {
-    recordHouseActivity(`Solicitação de reembolso de R$ ${amount.toFixed(2)} por ${authUser?.name}`);
-    showToast(`Solicitação de reembolso de ${amount.toFixed(2)} enviada: "${reason}".`);
-  };
-
-  const handleAddHouseRule = (rule: Omit<HouseRule, 'id' | 'number'>) => {
-    const newRule: HouseRule = {
+  const handleAddHouseRule = async (rule: Omit<HouseRule, 'id' | 'number'>) => {
+    let createdRule: HouseRule = {
       ...rule,
       id: `hr_${Date.now()}`,
       number: houseRules.length + 1,
     };
-    setHouseRules((prev) => [...prev, newRule]);
     if (currentHouse?.id) {
-      emitRuleCreated(currentHouse.id, newRule);
+      const backendRule = await rulesApi.createRule(currentHouse.id, {
+        title: rule.title,
+        description: rule.description,
+        number: houseRules.length + 1,
+      });
+      if (backendRule) {
+        createdRule = backendRule;
+      }
+    }
+    setHouseRules((prev) => [...prev, createdRule]);
+    if (currentHouse?.id) {
+      emitRuleCreated(currentHouse.id, createdRule);
     }
     recordHouseActivity(`Nova regra adicionada: "${rule.title}"`);
     showToast('Regra da casa adicionada!');
+  };
+
+  const handleUpdateHouseRules = (updatedRules: HouseRule[]) => {
+    const deletedRules = houseRules.filter((r) => !updatedRules.some((ur) => ur.id === r.id));
+    setHouseRules(updatedRules);
+    if (houseKey) {
+      localStorage.setItem(`${houseKey}_rules`, JSON.stringify(updatedRules));
+    }
+    if (currentHouse?.id) {
+      for (const dr of deletedRules) {
+        rulesApi.deleteRule(dr.id, currentHouse.id).catch(() => {});
+        emitRuleDeleted(currentHouse.id, dr.id);
+      }
+    }
+  };
+
+  const handleUpdatePreferences = (newPrefs: SystemPreferences) => {
+    setPreferences(newPrefs);
+    if (houseKey) {
+      localStorage.setItem(`${houseKey}_prefs`, JSON.stringify(newPrefs));
+    }
+    if (currentHouse?.id) {
+      preferencesApi.updatePreferences(currentHouse.id, newPrefs).catch(() => {});
+    }
   };
 
   // Estados e Handlers de Governança de Liderança & Membros
@@ -1612,6 +1666,7 @@ export default function App() {
 
     if (currentHouse?.id) {
       emitStatusChanged(currentHouse.id, updatedStatusObj);
+      memberStatusesApi.updateStatus(currentHouse.id, memberId, newLocation, iconToUse).catch(() => {});
     }
 
     recordHouseActivity(`${memberName} atualizou seu status para: "${newLocation}"`);
@@ -1677,6 +1732,7 @@ export default function App() {
 
       if (currentHouse?.id) {
         emitMealUpdated(currentHouse.id, meal);
+        mealsApi.saveMeal(currentHouse.id, meal, currentUser.role).catch(() => {});
       }
       showToast(`Prato "${meal.title}" salvo no cardápio!`);
     },
@@ -1708,6 +1764,7 @@ export default function App() {
 
       if (currentHouse?.id) {
         emitMealDeleted(currentHouse.id, mealId);
+        mealsApi.deleteMeal(currentHouse.id, mealId, currentUser.role).catch(() => {});
       }
       showToast('Prato removido do cardápio.');
     },
@@ -1736,8 +1793,12 @@ export default function App() {
       return updatedPlan;
     });
 
+    if (currentHouse?.id) {
+      mealsApi.clearMeals(currentHouse.id, currentUser.role).catch(() => {});
+    }
+
     showToast('Cardápio esvaziado com sucesso. Pronto para novos pratos!');
-  }, [currentUser.role, mealPlan.isLocked, houseKey, showToast]);
+  }, [currentUser.role, mealPlan.isLocked, houseKey, currentHouse?.id, showToast]);
 
   const handleToggleMealLock = useCallback(() => {
     if (currentUser.role !== 'Admin Geral') {
@@ -1766,6 +1827,7 @@ export default function App() {
           nextLocked ? authUser?.id : undefined,
           nextLocked ? authUser?.name : undefined
         );
+        mealsApi.toggleLock(currentHouse.id, authUser?.id, currentUser.role).catch(() => {});
       }
 
       showToast(
@@ -1801,9 +1863,13 @@ export default function App() {
         return updatedPlan;
       });
 
+      if (currentHouse?.id) {
+        mealsApi.updateSchedules(currentHouse.id, newSchedules, currentUser.role).catch(() => {});
+      }
+
       showToast('Horários das refeições atualizados com sucesso!');
     },
-    [currentUser.role, mealPlan.isLocked, houseKey, showToast]
+    [currentUser.role, mealPlan.isLocked, houseKey, currentHouse?.id, showToast]
   );
 
   // Nível 1: Não Autenticado ➔ Tela de Login / Cadastro
@@ -1959,9 +2025,9 @@ export default function App() {
               {currentTab === 'settings' && (
                 <SettingsView
                   preferences={preferences}
-                  onUpdatePreferences={setPreferences}
+                  onUpdatePreferences={handleUpdatePreferences}
                   houseRules={houseRules}
-                  onUpdateHouseRules={setHouseRules}
+                  onUpdateHouseRules={handleUpdateHouseRules}
                   familyMembers={familyMembers}
                   onOpenAddMemberModal={() => setIsAddMemberOpen(true)}
                   onOpenAddRuleModal={() => setIsAddRuleOpen(true)}
@@ -2019,18 +2085,6 @@ export default function App() {
       )}
 
       {/* Modals & Drawers */}
-      <AddExpenseModal
-        isOpen={isAddExpenseOpen}
-        onClose={() => setIsAddExpenseOpen(false)}
-        familyMembers={familyMembers}
-        onAddExpense={handleAddExpense}
-      />
-
-      <RequestReimbursementModal
-        isOpen={isReimbursementOpen}
-        onClose={() => setIsReimbursementOpen(false)}
-        onSubmit={handleReimbursement}
-      />
 
       <AddHouseRuleModal
         isOpen={isAddRuleOpen}

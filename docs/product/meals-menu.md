@@ -16,7 +16,7 @@ O cardápio opera em ciclo semanal contínuo de 7 dias (Segunda a Domingo) divid
 - O Administrador Geral e os Sub-Administradores (quando destrancado) podem ajustar os horários de início e término de cada refeição de duas formas:
   1. Através do botão global **"Ajustar Horários"** (`schedule` icon) no cabeçalho do módulo.
   2. Clicando **diretamente sobre a faixa de horário** exibida em qualquer card de refeição (`MealCard`).
-- Os horários configurados persistem no `localStorage` por residência e refletem em tempo real em todos os cards, modais e visões do cardápio.
+- Os horários e pratos configurados persistem centralizadamente no PostgreSQL (tabelas `MealPlan` e `MealItem`) associados à residência (`house_id`) e refletem em tempo real via WebSockets/HTTP em todos os dispositivos dos moradores.
 - Ao abrir qualquer modal de edição ou confirmação, a rolagem de fundo é automaticamente travada (`useBodyScrollLock`), garantindo foco e prevenindo deslocamentos acidentais.
 
 ---

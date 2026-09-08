@@ -330,6 +330,20 @@ export const TasksRotationsView: React.FC<TasksRotationsViewProps> = ({
     const finalFrequency = getFinalFrequencyString();
     const finalNotice = getFinalAdvanceNoticeString();
 
+    let taskParticipantIds: string[] = [];
+    if (taskAssignmentType === 'member') {
+      const found = familyMembers.find((m) => m.name === selectedMember);
+      if (found?.id) taskParticipantIds = [found.id];
+    } else {
+      const participants = familyMembers.filter((m) =>
+        selectedRotationMembers.includes(m.name)
+      );
+      taskParticipantIds = participants.map((p) => p.id).filter(Boolean);
+      if (taskParticipantIds.length === 0 && familyMembers[0]?.id) {
+        taskParticipantIds = [familyMembers[0].id];
+      }
+    }
+
     if (onAddTask) {
       onAddTask({
         title: taskTitle.trim(),
@@ -340,6 +354,7 @@ export const TasksRotationsView: React.FC<TasksRotationsViewProps> = ({
         icon: taskIcon,
         period: taskPeriod,
         advanceNotice: finalNotice !== 'Sem aviso' ? finalNotice : undefined,
+        participantIds: taskParticipantIds,
       });
     }
 

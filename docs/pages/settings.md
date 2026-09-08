@@ -17,8 +17,8 @@ Gerenciamento de membros da casa, governança de cargos administrativos, remoç�
   - **Identificação Automática:** Detecta se o aplicativo já opera em tela cheia / nativo (`display-mode: standalone` ou `navigator.standalone`), exibindo badge verde `"✓ Instalado"` e feedback informativo.
   - **Instalação com 1 Toque (Android / Chrome / Edge / Desktop):** Intercepta o evento `beforeinstallprompt` e aciona a instalação nativa do sistema operacional com confirmação automática.
   - **Guia Passo a Passo para iOS (Safari) e Navegadores Manuais:** Em navegadores sem suporte ao evento nativo ou quando o prompt do navegador falha, aciona um modal modal ilustrado e acessível em 3 passos (*1. Compartilhar; 2. Adicionar à Tela de Início; 3. Adicionar*).
-- **Modo Noturno:** Agendamento automático de dimmer de iluminação, sensores e economia de energia com horários de início e término.
-- **Regras de Convivência:** Cadastro, listagem numerada e exclusão de regras comunitárias.
+- **Modo Noturno & Preferências Globais:** Agendamento automático de dimmer de iluminação, sensores e economia de energia com horários de início e término, persistidos centralizadamente no PostgreSQL (`HousePreference`).
+- **Regras de Convivência:** Cadastro, listagem numerada e exclusão de regras comunitárias, sincronizadas em tempo real e gravadas no PostgreSQL (`HouseRule`).
 
 ### 2.2 Gestão de Membros & Governança de Cargos
 - **Hierarquia de Cargos:**

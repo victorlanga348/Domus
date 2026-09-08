@@ -70,17 +70,6 @@ export interface TaskRotation {
   participantIds?: string[];
 }
 
-export interface ExpenseItem {
-  id: string;
-  title: string;
-  amount: number;
-  dateStr: string;
-  paidBy: string;
-  categoryIcon: string;
-  status: 'Unsettled' | 'Settled';
-  autoPay?: boolean;
-}
-
 export interface HouseRule {
   id: string;
   number: number;
