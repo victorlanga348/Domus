@@ -48,8 +48,8 @@ export const TasksRotationsView: React.FC<TasksRotationsViewProps> = ({
   const [statusFilter, setStatusFilter] = useState<'pending' | 'completed' | 'all'>('pending');
   const [taskToRevert, setTaskToRevert] = useState<HouseTask | null>(null);
 
-  const isGeneralAdmin = currentUserRole === 'Admin Geral';
-  const isAdmin = currentUserRole === 'Admin';
+  const isGeneralAdmin = currentUserRole === 'Admin Geral' || currentUserRole === 'ADMIN';
+  const isAdmin = currentUserRole === 'Admin' || currentUserRole === 'SUB_ADMIN';
   const canRevert = isGeneralAdmin || isAdmin;
   const currentMember = familyMembers.find((m) => m.id === currentUserId);
   const effectiveUserName = currentUserName || currentMember?.name;
@@ -568,7 +568,8 @@ export const TasksRotationsView: React.FC<TasksRotationsViewProps> = ({
                             <>
                               {Boolean(
                                 (currentUserId && task.nextMemberId && task.nextMemberId === currentUserId) ||
-                                (effectiveUserName && task.nextMember && task.nextMember.trim().toLowerCase() === effectiveUserName.trim().toLowerCase())
+                                (effectiveUserName && task.nextMember && task.nextMember.trim().toLowerCase() === effectiveUserName.trim().toLowerCase()) ||
+                                isGeneralAdmin
                               ) ? (
                                 <button
                                   type="button"

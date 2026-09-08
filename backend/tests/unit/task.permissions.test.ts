@@ -47,17 +47,18 @@ function resolveValidAssigneeId(task: MockTask): string {
 }
 
 /**
- * Validação canônica de permissão para concluir tarefa
+ * Validação canônica de permissão para concluir tarefa (morador da vez ou Admin Geral)
  */
-function validateCompleteTaskPermission(task: MockTask, userId: string): void {
+function validateCompleteTaskPermission(task: MockTask, userId: string, userRole?: string): void {
   if (task.status === 'COMPLETED') {
     throw new Error('Tarefa já foi concluída.');
   }
 
+  const isGeneralAdmin = userRole === 'ADMIN' || userRole === 'ADMIN_GERAL' || userRole === 'Admin Geral';
   const idResponsavelValido = resolveValidAssigneeId(task);
 
-  if (idResponsavelValido !== userId) {
-    const err: any = new Error('Apenas a pessoa designada para esta tarefa pode marcá-la como concluída.');
+  if (idResponsavelValido !== userId && !isGeneralAdmin) {
+    const err: any = new Error('Apenas a pessoa designada para esta tarefa ou o Admin Geral pode marcá-la como concluída.');
     err.statusCode = 403;
     err.code = 'FORBIDDEN_TASK_COMPLETION';
     throw err;
@@ -133,11 +134,33 @@ describe('Regras de Permissão: Conclusão de Tarefas (Backend)', () => {
         assert.strictEqual(err.statusCode, 403);
         assert.strictEqual(
           err.message,
-          'Apenas a pessoa designada para esta tarefa pode marcá-la como concluída.'
+          'Apenas a pessoa designada para esta tarefa ou o Admin Geral pode marcá-la como concluída.'
         );
         return true;
       }
     );
+  });
+
+  it('deve permitir que o Admin Geral conclua qualquer tarefa mesmo não sendo o responsável', () => {
+    const task: MockTask = {
+      id: 'task-1',
+      title: 'Lavar louça',
+      status: 'OPEN',
+      rotation_index: 0,
+      creator_id: 'user-admin',
+      house_id: 'house-1',
+      participants: [
+        { user_id: 'user-maria', user: { id: 'user-maria', name: 'Maria', vacation_mode: false } },
+      ],
+    };
+
+    // Admin Geral tem prerrogativa executiva universal
+    assert.doesNotThrow(() => {
+      validateCompleteTaskPermission(task, 'user-admin-geral', 'Admin Geral');
+    });
+    assert.doesNotThrow(() => {
+      validateCompleteTaskPermission(task, 'user-admin-geral', 'ADMIN');
+    });
   });
 
   it('deve permitir que apenas o membro da vez conclua uma tarefa de rodízio', () => {
@@ -170,7 +193,7 @@ describe('Regras de Permissão: Conclusão de Tarefas (Backend)', () => {
         assert.strictEqual(err.statusCode, 403);
         assert.strictEqual(
           err.message,
-          'Apenas a pessoa designada para esta tarefa pode marcá-la como concluída.'
+          'Apenas a pessoa designada para esta tarefa ou o Admin Geral pode marcá-la como concluída.'
         );
         return true;
       }
@@ -342,5 +365,96 @@ describe('Regras de Permissão: Giro de Escala de Rodízio (Backend)', () => {
         return true;
       }
     );
+  });
+});
+
+/**
+ * Validação canônica de permissão para perdoar falha (apenas Admin Geral)
+ */
+function validateForgiveFailurePermission(userRole: string): void {
+  const isGeneralAdmin = userRole === 'ADMIN' || userRole === 'ADMIN_GERAL' || userRole === 'Admin Geral';
+  if (!isGeneralAdmin) {
+    const err: any = new Error('Apenas o Admin Geral tem permissão para perdoar uma falha de tarefa.');
+    err.statusCode = 403;
+    err.code = 'FORBIDDEN_FORGIVE_FAILURE';
+    throw err;
+  }
+}
+
+/**
+ * Simulação canônica da expiração diária com rodízio (Opção A)
+ */
+function simulateDailyExpirationOptionA(task: MockTask): { failedUserId: string; nextAssigneeId: string; newRotationIndex: number } {
+  const failedUserId = resolveValidAssigneeId(task);
+  const sorted = [...task.participants].map((p) => p.user).sort((a, b) =>
+    a.name.localeCompare(b.name, 'pt-BR', { sensitivity: 'base' })
+  );
+  const poolSize = sorted.length;
+  const baseIndex = ((task.rotation_index % poolSize) + poolSize) % poolSize;
+  let effectiveIndex = baseIndex;
+  for (let i = 0; i < poolSize; i++) {
+    const cand = sorted[(baseIndex + i) % poolSize];
+    if (!cand.vacation_mode) {
+      effectiveIndex = (baseIndex + i) % poolSize;
+      break;
+    }
+  }
+  const nextRotationIndex = (effectiveIndex + 1) % poolSize;
+  let nextAssigneeId = sorted[nextRotationIndex].id;
+  for (let i = 0; i < poolSize; i++) {
+    const cand = sorted[(nextRotationIndex + i) % poolSize];
+    if (!cand.vacation_mode) {
+      nextAssigneeId = cand.id;
+      break;
+    }
+  }
+  return { failedUserId, nextAssigneeId, newRotationIndex: nextRotationIndex };
+}
+
+describe('Regras de Expiração Diária & Perdão de Falhas (Opção A)', () => {
+  it('deve permitir que apenas o Admin Geral perdoe falhas registradas', () => {
+    assert.doesNotThrow(() => {
+      validateForgiveFailurePermission('ADMIN');
+    });
+    assert.doesNotThrow(() => {
+      validateForgiveFailurePermission('Admin Geral');
+    });
+
+    const forbiddenRoles = ['SUB_ADMIN', 'Admin', 'MEMBER', 'Resident'];
+    for (const role of forbiddenRoles) {
+      assert.throws(
+        () => {
+          validateForgiveFailurePermission(role);
+        },
+        (err: any) => {
+          assert.strictEqual(err.statusCode, 403);
+          assert.strictEqual(err.code, 'FORBIDDEN_FORGIVE_FAILURE');
+          return true;
+        }
+      );
+    }
+  });
+
+  it('deve simular avanço com penalidade (Opção A) penalizando o inadimplente e avançando para o próximo ativo', () => {
+    // Ordem A-Z: Alice, Bruno, Carlos. rotation_index 0 = Alice
+    const task: MockTask = {
+      id: 'task-rot-exp',
+      title: 'Limpar cozinha',
+      status: 'OPEN',
+      rotation_index: 0,
+      creator_id: 'user-admin',
+      house_id: 'house-1',
+      participants: [
+        { user_id: 'u-carlos', user: { id: 'u-carlos', name: 'Carlos', vacation_mode: false } },
+        { user_id: 'u-alice', user: { id: 'u-alice', name: 'Alice', vacation_mode: false } },
+        { user_id: 'u-bruno', user: { id: 'u-bruno', name: 'Bruno', vacation_mode: false } },
+      ],
+    };
+
+    // Alice não fez a tarefa -> Alice recebe a falha, Bruno recebe a vez ativa (Opção A)
+    const result = simulateDailyExpirationOptionA(task);
+    assert.strictEqual(result.failedUserId, 'u-alice');
+    assert.strictEqual(result.nextAssigneeId, 'u-bruno');
+    assert.strictEqual(result.newRotationIndex, 1);
   });
 });

@@ -1274,7 +1274,7 @@ export default function App() {
         taskId
       );
       if (authUser?.id) {
-        tasksApi.completeTask(taskId, authUser.id).catch((err: any) => {
+        tasksApi.completeTask(taskId, authUser.id, undefined, currentUser.role).catch((err: any) => {
           showToast(err.message || 'Erro ao concluir tarefa.');
           // Reverte o estado visual caso o backend recuse (ex: 403)
           setTasks((prev) =>
@@ -2067,6 +2067,9 @@ export default function App() {
         onClearReadNotifications={handleClearReadNotifications}
         onMarkAllAsRead={handleMarkAllAsRead}
         onNavigateToReports={handleNavigateToReports}
+        currentUserId={authUser?.id}
+        currentUserName={authUser?.name}
+        currentUserRole={currentUser.role}
       />
 
       <FamilyMembersDrawer

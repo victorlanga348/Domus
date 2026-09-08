@@ -99,14 +99,15 @@ export const tasksApi = {
     return json.data;
   },
 
-  async completeTask(taskId: string, userId: string, pin?: string) {
+  async completeTask(taskId: string, userId: string, pin?: string, userRole?: string) {
     const response = await fetch(`${APP_CONFIG.API_BASE_URL}/tasks/${taskId}/complete`, {
       method: 'PATCH',
       headers: {
         'Content-Type': 'application/json',
         'x-user-id': userId,
+        ...(userRole ? { 'x-user-role': userRole } : {}),
       },
-      body: JSON.stringify({ user_id: userId, pin }),
+      body: JSON.stringify({ user_id: userId, pin, user_role: userRole }),
     });
 
     const json = await response.json();

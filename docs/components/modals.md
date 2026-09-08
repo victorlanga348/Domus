@@ -50,6 +50,10 @@
     - **Botão "Limpar lidas":** Permite ao morador esvaziar visualmente da gaveta as notificações lidas a qualquer momento sem afetar o histórico.
     - **Botão "Marcar lidas":** Marca todas as notificações visíveis como lidas.
     - **Rodapé Informativo:** Link discreto no rodapé *"Exibindo atividades de 48h • Histórico em Relatórios"*, permitindo navegação direta para o histórico irrestrito.
+  - **Aba de Alertas & Governança de Conclusão:**
+    - **Props de Autenticação:** Recebe `currentUserId`, `currentUserName` e `currentUserRole`.
+    - **Botão "Concluir":** Habilitado unicamente quando `canComplete = isAssignedUser || isGeneralAdmin`.
+    - **Proteção Visual contra Execução Indevida:** Para moradores que não sejam os responsáveis nem o Admin Geral, o botão de conclusão é renderizado desabilitado em cinza com ícone de cadeado (`lock`) e tooltip informativo posicionado à direita: `"Aguardando confirmação de [Nome do Responsável]"`.
 
 
 

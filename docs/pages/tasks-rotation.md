@@ -26,8 +26,8 @@ Cada cartão exibe:
 - Fila de próximos participantes no rodízio (ordem alfabética).
 - Botões de ação contextuais:
   - Se `OPEN`:
-    - **Para o Morador Responsável:** Botão `[ Concluir ]` verde ativo.
-    - **Para Outros Moradores / Sub-Admin:** Botão desabilitado em cinza com tooltip: `"Aguardando confirmação de [Nome do Responsável]"`.
+    - **Para o Morador Responsável OU Admin Geral:** Botão `[ Concluir ]` verde ativo.
+    - **Para Outros Moradores (inclusive Sub-Admins não designados):** Botão desabilitado em cinza com tooltip: `"Aguardando confirmação de [Nome do Responsável]"`.
   - Se `COMPLETED`:
     - **Para Moradores Comuns:** Apenas o selo verde `"Concluída"` (sem botões de ação).
     - **Para Admin Geral e Sub-Admins:** Selo `"Concluída"` acompanhado de botão discreto `[ Reverter para Pendente ]`, abrindo modal de confirmação.

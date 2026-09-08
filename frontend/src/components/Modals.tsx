@@ -569,6 +569,9 @@ export const NotificationsDrawer: React.FC<{
   onClearReadNotifications?: () => void;
   onMarkAllAsRead?: () => void;
   onNavigateToReports?: () => void;
+  currentUserId?: string;
+  currentUserName?: string;
+  currentUserRole?: string;
 }> = ({
   isOpen,
   onClose,
@@ -580,6 +583,9 @@ export const NotificationsDrawer: React.FC<{
   onClearReadNotifications,
   onMarkAllAsRead,
   onNavigateToReports,
+  currentUserId,
+  currentUserName,
+  currentUserRole,
 }) => {
   useBodyScrollLock(isOpen);
 
@@ -685,62 +691,91 @@ export const NotificationsDrawer: React.FC<{
                   <p className="text-[11px] text-[#98b3b0]">Todas as atividades programadas foram concluídas!</p>
                 </div>
               ) : (
-                alertTasks.map((task) => (
-                  <div
-                    key={task.id}
-                    className="p-3.5 rounded-2xl bg-[#fffcf5] border border-[#ffca5e] shadow-xs flex flex-col gap-2 hover:border-[#7b5800] transition-all"
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <div className="w-8 h-8 rounded-xl bg-[#fff8e6] border border-[#fde396] flex items-center justify-center text-[#7b5800] shrink-0">
-                          <span className="material-symbols-outlined text-lg">{task.icon || 'alarm'}</span>
-                        </div>
-                        <div className="min-w-0">
-                          <h4 className="text-xs font-bold text-[#16302e] truncate">{task.title}</h4>
-                          <p className="text-[10px] text-[#727877]">
-                            Turno da {task.period === 'morning' ? 'Manhã' : task.period === 'afternoon' ? 'Tarde' : 'Noite'}
-                          </p>
-                        </div>
-                      </div>
+                alertTasks.map((task) => {
+                  const isGeneralAdmin = currentUserRole === 'Admin Geral' || currentUserRole === 'ADMIN';
+                  const isAssignedUser = Boolean(
+                    (currentUserId && task.nextMemberId && task.nextMemberId === currentUserId) ||
+                    (currentUserName && task.nextMember && task.nextMember.trim().toLowerCase() === currentUserName.trim().toLowerCase())
+                  );
+                  const canComplete = isAssignedUser || isGeneralAdmin;
 
-                      {task.advanceNotice ? (
-                        <span className="px-2 py-0.5 rounded-md text-[10px] font-extrabold bg-[#7b5800] text-white shrink-0 flex items-center gap-1 shadow-2xs">
-                          <span className="material-symbols-outlined text-[11px]">timer</span>
-                          <span>{task.advanceNotice}</span>
-                        </span>
-                      ) : (
-                        <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-[#f0fcfa] text-[#16302e] border border-[#d0dddb] shrink-0">
-                          Prestes a vencer
-                        </span>
-                      )}
-                    </div>
+                  return (
+                    <div
+                      key={task.id}
+                      className="p-3.5 rounded-2xl bg-[#fffcf5] border border-[#ffca5e] shadow-xs flex flex-col gap-2 hover:border-[#7b5800] transition-all"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <div className="w-8 h-8 rounded-xl bg-[#fff8e6] border border-[#fde396] flex items-center justify-center text-[#7b5800] shrink-0">
+                            <span className="material-symbols-outlined text-lg">{task.icon || 'alarm'}</span>
+                          </div>
+                          <div className="min-w-0">
+                            <h4 className="text-xs font-bold text-[#16302e] truncate">{task.title}</h4>
+                            <p className="text-[10px] text-[#727877]">
+                              Turno da {task.period === 'morning' ? 'Manhã' : task.period === 'afternoon' ? 'Tarde' : 'Noite'}
+                            </p>
+                          </div>
+                        </div>
 
-                    <div className="flex items-center justify-between pt-2 border-t border-[#f7e6bc] text-[11px]">
-                      <div className="flex items-center gap-1 min-w-0">
-                        {task.nextMemberAvatar && (
-                          <img
-                            src={task.nextMemberAvatar}
-                            alt={task.nextMember}
-                            className="w-4 h-4 rounded-full object-cover shrink-0"
-                          />
+                        {task.advanceNotice ? (
+                          <span className="px-2 py-0.5 rounded-md text-[10px] font-extrabold bg-[#7b5800] text-white shrink-0 flex items-center gap-1 shadow-2xs">
+                            <span className="material-symbols-outlined text-[11px]">timer</span>
+                            <span>{task.advanceNotice}</span>
+                          </span>
+                        ) : (
+                          <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-[#f0fcfa] text-[#16302e] border border-[#d0dddb] shrink-0">
+                            Prestes a vencer
+                          </span>
                         )}
-                        <span className="font-bold text-[#16302e] truncate">
-                          Responsável: {task.nextMember || 'Todos'}
-                        </span>
                       </div>
 
-                      {onTaskStatusChange && (
-                        <button
-                          onClick={() => onTaskStatusChange(task.id, 'completed')}
-                          className="px-2.5 py-1 bg-[#16302e] hover:bg-[#2d4644] active:scale-95 text-white text-[11px] font-bold rounded-lg flex items-center gap-1 transition-all shadow-2xs shrink-0 cursor-pointer"
-                        >
-                          <span className="material-symbols-outlined text-xs">check_circle</span>
-                          <span>Concluir</span>
-                        </button>
-                      )}
+                      <div className="flex items-center justify-between pt-2 border-t border-[#f7e6bc] text-[11px]">
+                        <div className="flex items-center gap-1 min-w-0">
+                          {task.nextMemberAvatar && (
+                            <img
+                              src={task.nextMemberAvatar}
+                              alt={task.nextMember}
+                              className="w-4 h-4 rounded-full object-cover shrink-0"
+                            />
+                          )}
+                          <span className="font-bold text-[#16302e] truncate">
+                            Responsável: {task.nextMember || 'Todos'}
+                          </span>
+                        </div>
+
+                        {onTaskStatusChange && (
+                          canComplete ? (
+                            <button
+                              type="button"
+                              onClick={() => onTaskStatusChange(task.id, 'completed')}
+                              className="px-2.5 py-1 bg-[#16302e] hover:bg-[#2d4644] active:scale-95 text-white text-[11px] font-bold rounded-lg flex items-center gap-1 transition-all shadow-2xs shrink-0 cursor-pointer"
+                              aria-label="Concluir Tarefa"
+                            >
+                              <span className="material-symbols-outlined text-xs">check_circle</span>
+                              <span>Concluir</span>
+                            </button>
+                          ) : (
+                            <div className="relative group inline-block shrink-0">
+                              <button
+                                type="button"
+                                disabled
+                                className="px-2.5 py-1 bg-slate-100 text-slate-400 border border-slate-200 text-[11px] font-bold rounded-lg flex items-center gap-1 cursor-not-allowed opacity-80"
+                                aria-disabled="true"
+                                aria-label="Conclusão bloqueada"
+                              >
+                                <span className="material-symbols-outlined text-xs text-slate-400">lock</span>
+                                <span>Concluir</span>
+                              </button>
+                              <div className="hidden group-hover:block absolute bottom-full right-0 mb-1.5 z-30 px-2 py-1 bg-[#16302e] text-white text-[10px] font-medium rounded-md shadow-md whitespace-nowrap pointer-events-none">
+                                Aguardando confirmação de {task.nextMember || 'outro morador'}
+                              </div>
+                            </div>
+                          )
+                        )}
+                      </div>
                     </div>
-                  </div>
-                ))
+                  );
+                })
               )}
             </div>
           )}

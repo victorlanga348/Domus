@@ -105,13 +105,41 @@
 - **Resposta (200):** Tarefa com status `LOCKED`, `lockedById` e `lockedAt`.
 
 ### `POST /api/tasks/:id/complete` (ou `PATCH /api/tasks/:id/complete`, alias `/api/tasks/:id/concluir`)
-- **Autorização:** Apenas o morador designado (tarefa direcionada) ou o membro da vez no rodízio.
-- **Headers:** `x-user-id`
-- **Payload:** `{ "user_id": "uuid-user", "pin": "opcional" }`
+- **Autorização:** Morador designado (tarefa direcionada), membro da vez no rodízio OU **Admin Geral** (`ADMIN`, `Admin Geral`).
+- **Headers:** `x-user-id`, `x-user-role` (opcional, para identificar privilégio de Admin Geral)
+- **Payload:** `{ "user_id": "uuid-user", "pin": "opcional", "user_role": "opcional" }`
 - **Resposta (200):** Tarefa com status `COMPLETED`, `locked_by_id` atualizado e novo `nextAssignee` (se rodízio).
 - **Erros:**
-  - `403 Forbidden`: `"Apenas a pessoa designada para esta tarefa pode marcá-la como concluída."` caso chamado por terceiro.
+  - `403 Forbidden`: `"Apenas a pessoa designada para esta tarefa ou o Admin Geral pode marcá-la como concluída."` (`FORBIDDEN_TASK_COMPLETION`) caso chamado por terceiro comum.
   - `400 Bad Request`: `"Tarefa já foi concluída."` caso já esteja finalizada.
+
+### `POST /api/tasks/:id/forgive-failure` (alias `/api/tasks/:id/perdoar-falha`)
+- **Descrição:** Perdoa uma falha registrada na tarefa de um morador inadimplente, neutralizando o débito na taxa de convivência e registrando auditoria.
+- **Autorização:** Exclusivo para o **Admin Geral** (`role === 'ADMIN' | 'Admin Geral'`).
+- **Headers:** `x-user-id`, `x-user-role`
+- **Payload:** `{ "user_id": "uuid-admin", "user_role": "ADMIN", "log_id": "uuid-log (opcional)" }`
+- **Resposta (200):**
+  ```json
+  {
+    "status": "success",
+    "message": "Falha perdoada com sucesso pelo Administrador Geral."
+  }
+  ```
+- **Erros:**
+  - `403 Forbidden`: `"Apenas o Admin Geral pode perdoar falhas de tarefas."` (`FORBIDDEN_FORGIVE_FAILURE`).
+
+### `POST /api/tasks/process-expirations`
+- **Descrição:** Processa a expiração diária de tarefas vencidas de uma residência (Opção A: registra falha no responsável inadimplente e avança a escala de rodízio circularmente).
+- **Headers:** `x-house-id`
+- **Payload:** `{ "house_id": "uuid-house" }`
+- **Resposta (200):**
+  ```json
+  {
+    "status": "success",
+    "message": "Expirações diárias processadas com sucesso."
+  }
+  ```
+
 
 ### `POST /api/tasks/:id/rotate` (ou `PATCH /api/tasks/:id/rotate`, alias `/api/tasks/:id/girar`)
 - **Descrição:** Avança circularmente o `rotation_index` da escala de rodízio e atualiza o morador da vez.

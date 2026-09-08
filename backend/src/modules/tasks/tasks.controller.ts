@@ -38,8 +38,9 @@ export class TaskController {
     try {
       const id = String(req.params.id);
       const userId = req.userId || (req.headers['x-user-id'] as string) || req.body.user_id;
+      const userRole = req.user?.role || (req.headers['x-user-role'] as string) || req.body.user_role;
       const { pin } = req.body;
-      const result = await this.taskService.completeTask(id, userId, pin);
+      const result = await this.taskService.completeTask(id, userId, pin, userRole);
       res.status(200).json({ status: 'success', data: result });
     } catch (error) {
       next(error);
@@ -158,6 +159,48 @@ export class TaskController {
         try {
           const { emitToHouse } = await import('../../shared/socket/socketServer.js');
           emitToHouse(houseId, 'task:updated', result);
+        } catch {}
+      }
+
+      res.status(200).json({ status: 'success', data: result });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  forgiveFailure = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const id = String(req.params.id);
+      const userId = req.userId || (req.headers['x-user-id'] as string) || req.body.user_id;
+      const userRole = req.user?.role || (req.headers['x-user-role'] as string) || req.body.user_role;
+
+      const result = await this.taskService.forgiveFailure(id, userId, userRole);
+      const houseId = req.houseId || (req.headers['x-house-id'] as string);
+
+      if (houseId) {
+        try {
+          const { emitToHouse } = await import('../../shared/socket/socketServer.js');
+          emitToHouse(houseId, 'task:updated', { taskId: id });
+        } catch {}
+      }
+
+      res.status(200).json({ status: 'success', data: result });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  processExpirations = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const houseId = (req.query.houseId as string) || (req.headers['x-house-id'] as string) || req.body.house_id;
+      const result = await this.taskService.processDailyExpirations(houseId);
+
+      if (houseId && result.advancedRotations.length > 0) {
+        try {
+          const { emitToHouse } = await import('../../shared/socket/socketServer.js');
+          for (const rotId of result.advancedRotations) {
+            emitToHouse(houseId, 'house:rotation_advanced', { rotationId: rotId, taskId: rotId });
+          }
         } catch {}
       }
 
