@@ -162,6 +162,59 @@ export class TaskService {
   }
 
   /**
+   * rotateTask:
+   * Avança a escala de rodízio da tarefa.
+   * Trava de segurança: apenas o morador que atualmente detém a vez ativa pode girar a escala.
+   */
+  async rotateTask(
+    taskId: string,
+    userId: string
+  ): Promise<{ task: Task; nextAssignee: User }> {
+    const task = await this.getTaskById(taskId);
+
+    if (!userId) {
+      throw new AppError('Usuário não autenticado.', 401, 'UNAUTHORIZED');
+    }
+
+    // Trava de segurança: apenas a pessoa designada / da vez pode girar o rodízio
+    let idResponsavelValido: string;
+    if (task.participants && task.participants.length > 1) {
+      const responsible = await this.rotationService.getCurrentResponsible(taskId);
+      idResponsavelValido = responsible.id;
+    } else if (task.participants && task.participants.length === 1) {
+      idResponsavelValido = task.participants[0].user_id;
+    } else {
+      idResponsavelValido = task.creator_id;
+    }
+
+    if (idResponsavelValido !== userId) {
+      throw new AppError(
+        'Apenas a pessoa da vez no rodízio pode girar a escala.',
+        403,
+        'FORBIDDEN_TASK_ROTATION'
+      );
+    }
+
+    const { task: updatedTask, nextAssignee } = await this.rotationService.rotateTask(taskId);
+
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    await prisma.activityLog.create({
+      data: {
+        task_id: taskId,
+        user_id: userId,
+        house_id: task.house_id,
+        action_type: 'ROTATED',
+        comment: `${user?.name || 'Morador'} girou a escala de rodízio da tarefa "${task.title}"`,
+      },
+    });
+
+    return {
+      task: updatedTask,
+      nextAssignee,
+    };
+  }
+
+  /**
    * revertTask:
    * Reverte uma tarefa concluída para status OPEN.
    * Trava de segurança: apenas o Admin Geral e Sub-Admins têm permissão para reverter.

@@ -79,6 +79,20 @@ function validateRevertTaskPermission(userRole: string): void {
   }
 }
 
+/**
+ * Validação canônica de permissão para girar tarefa de rodízio
+ */
+function validateRotateTaskPermission(task: MockTask, userId: string): void {
+  const idResponsavelValido = resolveValidAssigneeId(task);
+
+  if (idResponsavelValido !== userId) {
+    const err: any = new Error('Apenas a pessoa da vez no rodízio pode girar a escala.');
+    err.statusCode = 403;
+    err.code = 'FORBIDDEN_TASK_ROTATION';
+    throw err;
+  }
+}
+
 describe('Regras de Permissão: Conclusão de Tarefas (Backend)', () => {
   it('deve permitir que o responsável direto conclua uma tarefa direcionada (1 participante)', () => {
     const task: MockTask = {
@@ -227,5 +241,106 @@ describe('Regras de Permissão: Reversão / Cancelamento de Tarefas Feitas (Back
         }
       );
     }
+  });
+});
+
+describe('Regras de Permissão: Giro de Escala de Rodízio (Backend)', () => {
+  it('deve permitir que o morador da vez gire o rodízio', () => {
+    // Ordem A-Z: Alice, Bruno, Carlos. rotation_index: 0 -> Alice
+    const task: MockTask = {
+      id: 'task-rot',
+      title: 'Limpar cozinha',
+      status: 'OPEN',
+      rotation_index: 0,
+      creator_id: 'user-admin',
+      house_id: 'house-1',
+      participants: [
+        { user_id: 'u-carlos', user: { id: 'u-carlos', name: 'Carlos', vacation_mode: false } },
+        { user_id: 'u-alice', user: { id: 'u-alice', name: 'Alice', vacation_mode: false } },
+        { user_id: 'u-bruno', user: { id: 'u-bruno', name: 'Bruno', vacation_mode: false } },
+      ],
+    };
+
+    // Alice tem a vez atual -> permissão concedida
+    assert.doesNotThrow(() => {
+      validateRotateTaskPermission(task, 'u-alice');
+    });
+  });
+
+  it('deve bloquear com 403 quando outro morador tentar girar fora da sua vez', () => {
+    const task: MockTask = {
+      id: 'task-rot',
+      title: 'Limpar cozinha',
+      status: 'OPEN',
+      rotation_index: 0,
+      creator_id: 'user-admin',
+      house_id: 'house-1',
+      participants: [
+        { user_id: 'u-carlos', user: { id: 'u-carlos', name: 'Carlos', vacation_mode: false } },
+        { user_id: 'u-alice', user: { id: 'u-alice', name: 'Alice', vacation_mode: false } },
+        { user_id: 'u-bruno', user: { id: 'u-bruno', name: 'Bruno', vacation_mode: false } },
+      ],
+    };
+
+    // Bruno tenta girar quando a vez é da Alice -> 403 FORBIDDEN_TASK_ROTATION
+    assert.throws(
+      () => {
+        validateRotateTaskPermission(task, 'u-bruno');
+      },
+      (err: any) => {
+        assert.strictEqual(err.statusCode, 403);
+        assert.strictEqual(err.code, 'FORBIDDEN_TASK_ROTATION');
+        assert.strictEqual(
+          err.message,
+          'Apenas a pessoa da vez no rodízio pode girar a escala.'
+        );
+        return true;
+      }
+    );
+
+    // Carlos tenta girar quando a vez é da Alice -> 403 FORBIDDEN_TASK_ROTATION
+    assert.throws(
+      () => {
+        validateRotateTaskPermission(task, 'u-carlos');
+      },
+      (err: any) => {
+        assert.strictEqual(err.statusCode, 403);
+        assert.strictEqual(err.code, 'FORBIDDEN_TASK_ROTATION');
+        return true;
+      }
+    );
+  });
+
+  it('deve respeitar o salto de férias ao definir quem tem permissão para girar', () => {
+    // Alice está de férias -> Bruno assume a vez ativa
+    const task: MockTask = {
+      id: 'task-rot',
+      title: 'Limpar cozinha',
+      status: 'OPEN',
+      rotation_index: 0,
+      creator_id: 'user-admin',
+      house_id: 'house-1',
+      participants: [
+        { user_id: 'u-alice', user: { id: 'u-alice', name: 'Alice', vacation_mode: true } },
+        { user_id: 'u-bruno', user: { id: 'u-bruno', name: 'Bruno', vacation_mode: false } },
+      ],
+    };
+
+    // Bruno é o responsável ativo
+    assert.doesNotThrow(() => {
+      validateRotateTaskPermission(task, 'u-bruno');
+    });
+
+    // Alice (de férias) é bloqueada com 403
+    assert.throws(
+      () => {
+        validateRotateTaskPermission(task, 'u-alice');
+      },
+      (err: any) => {
+        assert.strictEqual(err.statusCode, 403);
+        assert.strictEqual(err.code, 'FORBIDDEN_TASK_ROTATION');
+        return true;
+      }
+    );
   });
 });

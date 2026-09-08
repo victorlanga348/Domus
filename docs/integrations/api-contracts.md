@@ -113,6 +113,34 @@
   - `403 Forbidden`: `"Apenas a pessoa designada para esta tarefa pode marcá-la como concluída."` caso chamado por terceiro.
   - `400 Bad Request`: `"Tarefa já foi concluída."` caso já esteja finalizada.
 
+### `POST /api/tasks/:id/rotate` (ou `PATCH /api/tasks/:id/rotate`, alias `/api/tasks/:id/girar`)
+- **Descrição:** Avança circularmente o `rotation_index` da escala de rodízio e atualiza o morador da vez.
+- **Autorização:** Apenas o morador que atualmente detém a vez ativa na tarefa de rodízio.
+- **Headers:** `x-user-id`
+- **Payload:** `{ "user_id": "uuid-user" }` (ou via header)
+- **Resposta (200):**
+  ```json
+  {
+    "status": "success",
+    "data": {
+      "task": {
+        "id": "uuid-task",
+        "title": "Limpar a Cozinha",
+        "rotation_index": 2,
+        "status": "OPEN"
+      },
+      "nextAssignee": {
+        "id": "uuid-user-next",
+        "name": "Bruno",
+        "vacation_mode": false
+      }
+    }
+  }
+  ```
+- **Erros:**
+  - `403 Forbidden`: `"Apenas a pessoa da vez no rodízio pode girar a escala."` (`FORBIDDEN_TASK_ROTATION`) quando acionado por usuário fora da sua vez.
+  - `404 Not Found`: `TASK_NOT_FOUND` se o ID da tarefa não existir.
+
 ### `POST /api/tasks/:id/revert` (ou `PATCH /api/tasks/:id/revert`, alias `/api/tasks/:id/reverter`)
 - **Autorização:** Exclusivo para o **Admin Geral** e **Sub-Admins** (`ADMIN`, `SUB_ADMIN`, `Admin`, `Admin Geral`).
 - **Headers:** `x-user-id`, `x-user-role`

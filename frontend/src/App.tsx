@@ -717,16 +717,23 @@ export default function App() {
       onRuleDeleted: ({ ruleId }: { ruleId: string }) => {
         setHouseRules((prev) => prev.filter((r) => r.id !== ruleId));
       },
-      onRotationAdvanced: ({ rotationId }: { rotationId: string }) => {
+      onRotationAdvanced: ({ rotationId, taskId }: { rotationId: string; taskId?: string }) => {
+        let nextMemberName = '';
+        let nextMemberAvatar = '';
+        let nextMemberId: string | undefined = undefined;
+
         setRotations((prev) =>
           prev.map((rot) => {
-            if (rot.id === rotationId) {
+            if (rot.id === rotationId || rot.taskId === rotationId) {
               const queue = [...rot.queue];
               if (queue.length > 0) {
                 const first = queue.shift()!;
                 first.isNext = false;
                 queue.push(first);
                 queue[0].isNext = true;
+                nextMemberName = queue[0].name;
+                nextMemberAvatar = queue[0].avatar;
+                nextMemberId = queue[0].id;
                 return {
                   ...rot,
                   nextMember: queue[0].name,
@@ -738,6 +745,23 @@ export default function App() {
             return rot;
           })
         );
+
+        const targetTaskId = taskId || rotationId;
+        if (nextMemberName) {
+          setTasks((prev) =>
+            prev.map((t) => {
+              if (t.id === targetTaskId) {
+                return {
+                  ...t,
+                  nextMember: nextMemberName,
+                  nextMemberAvatar: nextMemberAvatar,
+                  nextMemberId: nextMemberId,
+                };
+              }
+              return t;
+            })
+          );
+        }
       },
       onCodeRegenerated: ({ invite_code }: { invite_code: string }) => {
         setCurrentHouse((prev) => (prev ? { ...prev, invite_code } : prev));
@@ -1289,15 +1313,37 @@ export default function App() {
   };
 
   const handleRotateNext = (rotationId: string) => {
+    const targetRotation = rotations.find((r) => r.id === rotationId || r.taskId === rotationId);
+    if (!targetRotation) return;
+
+    const currentNext = targetRotation.queue.find((q) => q.isNext);
+    const isMyTurn = Boolean(
+      (authUser?.id && currentNext?.id && currentNext.id === authUser.id) ||
+      (authUser?.name && currentNext?.name && currentNext.name.trim().toLowerCase() === authUser.name.trim().toLowerCase()) ||
+      (authUser?.name && targetRotation.nextMember && targetRotation.nextMember.trim().toLowerCase() === authUser.name.trim().toLowerCase())
+    );
+
+    if (!isMyTurn) {
+      showToast(`Apenas ${targetRotation.nextMember || 'o morador da vez'} pode girar este rodízio.`);
+      return;
+    }
+
+    let nextMemberName = '';
+    let nextMemberAvatar = '';
+    let nextMemberId: string | undefined = undefined;
+
     setRotations((prev) =>
       prev.map((rot) => {
-        if (rot.id === rotationId) {
+        if (rot.id === rotationId || rot.taskId === rotationId) {
           const queue = [...rot.queue];
           if (queue.length > 0) {
             const first = queue.shift()!;
             first.isNext = false;
             queue.push(first);
             queue[0].isNext = true;
+            nextMemberName = queue[0].name;
+            nextMemberAvatar = queue[0].avatar;
+            nextMemberId = queue[0].id;
             return {
               ...rot,
               nextMember: queue[0].name,
@@ -1309,9 +1355,34 @@ export default function App() {
         return rot;
       })
     );
+
+    const taskId = targetRotation.taskId || targetRotation.id;
+    if (nextMemberName) {
+      setTasks((prev) =>
+        prev.map((t) => {
+          if (t.id === taskId) {
+            return {
+              ...t,
+              nextMember: nextMemberName,
+              nextMemberAvatar: nextMemberAvatar,
+              nextMemberId: nextMemberId,
+            };
+          }
+          return t;
+        })
+      );
+    }
+
     if (currentHouse?.id) {
       emitRotationAdvanced(currentHouse.id, rotationId);
     }
+
+    if (authUser?.id && taskId) {
+      tasksApi.rotateTask(taskId, authUser.id).catch((err) => {
+        console.warn('[DOMUS] Erro ao persistir giro de rodízio:', err);
+      });
+    }
+
     showToast('Rodízio avançado.');
   };
 

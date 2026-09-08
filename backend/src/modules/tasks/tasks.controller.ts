@@ -46,6 +46,27 @@ export class TaskController {
     }
   };
 
+  rotateTask = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const id = String(req.params.id);
+      const userId = req.userId || (req.headers['x-user-id'] as string) || req.body.user_id;
+      const result = await this.taskService.rotateTask(id, userId);
+      const houseId = req.houseId || (req.headers['x-house-id'] as string) || result.task.house_id;
+
+      if (houseId) {
+        try {
+          const { emitToHouse } = await import('../../shared/socket/socketServer.js');
+          emitToHouse(houseId, 'house:rotation_advanced', { rotationId: id, taskId: id, nextAssignee: result.nextAssignee });
+          emitToHouse(houseId, 'task:updated', result);
+        } catch {}
+      }
+
+      res.status(200).json({ status: 'success', data: result });
+    } catch (error) {
+      next(error);
+    }
+  };
+
   revertTask = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const id = String(req.params.id);

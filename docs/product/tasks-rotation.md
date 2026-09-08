@@ -56,3 +56,8 @@ stateDiagram-v2
   4. Se o morador atual foi excluído da lista, o `rotation_index` avança de forma suave e circular para o próximo sucessor na sequência que permaneça ativo.
   5. Moradores em modo férias (`vacation_mode: true`) são pulados automaticamente na determinação da vez ativa (`isNext: true`), sendo identificados na interface com o badge `🏖️ Férias (fora da escala ativa)`.
 
+### 4.5 Giro da Escala de Rodízio (`onRotateNext` / `POST /api/tasks/:id/rotate`)
+- **Regra de Autoridade Estrita:** Apenas o morador que atualmente detém a vez ativa (`isNext === true`) tem autorização para girar o rodízio.
+- **Comportamento Visual (Frontend):** Moradores fora da sua vez (ou membros que não pertençam à escala) visualizam o botão desabilitado em cinza com ícone de cadeado (`lock`) e tooltip informativo: `"Aguardando a vez de [Nome do Morador da Vez]"`.
+- **Bloqueio Backend (403 Forbidden):** Qualquer chamada à rota `POST /api/tasks/:id/rotate` executada por usuário que não seja o responsável da vez é rejeitada com status HTTP 403 e código `FORBIDDEN_TASK_ROTATION`.
+
