@@ -128,8 +128,8 @@ export class TaskService {
     }
 
     const logComment = isGeneralAdmin && idResponsavelValido !== userId
-      ? `Tarefa concluída pelo Admin Geral (${user.name})`
-      : 'Tarefa concluída com sucesso';
+      ? `${user.name} (Admin Geral) concluiu a tarefa "${task.title}"`
+      : `${user.name} concluiu a tarefa "${task.title}"`;
 
     // Registra o ActivityLog como COMPLETED
     await prisma.activityLog.create({

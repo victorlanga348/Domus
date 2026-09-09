@@ -10,16 +10,22 @@ import { MealCard } from './MealCard.js';
 import { EditMealModal } from './EditMealModal.js';
 import { EditMealSchedulesModal } from './EditMealSchedulesModal.js';
 import { useBodyScrollLock } from '../../../shared/hooks/index.js';
+import { MealsSkeleton } from '../../../components/index.js';
 
 export const MealsView: React.FC<MealsViewProps> = ({
   mealPlan,
   currentUserRole,
+  loading = false,
   onUpdateMeal,
   onDeleteMeal,
   onToggleLock,
   onClearMeals,
   onUpdateSchedules,
 }) => {
+  if (loading) {
+    return <MealsSkeleton />;
+  }
+
   // Determine current day of week as initial selection
   const currentDayIndex = new Date().getDay(); // 0 = Dom, 1 = Seg, 2 = Ter, 3 = Qua, 4 = Qui, 5 = Sex, 6 = Sáb
   const initialDayKey: DayOfWeek =

@@ -41,6 +41,22 @@ export class TaskController {
       const userRole = req.user?.role || (req.headers['x-user-role'] as string) || req.body.user_role;
       const { pin } = req.body;
       const result = await this.taskService.completeTask(id, userId, pin, userRole);
+      const houseId = req.houseId || (req.headers['x-house-id'] as string) || result.task.house_id;
+
+      if (houseId) {
+        try {
+          const { emitToHouse } = await import('../../shared/socket/socketServer.js');
+          emitToHouse(houseId, 'house:task_status_changed', { taskId: id, status: 'completed' });
+          if (result.nextAssignee) {
+            emitToHouse(houseId, 'house:rotation_advanced', {
+              rotationId: id,
+              taskId: id,
+              nextAssignee: result.nextAssignee,
+            });
+          }
+        } catch {}
+      }
+
       res.status(200).json({ status: 'success', data: result });
     } catch (error) {
       next(error);

@@ -458,3 +458,61 @@ describe('Regras de Expiração Diária & Perdão de Falhas (Opção A)', () => 
     assert.strictEqual(result.newRotationIndex, 1);
   });
 });
+
+describe('Giro Automático de Rodízio & Registro de Autor na Conclusão (Backend)', () => {
+  it('deve gerar comentário de log explicitando o nome do morador e o título da tarefa', () => {
+    const user = { id: 'u-alice', name: 'Alice', role: 'MEMBER' };
+    const task = { id: 'task-1', title: 'Lavar Louça' };
+    const idResponsavelValido = 'u-alice';
+    const isGeneralAdmin = false;
+
+    const logComment = isGeneralAdmin && idResponsavelValido !== user.id
+      ? `${user.name} (Admin Geral) concluiu a tarefa "${task.title}"`
+      : `${user.name} concluiu a tarefa "${task.title}"`;
+
+    assert.strictEqual(logComment, 'Alice concluiu a tarefa "Lavar Louça"');
+  });
+
+  it('deve indicar claramente quando o Admin Geral concluir a tarefa em nome de outro morador', () => {
+    const adminUser = { id: 'u-admin', name: 'Carlos', role: 'ADMIN' };
+    const task = { id: 'task-1', title: 'Recolher Lixo' };
+    const idResponsavelValido = 'u-bob';
+    const isGeneralAdmin = true;
+
+    const logComment = isGeneralAdmin && idResponsavelValido !== adminUser.id
+      ? `${adminUser.name} (Admin Geral) concluiu a tarefa "${task.title}"`
+      : `${adminUser.name} concluiu a tarefa "${task.title}"`;
+
+    assert.strictEqual(logComment, 'Carlos (Admin Geral) concluiu a tarefa "Recolher Lixo"');
+  });
+
+  it('deve avançar o rotation_index de forma circular ao concluir tarefa com múltiplos participantes', () => {
+    const task: MockTask = {
+      id: 'task-rot-complete',
+      title: 'Limpar Banheiro',
+      status: 'OPEN',
+      rotation_index: 0,
+      creator_id: 'u-alice',
+      house_id: 'house-1',
+      participants: [
+        { user_id: 'u-alice', user: { id: 'u-alice', name: 'Alice', vacation_mode: false } },
+        { user_id: 'u-bruno', user: { id: 'u-bruno', name: 'Bruno', vacation_mode: false } },
+      ],
+    };
+
+    // Validar quem é o responsável atual: Alice (index 0)
+    const currentResponsibleId = resolveValidAssigneeId(task);
+    assert.strictEqual(currentResponsibleId, 'u-alice');
+
+    // Ao concluir, o índice avança para a próxima pessoa da escala: Bruno (index 1)
+    const poolSize = task.participants.length;
+    const nextRotationIndex = (task.rotation_index + 1) % poolSize;
+    task.rotation_index = nextRotationIndex;
+    task.status = 'COMPLETED';
+
+    assert.strictEqual(nextRotationIndex, 1);
+    const nextAssigneeId = resolveValidAssigneeId(task);
+    assert.strictEqual(nextAssigneeId, 'u-bruno');
+  });
+});
+

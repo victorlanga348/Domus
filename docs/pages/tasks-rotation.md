@@ -48,6 +48,7 @@ Na aba "Rodízios", cada cartão de rodízio exibe:
 - **Reordenação Fluida (`Layout Animation`):** Transições de status e remoções são envolvidas em `<AnimatePresence mode="popLayout">` com a propriedade `layout`, garantindo estabilidade espacial e transições contínuas.
 - **Feedback Tátil (`Scale on Press`):** Botões de ação (`[ Nova Tarefa ]`, `[ Concluir ]`, `[ Pular ]`, `[ Girar ]`, `[ Reverter ]`) utilizam feedback háptico/tátil `active:scale-[0.96]`.
 - **Prevenção de Layout Shift (`tabular-nums`):** Contadores de tarefas pendentes, concluídas e membros da fila do rodízio utilizam `font-variant-numeric: tabular-nums`.
+- **Estado de Carregamento Reativo (`TasksSkeleton`):** Enquanto as tarefas são sincronizadas a partir do PostgreSQL (`tasksLoading === true`), a visão exibe o `TasksSkeleton` reproduzindo a geometria dos turnos, filtros e cartões para garantir transições suaves sem flashes vazios.
 
 ---
 

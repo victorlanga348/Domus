@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { statisticsApi, type HouseStatisticsData, type MemberContribution, type HarmonyScoreDetails } from '../api/statisticsApi.js';
 import { FamilyMember, HouseTask, ActivityLog } from '../../../types';
 import { AnimatedCounter } from './AnimatedCounter.js';
+import { StatisticsSkeleton } from '../../../components/index.js';
 
 interface StatisticsViewProps {
   currentHouseId?: string;
@@ -182,6 +183,10 @@ export const StatisticsView: React.FC<StatisticsViewProps> = ({
 
   const currentMonthName = stats ? monthNames[stats.period.month - 1] : 'Mês Atual';
 
+  if (loading && !stats) {
+    return <StatisticsSkeleton />;
+  }
+
   return (
     <div className="p-4 sm:p-8 max-w-7xl mx-auto w-full space-y-6 sm:space-y-8 animate-in fade-in duration-300">
       {/* Header */}
@@ -212,13 +217,7 @@ export const StatisticsView: React.FC<StatisticsViewProps> = ({
         </button>
       </div>
 
-      {loading ? (
-        <div className="p-12 text-center text-[#727877] bg-white rounded-3xl border border-[#d9e5e3]">
-          <span className="material-symbols-outlined text-3xl animate-spin mb-2">sync</span>
-          <p className="text-sm font-bold">Calculando métricas de harmonia...</p>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Card 1: Índice de Harmonia */}
           <div className="bg-white p-6 rounded-3xl border border-[#d9e5e3] shadow-xs space-y-6 flex flex-col justify-between">
             <div>
@@ -394,7 +393,6 @@ export const StatisticsView: React.FC<StatisticsViewProps> = ({
             </div>
           </div>
         </div>
-      )}
     </div>
   );
 };

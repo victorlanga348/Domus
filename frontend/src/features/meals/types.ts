@@ -82,6 +82,7 @@ export interface MealsViewProps {
   mealPlan: HouseMealPlan;
   familyMembers: FamilyMember[];
   currentUserRole: string;
+  loading?: boolean;
   currentUserId?: string;
   currentUserName?: string;
   onUpdateMeal: (meal: MealItem) => void;

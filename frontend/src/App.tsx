@@ -416,6 +416,25 @@ export default function App() {
     return createDefaultMealPlan(currentHouse?.id || '');
   });
 
+  // Estados de Carregamento dos Módulos para Renderização Reativa de Skeletons
+  const [tasksLoading, setTasksLoading] = useState<boolean>(() => {
+    if (!houseKey) return true;
+    const saved = localStorage.getItem(`${houseKey}_tasks`);
+    return !saved || saved === '[]';
+  });
+
+  const [mealsLoading, setMealsLoading] = useState<boolean>(() => {
+    if (!houseKey) return true;
+    const saved = localStorage.getItem(`${houseKey}_meals`);
+    return !saved;
+  });
+
+  const [reportsLoading, setReportsLoading] = useState<boolean>(() => {
+    if (!houseKey) return true;
+    const saved = localStorage.getItem(`${houseKey}_tasks`);
+    return !saved || saved === '[]';
+  });
+
   // Modal Visibility States
   const [isAddRuleOpen, setIsAddRuleOpen] = useState(false);
   const [isAddMemberOpen, setIsAddMemberOpen] = useState(false);
@@ -584,6 +603,10 @@ export default function App() {
         })
         .catch((err) => {
           console.warn('[DOMUS] Erro ao sincronizar tarefas centralizadas:', err);
+        })
+        .finally(() => {
+          setTasksLoading(false);
+          setReportsLoading(false);
         });
 
       // 3. Histórico e Notificações Centrais da Residência (PostgreSQL)
@@ -632,6 +655,9 @@ export default function App() {
         })
         .catch((err) => {
           console.warn('[DOMUS] Erro ao sincronizar cardápio da residência:', err);
+        })
+        .finally(() => {
+          setMealsLoading(false);
         });
 
       // 7. Status dos Moradores (PostgreSQL)
@@ -1274,6 +1300,44 @@ export default function App() {
   const handleTaskStatusChange = async (taskId: string, newStatus: HouseTask['status']) => {
     const completedByName = authUser?.name || 'Morador';
     const completedById = authUser?.id;
+
+    // Se for conclusão de tarefa, verificar se pertence a um rodízio e avançar automaticamente a fila
+    let nextMemberName = '';
+    let nextMemberAvatar = '';
+    let nextMemberId: string | undefined = undefined;
+
+    if (newStatus === 'completed') {
+      const targetRotation = rotations.find((r) => r.id === taskId || r.taskId === taskId);
+      if (targetRotation && targetRotation.queue.length > 0) {
+        const queue = [...targetRotation.queue];
+        const first = queue.shift()!;
+        first.isNext = false;
+        queue.push(first);
+        queue[0].isNext = true;
+        nextMemberName = queue[0].name;
+        nextMemberAvatar = queue[0].avatar;
+        nextMemberId = queue[0].id;
+
+        setRotations((prev) =>
+          prev.map((rot) => {
+            if (rot.id === targetRotation.id) {
+              return {
+                ...rot,
+                nextMember: queue[0].name,
+                nextMemberAvatar: queue[0].avatar,
+                queue,
+              };
+            }
+            return rot;
+          })
+        );
+
+        if (currentHouse?.id) {
+          emitRotationAdvanced(currentHouse.id, targetRotation.id);
+        }
+      }
+    }
+
     setTasks((prev) =>
       prev.map((t) => {
         if (t.id === taskId) {
@@ -1284,6 +1348,13 @@ export default function App() {
               completedBy: completedByName,
               completedById: completedById,
               completedAt: new Date().toISOString(),
+              ...(nextMemberName
+                ? {
+                    nextMember: nextMemberName,
+                    nextMemberAvatar: nextMemberAvatar,
+                    nextMemberId: nextMemberId,
+                  }
+                : {}),
             };
           }
           return { ...t, status: newStatus };
@@ -1300,19 +1371,67 @@ export default function App() {
 
     if (newStatus === 'completed') {
       recordHouseActivity(
-        `Tarefa "${taskObj?.title || 'Tarefa'}" foi concluída por ${completedByName}.`,
+        `${completedByName} concluiu a tarefa "${taskObj?.title || 'Tarefa'}".`,
         completedByName,
         'COMPLETED',
         taskId
       );
       if (authUser?.id) {
-        tasksApi.completeTask(taskId, authUser.id, undefined, currentUser.role).catch((err: any) => {
-          showToast(err.message || 'Erro ao concluir tarefa.');
-          // Reverte o estado visual caso o backend recuse (ex: 403)
-          setTasks((prev) =>
-            prev.map((t) => (t.id === taskId ? { ...t, status: taskObj?.status || 'pending' } : t))
-          );
-        });
+        tasksApi
+          .completeTask(taskId, authUser.id, undefined, currentUser.role)
+          .then((res: any) => {
+            const nextAssignee = res?.data?.nextAssignee || res?.nextAssignee;
+            if (nextAssignee) {
+              const assigneeName = nextAssignee.name;
+              const assigneeAvatar =
+                nextAssignee.avatar_url ||
+                `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(assigneeName)}`;
+              const assigneeId = nextAssignee.id;
+
+              setTasks((prev) =>
+                prev.map((t) =>
+                  t.id === taskId
+                    ? {
+                        ...t,
+                        nextMember: assigneeName,
+                        nextMemberAvatar: assigneeAvatar,
+                        nextMemberId: assigneeId,
+                      }
+                    : t
+                )
+              );
+
+              setRotations((prev) =>
+                prev.map((rot) => {
+                  if (rot.id === taskId || rot.taskId === taskId) {
+                    const updatedQueue = rot.queue.map((q) => ({
+                      ...q,
+                      isNext: q.id === assigneeId || q.name.trim().toLowerCase() === assigneeName.trim().toLowerCase(),
+                    }));
+                    return {
+                      ...rot,
+                      nextMember: assigneeName,
+                      nextMemberAvatar: assigneeAvatar,
+                      queue: updatedQueue,
+                    };
+                  }
+                  return rot;
+                })
+              );
+            }
+          })
+          .catch((err: any) => {
+            showToast(err.message || 'Erro ao concluir tarefa.');
+            // Reverte o estado visual caso o backend recuse (ex: 403)
+            setTasks((prev) =>
+              prev.map((t) => (t.id === taskId ? { ...t, status: taskObj?.status || 'pending' } : t))
+            );
+          });
+      }
+      if (nextMemberName) {
+        showToast(`Tarefa concluída! Rodízio avançado para ${nextMemberName}.`);
+      } else {
+        showToast(`Tarefa "${taskObj?.title || 'Tarefa'}" concluída com sucesso!`);
       }
     } else if (newStatus === 'pending' && wasCompleted) {
       recordHouseActivity(
@@ -1995,6 +2114,7 @@ export default function App() {
                   tasks={tasks}
                   rotations={rotations}
                   familyMembers={familyMembers}
+                  loading={tasksLoading}
                   currentUserId={authUser?.id}
                   currentUserRole={currentUser.role}
                   currentUserName={authUser?.name}
@@ -2012,6 +2132,7 @@ export default function App() {
                   mealPlan={mealPlan}
                   familyMembers={familyMembers}
                   currentUserRole={currentUser.role}
+                  loading={mealsLoading}
                   currentUserId={authUser?.id}
                   currentUserName={authUser?.name}
                   onUpdateMeal={handleUpdateMeal}
@@ -2053,6 +2174,7 @@ export default function App() {
                   tasks={tasks}
                   familyMembers={familyMembers}
                   activityLogs={activityLogs}
+                  loading={reportsLoading}
                   currentUserRole={currentUser.role}
                   onTaskStatusChange={handleTaskStatusChange}
                   onDeleteTask={handleDeleteTask}
