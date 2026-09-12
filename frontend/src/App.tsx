@@ -774,13 +774,13 @@ export default function App() {
     window.addEventListener('pageshow', handleResumeOrFocus);
     window.addEventListener('online', handleOnline);
 
-    // Heartbeat de sincronização em primeiro plano (a cada 12 segundos) apenas enquanto a tela está ativa
+    // Heartbeat passivo de sincronização (a cada 60 segundos) apenas enquanto a tela está ativa
     const heartbeatTimer = setInterval(() => {
       if (document.visibilityState === 'visible' && !document.hidden) {
         ensureSocketConnected();
         syncAllHouseData({ silent: true });
       }
-    }, 12000);
+    }, 60000);
 
     return () => {
       document.removeEventListener('visibilitychange', handleResumeOrFocus);
@@ -1220,37 +1220,68 @@ export default function App() {
       return;
     }
 
+    const tempId = `temp_n_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+    const noteObj: MuralNote = {
+      ...newNote,
+      id: tempId,
+      dateStr: 'Hoje, ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      author: newNote.author || authUser?.name || 'Morador',
+    };
+
+    // 1. Atualização Otimista Imediata (0ms de latência percebida)
+    setMuralNotes((prev) => [noteObj, ...prev]);
+    if (currentHouse?.id) {
+      emitNoteCreated(currentHouse.id, noteObj);
+    }
+    recordHouseActivity(`Novo recado no mural fixado por ${noteObj.author}`);
+    showToast('Recado fixado no mural!');
+
+    // 2. Persistência assíncrona no backend
     try {
       const created = await dashboardApi.createBulletinPost(currentHouse.id, authUser.id, newNote.content);
-      const noteObj: MuralNote = {
-        ...newNote,
-        id: created.id,
-        dateStr: 'Hoje, ' + new Date(created.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        author: created.author?.name || newNote.author,
-      };
-
-      setMuralNotes((prev) => [noteObj, ...prev]);
-      if (currentHouse?.id) {
-        emitNoteCreated(currentHouse.id, noteObj);
+      if (created?.id) {
+        setMuralNotes((prev) =>
+          prev.map((n) =>
+            n.id === tempId
+              ? {
+                  ...n,
+                  id: created.id,
+                  dateStr:
+                    'Hoje, ' +
+                    new Date(created.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                }
+              : n
+          )
+        );
       }
-      recordHouseActivity(`Novo recado no mural fixado por ${noteObj.author}`);
-      showToast('Recado fixado no mural!');
     } catch (err: any) {
       console.error('[Mural] Erro ao criar recado:', err);
+      // Rollback
+      setMuralNotes((prev) => prev.filter((n) => n.id !== tempId));
       checkSessionValidity(err);
       showToast(err.message || 'Erro ao fixar recado no mural.');
     }
   };
 
   const handleDeleteMuralNote = async (id: string) => {
+    const previousNotes = muralNotes;
+    // 1. Atualização Otimista Imediata (0ms)
     setMuralNotes((prev) => prev.filter((n) => n.id !== id));
     if (currentHouse?.id) {
       emitNoteDeleted(currentHouse.id, id);
-      if (authUser?.id) {
-        dashboardApi.deleteBulletinPost(id, authUser.id, currentHouse.id).catch(() => {});
-      }
     }
     showToast('Recado removido!');
+
+    // 2. Persistência assíncrona
+    if (currentHouse?.id && authUser?.id) {
+      try {
+        await dashboardApi.deleteBulletinPost(id, authUser.id, currentHouse.id);
+      } catch (err: any) {
+        console.error('[Mural] Erro ao remover recado no servidor:', err);
+        setMuralNotes(previousNotes);
+        showToast('Erro ao remover recado do servidor.');
+      }
+    }
   };
 
   const handleAddTask = async (newTask: Omit<HouseTask, 'id' | 'status'>) => {
@@ -1280,6 +1311,32 @@ export default function App() {
         ? [matchedMember.id]
         : [authUser.id];
 
+    const tempId = `temp_t_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+    const optimisticTask: HouseTask = {
+      ...newTask,
+      id: tempId,
+      status: 'pending',
+      participantIds,
+    };
+
+    // 1. Atualização Otimista Imediata (0ms)
+    setTasks((prev) => [optimisticTask, ...prev]);
+
+    if (optimisticTask.isRotation) {
+      setRotations((prev) => {
+        if (prev.some((r) => r.id === tempId || r.taskId === tempId)) return prev;
+        const newRot = mapBackendTasksToRotations([optimisticTask], familyMembers);
+        return [...newRot, ...prev];
+      });
+    }
+
+    if (currentHouse?.id) {
+      emitTaskCreated(currentHouse.id, optimisticTask);
+    }
+    recordHouseActivity(`Nova tarefa "${optimisticTask.title}" criada.`, authUser?.name, 'ROTATED', tempId);
+    showToast(`Tarefa "${optimisticTask.title}" criada com sucesso!`);
+
+    // 2. Persistência assíncrona no PostgreSQL
     try {
       const backendCreated = await tasksApi.createTask({
         title: newTask.title,
@@ -1291,26 +1348,23 @@ export default function App() {
         participant_ids: participantIds,
       });
 
-      const taskObj = mapBackendTaskToHouseTask(backendCreated, familyMembers);
-      setTasks((prev) => [taskObj, ...prev]);
+      const realTask = mapBackendTaskToHouseTask(backendCreated, familyMembers);
+      setTasks((prev) => prev.map((t) => (t.id === tempId ? realTask : t)));
 
-      if (taskObj.isRotation) {
+      if (realTask.isRotation) {
         setRotations((prev) => {
-          if (prev.some((r) => r.id === taskObj.id || r.taskId === taskObj.id)) return prev;
-          const newRot = mapBackendTasksToRotations([taskObj], familyMembers);
-          return [...newRot, ...prev];
+          const generated = mapBackendTasksToRotations([realTask], familyMembers);
+          if (generated.length === 0) return prev.filter((r) => r.id !== tempId && r.taskId !== tempId);
+          return prev.map((r) => (r.id === tempId || r.taskId === tempId ? generated[0] : r));
         });
       }
-
-      if (currentHouse?.id) {
-        emitTaskCreated(currentHouse.id, taskObj);
-      }
-      recordHouseActivity(`Nova tarefa "${taskObj.title}" criada.`, authUser?.name, 'ROTATED', taskObj.id);
-      showToast(`Tarefa "${taskObj.title}" criada com sucesso!`);
     } catch (err: any) {
-      console.error('[Tasks] Erro ao criar tarefa:', err);
+      console.error('[Tasks] Erro ao criar tarefa no servidor:', err);
+      // Rollback
+      setTasks((prev) => prev.filter((t) => t.id !== tempId));
+      setRotations((prev) => prev.filter((r) => r.id !== tempId && r.taskId !== tempId));
       checkSessionValidity(err);
-      showToast(err.message || 'Erro ao criar tarefa.');
+      showToast(err.message || 'Erro ao criar tarefa no servidor.');
     }
   };
 
@@ -1386,16 +1440,30 @@ export default function App() {
 
   const handleDeleteTask = async (taskId: string) => {
     const taskObj = tasks.find((t) => t.id === taskId);
+    const previousTasks = tasks;
+    const previousRotations = rotations;
+
+    // 1. Atualização Otimista Imediata (0ms)
     setTasks((prev) => prev.filter((t) => t.id !== taskId));
+    setRotations((prev) => prev.filter((r) => r.id !== taskId && r.taskId !== taskId));
     if (currentHouse?.id) {
       emitTaskDeleted(currentHouse.id, taskId);
-      if (authUser?.id) {
-        tasksApi.deleteTask(taskId, authUser.id, authUser.role).catch(() => {});
-      }
     }
     if (taskObj) {
       recordHouseActivity(`Tarefa "${taskObj.title}" foi excluída.`, authUser?.name, 'FAILED', taskId);
       showToast(`Tarefa "${taskObj.title}" excluída.`);
+    }
+
+    // 2. Persistência assíncrona
+    if (currentHouse?.id && authUser?.id) {
+      try {
+        await tasksApi.deleteTask(taskId, authUser.id, authUser.role);
+      } catch (err: any) {
+        console.error('[Tasks] Erro ao excluir tarefa no servidor:', err);
+        setTasks(previousTasks);
+        setRotations(previousRotations);
+        showToast('Erro ao excluir tarefa no servidor.');
+      }
     }
   };
 
@@ -1645,27 +1713,36 @@ export default function App() {
       return;
     }
 
+    const tempId = `temp_hr_${Date.now()}`;
+    const createdRule: HouseRule = {
+      ...rule,
+      id: tempId,
+      number: houseRules.length + 1,
+    };
+
+    // 1. Atualização Otimista Imediata (0ms)
+    setHouseRules((prev) => [...prev, createdRule]);
+    if (currentHouse?.id) {
+      emitRuleCreated(currentHouse.id, createdRule);
+    }
+    recordHouseActivity(`Nova regra adicionada: "${rule.title}"`);
+    showToast('Regra da casa adicionada!');
+
+    // 2. Persistência assíncrona no backend
     try {
       const backendRule = await rulesApi.createRule(currentHouse.id, {
         title: rule.title,
         description: rule.description,
-        number: houseRules.length + 1,
+        number: createdRule.number,
       });
 
-      const createdRule: HouseRule = backendRule || {
-        ...rule,
-        id: `hr_${Date.now()}`,
-        number: houseRules.length + 1,
-      };
-
-      setHouseRules((prev) => [...prev, createdRule]);
-      if (currentHouse?.id) {
-        emitRuleCreated(currentHouse.id, createdRule);
+      if (backendRule?.id) {
+        setHouseRules((prev) => prev.map((r) => (r.id === tempId ? backendRule : r)));
       }
-      recordHouseActivity(`Nova regra adicionada: "${rule.title}"`);
-      showToast('Regra da casa adicionada!');
     } catch (err: any) {
       console.error('[Rules] Erro ao adicionar regra:', err);
+      // Rollback
+      setHouseRules((prev) => prev.filter((r) => r.id !== tempId));
       checkSessionValidity(err);
       showToast(err.message || 'Erro ao adicionar regra da casa.');
     }
@@ -1948,38 +2025,44 @@ export default function App() {
         return;
       }
 
+      // 1. Atualização Otimista Imediata (0ms)
+      const previousPlan = mealPlan;
+      const exists = mealPlan.meals.some(
+        (m) => m.id === meal.id || (m.dayOfWeek === meal.dayOfWeek && m.mealType === meal.mealType)
+      );
+      const updatedMeals = exists
+        ? mealPlan.meals.map((m) =>
+            m.id === meal.id || (m.dayOfWeek === meal.dayOfWeek && m.mealType === meal.mealType) ? meal : m
+          )
+        : [...mealPlan.meals, meal];
+      const updatedPlan: HouseMealPlan = { ...mealPlan, meals: updatedMeals };
+
+      setMealPlan(updatedPlan);
+      if (houseKey) {
+        localStorage.setItem(`${houseKey}_meals`, JSON.stringify(updatedPlan));
+      }
+      emitMealUpdated(currentHouse.id, meal);
+      showToast(`Prato "${meal.title}" salvo no cardápio!`);
+
+      // 2. Persistência assíncrona no backend
       try {
         await mealsApi.saveMeal(currentHouse.id, meal, currentUser.role);
-
-        setMealPlan((prev) => {
-          const exists = prev.meals.some(
-            (m) => m.id === meal.id || (m.dayOfWeek === meal.dayOfWeek && m.mealType === meal.mealType)
-          );
-          const updatedMeals = exists
-            ? prev.meals.map((m) =>
-                m.id === meal.id || (m.dayOfWeek === meal.dayOfWeek && m.mealType === meal.mealType) ? meal : m
-              )
-            : [...prev.meals, meal];
-          const updatedPlan: HouseMealPlan = { ...prev, meals: updatedMeals };
-          if (houseKey) {
-            localStorage.setItem(`${houseKey}_meals`, JSON.stringify(updatedPlan));
-          }
-          return updatedPlan;
-        });
-
-        emitMealUpdated(currentHouse.id, meal);
-        showToast(`Prato "${meal.title}" salvo no cardápio!`);
       } catch (err: any) {
-        console.error('[Meals] Erro ao salvar prato:', err);
+        console.error('[Meals] Erro ao salvar prato no servidor:', err);
+        // Rollback
+        setMealPlan(previousPlan);
+        if (houseKey) {
+          localStorage.setItem(`${houseKey}_meals`, JSON.stringify(previousPlan));
+        }
         checkSessionValidity(err);
-        showToast(err.message || 'Erro ao salvar prato no cardápio.');
+        showToast(err.message || 'Erro ao sincronizar prato com o servidor.');
       }
     },
-    [currentUser.role, mealPlan.isLocked, houseKey, currentHouse?.id, showToast, checkSessionValidity]
+    [currentUser.role, mealPlan, houseKey, currentHouse?.id, showToast, checkSessionValidity]
   );
 
   const handleDeleteMeal = useCallback(
-    (mealId: string) => {
+    async (mealId: string) => {
       const isGeneralAdmin = currentUser.role === 'Admin Geral';
       const isAdmin = currentUser.role === 'Admin';
       const isLocked = Boolean(mealPlan.isLocked);
@@ -1990,24 +2073,36 @@ export default function App() {
         return;
       }
 
-      setMealPlan((prev) => {
-        const updatedPlan: HouseMealPlan = {
-          ...prev,
-          meals: prev.meals.filter((m) => m.id !== mealId),
-        };
-        if (houseKey) {
-          localStorage.setItem(`${houseKey}_meals`, JSON.stringify(updatedPlan));
-        }
-        return updatedPlan;
-      });
-
+      // 1. Atualização Otimista Imediata (0ms)
+      const previousPlan = mealPlan;
+      const updatedPlan: HouseMealPlan = {
+        ...mealPlan,
+        meals: mealPlan.meals.filter((m) => m.id !== mealId),
+      };
+      setMealPlan(updatedPlan);
+      if (houseKey) {
+        localStorage.setItem(`${houseKey}_meals`, JSON.stringify(updatedPlan));
+      }
       if (currentHouse?.id) {
         emitMealDeleted(currentHouse.id, mealId);
-        mealsApi.deleteMeal(currentHouse.id, mealId, currentUser.role).catch(() => {});
       }
       showToast('Prato removido do cardápio.');
+
+      // 2. Persistência assíncrona
+      if (currentHouse?.id) {
+        try {
+          await mealsApi.deleteMeal(currentHouse.id, mealId, currentUser.role);
+        } catch (err: any) {
+          console.error('[Meals] Erro ao excluir prato no servidor:', err);
+          setMealPlan(previousPlan);
+          if (houseKey) {
+            localStorage.setItem(`${houseKey}_meals`, JSON.stringify(previousPlan));
+          }
+          showToast('Erro ao excluir prato no servidor.');
+        }
+      }
     },
-    [currentUser.role, mealPlan.isLocked, houseKey, currentHouse?.id, showToast]
+    [currentUser.role, mealPlan, houseKey, currentHouse?.id, showToast]
   );
 
   const handleClearMeals = useCallback(() => {
