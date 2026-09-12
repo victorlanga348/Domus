@@ -25,6 +25,20 @@ export class DashboardController {
       const content = String(req.body.content || '');
 
       const post = await this.dashboardService.createBulletinPost(houseId, authorId, content);
+
+      if (houseId) {
+        try {
+          const { emitToHouse } = await import('../../shared/socket/socketServer.js');
+          emitToHouse(houseId, 'house:note_created', {
+            id: post.id,
+            content: post.content,
+            author: post.author?.name || 'Morador',
+            timestamp: 'Agora',
+            color: 'gray',
+          });
+        } catch {}
+      }
+
       res.status(201).json({ status: 'success', data: post });
     } catch (error) {
       next(error);
@@ -36,9 +50,19 @@ export class DashboardController {
       const rawParamId = req.params.id;
       const postId = String(Array.isArray(rawParamId) ? rawParamId[0] : rawParamId || '');
       const rawHeaderUser = req.headers['x-user-id'];
+      const rawHeaderHouse = req.headers['x-house-id'];
       const userId = String(req.userId || (Array.isArray(rawHeaderUser) ? rawHeaderUser[0] : rawHeaderUser) || req.query.userId || '');
+      const houseId = String(req.houseId || (Array.isArray(rawHeaderHouse) ? rawHeaderHouse[0] : rawHeaderHouse) || req.query.houseId || '');
 
       const result = await this.dashboardService.deleteBulletinPost(postId, userId);
+
+      if (houseId) {
+        try {
+          const { emitToHouse } = await import('../../shared/socket/socketServer.js');
+          emitToHouse(houseId, 'house:note_deleted', { noteId: postId });
+        } catch {}
+      }
+
       res.status(200).json({ status: 'success', data: result });
     } catch (error) {
       next(error);

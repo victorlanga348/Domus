@@ -42,6 +42,7 @@ import {
 import { AuthView, HouseSelectionView, authApi, type AuthUser, type HouseResponse } from './features/auth/index.js';
 import {
   useHouseSocket,
+  ensureSocketConnected,
   emitHouseLog,
   emitTaskCreated,
   emitTaskUpdated,
@@ -565,119 +566,180 @@ export default function App() {
     [houseKey]
   );
 
+  // Sincronização centralizada de dados da residência (Dashboard, Tarefas, Logs, Regras, Cardápio, Status)
+  const syncAllHouseData = useCallback(
+    async (options?: { silent?: boolean }) => {
+      if (!currentHouse?.id || !authUser?.id) return;
+      const houseId = currentHouse.id;
+      const userId = authUser.id;
+
+      try {
+        // 1. Membros e Mural de Recados via BFF Dashboard
+        dashboardApi
+          .getDashboardData(houseId, userId)
+          .then((data) => {
+            if (data?.house) {
+              setCurrentHouse((prev) => ({
+                ...(prev || {}),
+                id: data.house.id,
+                name: data.house.name,
+                invite_code: data.house.invite_code,
+              }));
+            }
+            if (data?.members && data.members.length > 0) {
+              handleSyncMembers(data.members);
+            }
+            if (data?.bulletin_posts && Array.isArray(data.bulletin_posts)) {
+              setMuralNotes(data.bulletin_posts.map((p, idx) => mapBulletinToMuralNote(p, idx)));
+            }
+          })
+          .catch((err) => {
+            console.warn('[DOMUS] Erro ao sincronizar membros da casa:', err);
+          });
+
+        // 2. Tarefas Centrais da Residência (PostgreSQL - Visibilidade Universal)
+        tasksApi
+          .getTasks(houseId, userId)
+          .then((backendTasks) => {
+            if (Array.isArray(backendTasks)) {
+              setTasks(backendTasks.map((t) => mapBackendTaskToHouseTask(t, familyMembers)));
+              const generatedRotations = mapBackendTasksToRotations(backendTasks, familyMembers);
+              setRotations(generatedRotations);
+            }
+          })
+          .catch((err) => {
+            console.warn('[DOMUS] Erro ao sincronizar tarefas centralizadas:', err);
+          })
+          .finally(() => {
+            if (!options?.silent) {
+              setTasksLoading(false);
+              setReportsLoading(false);
+            }
+          });
+
+        // 3. Histórico e Notificações Centrais da Residência (PostgreSQL)
+        activityLogsApi
+          .getLogs(houseId)
+          .then((backendLogs) => {
+            if (Array.isArray(backendLogs) && backendLogs.length > 0) {
+              setActivityLogs(backendLogs.map(mapBackendLogToActivityLog));
+            }
+          })
+          .catch((err) => {
+            console.warn('[DOMUS] Erro ao sincronizar logs de atividade centralizados:', err);
+          });
+
+        // 4. Regras da Residência (PostgreSQL)
+        rulesApi
+          .getRules(houseId)
+          .then((backendRules) => {
+            if (Array.isArray(backendRules) && backendRules.length > 0) {
+              setHouseRules(backendRules);
+            }
+          })
+          .catch((err) => {
+            console.warn('[DOMUS] Erro ao sincronizar regras da residência:', err);
+          });
+
+        // 5. Preferências da Residência (PostgreSQL)
+        preferencesApi
+          .getPreferences(houseId)
+          .then((backendPrefs) => {
+            if (backendPrefs) {
+              setPreferences(backendPrefs);
+            }
+          })
+          .catch((err) => {
+            console.warn('[DOMUS] Erro ao sincronizar preferências da residência:', err);
+          });
+
+        // 6. Cardápio / Refeições da Residência (PostgreSQL)
+        mealsApi
+          .getMealPlan(houseId)
+          .then((backendPlan) => {
+            if (backendPlan) {
+              setMealPlan(backendPlan);
+            }
+          })
+          .catch((err) => {
+            console.warn('[DOMUS] Erro ao sincronizar cardápio da residência:', err);
+          })
+          .finally(() => {
+            if (!options?.silent) {
+              setMealsLoading(false);
+            }
+          });
+
+        // 7. Status dos Moradores (PostgreSQL)
+        memberStatusesApi
+          .getStatuses(houseId)
+          .then((backendStatuses) => {
+            if (Array.isArray(backendStatuses) && backendStatuses.length > 0) {
+              setMemberStatuses(backendStatuses);
+            }
+          })
+          .catch((err) => {
+            console.warn('[DOMUS] Erro ao sincronizar status dos moradores:', err);
+          });
+      } catch (err) {
+        console.warn('[DOMUS] Erro na sincronização central:', err);
+      }
+    },
+    [currentHouse?.id, authUser?.id, familyMembers, handleSyncMembers]
+  );
+
   // Sincronização inicial automática dos dados centrais da residência ao carregar
   useEffect(() => {
     if (currentHouse?.id && authUser?.id) {
-      // 1. Membros e Mural de Recados via BFF Dashboard
-      dashboardApi
-        .getDashboardData(currentHouse.id, authUser.id)
-        .then((data) => {
-          if (data?.house) {
-            setCurrentHouse((prev) => ({
-              ...(prev || {}),
-              id: data.house.id,
-              name: data.house.name,
-              invite_code: data.house.invite_code,
-            }));
-          }
-          if (data?.members && data.members.length > 0) {
-            handleSyncMembers(data.members);
-          }
-          if (data?.bulletin_posts && Array.isArray(data.bulletin_posts)) {
-            setMuralNotes(data.bulletin_posts.map((p, idx) => mapBulletinToMuralNote(p, idx)));
-          }
-        })
-        .catch((err) => {
-          console.warn('[DOMUS] Erro ao sincronizar membros da casa:', err);
-        });
-
-      // 2. Tarefas Centrais da Residência (PostgreSQL - Visibilidade Universal)
-      tasksApi
-        .getTasks(currentHouse.id, authUser.id)
-        .then((backendTasks) => {
-          if (Array.isArray(backendTasks)) {
-            setTasks(backendTasks.map((t) => mapBackendTaskToHouseTask(t, familyMembers)));
-            const generatedRotations = mapBackendTasksToRotations(backendTasks, familyMembers);
-            setRotations(generatedRotations);
-          }
-        })
-        .catch((err) => {
-          console.warn('[DOMUS] Erro ao sincronizar tarefas centralizadas:', err);
-        })
-        .finally(() => {
-          setTasksLoading(false);
-          setReportsLoading(false);
-        });
-
-      // 3. Histórico e Notificações Centrais da Residência (PostgreSQL)
-      activityLogsApi
-        .getLogs(currentHouse.id)
-        .then((backendLogs) => {
-          if (Array.isArray(backendLogs) && backendLogs.length > 0) {
-            setActivityLogs(backendLogs.map(mapBackendLogToActivityLog));
-          }
-        })
-        .catch((err) => {
-          console.warn('[DOMUS] Erro ao sincronizar logs de atividade centralizados:', err);
-        });
-
-      // 4. Regras da Residência (PostgreSQL)
-      rulesApi
-        .getRules(currentHouse.id)
-        .then((backendRules) => {
-          if (Array.isArray(backendRules) && backendRules.length > 0) {
-            setHouseRules(backendRules);
-          }
-        })
-        .catch((err) => {
-          console.warn('[DOMUS] Erro ao sincronizar regras da residência:', err);
-        });
-
-      // 5. Preferências da Residência (PostgreSQL)
-      preferencesApi
-        .getPreferences(currentHouse.id)
-        .then((backendPrefs) => {
-          if (backendPrefs) {
-            setPreferences(backendPrefs);
-          }
-        })
-        .catch((err) => {
-          console.warn('[DOMUS] Erro ao sincronizar preferências da residência:', err);
-        });
-
-      // 6. Cardápio / Refeições da Residência (PostgreSQL)
-      mealsApi
-        .getMealPlan(currentHouse.id)
-        .then((backendPlan) => {
-          if (backendPlan) {
-            setMealPlan(backendPlan);
-          }
-        })
-        .catch((err) => {
-          console.warn('[DOMUS] Erro ao sincronizar cardápio da residência:', err);
-        })
-        .finally(() => {
-          setMealsLoading(false);
-        });
-
-      // 7. Status dos Moradores (PostgreSQL)
-      memberStatusesApi
-        .getStatuses(currentHouse.id)
-        .then((backendStatuses) => {
-          if (Array.isArray(backendStatuses) && backendStatuses.length > 0) {
-            setMemberStatuses(backendStatuses);
-          }
-        })
-        .catch((err) => {
-          console.warn('[DOMUS] Erro ao sincronizar status dos moradores:', err);
-        });
+      syncAllHouseData({ silent: false });
     }
-  }, [currentHouse?.id, authUser?.id, handleSyncMembers]);
+  }, [currentHouse?.id, authUser?.id, syncAllHouseData]);
+
+  // Reativação instantânea e sincronização ao despertar/retornar ao primeiro plano no celular/PWA
+  useEffect(() => {
+    if (!currentHouse?.id || !authUser?.id) return;
+
+    const handleResumeOrFocus = () => {
+      if (document.visibilityState === 'visible') {
+        ensureSocketConnected();
+        syncAllHouseData({ silent: true });
+      }
+    };
+
+    const handleOnline = () => {
+      ensureSocketConnected();
+      syncAllHouseData({ silent: true });
+    };
+
+    document.addEventListener('visibilitychange', handleResumeOrFocus);
+    window.addEventListener('focus', handleResumeOrFocus);
+    window.addEventListener('pageshow', handleResumeOrFocus);
+    window.addEventListener('online', handleOnline);
+
+    // Heartbeat de sincronização em primeiro plano (a cada 12 segundos) apenas enquanto a tela está ativa
+    const heartbeatTimer = setInterval(() => {
+      if (document.visibilityState === 'visible' && !document.hidden) {
+        ensureSocketConnected();
+        syncAllHouseData({ silent: true });
+      }
+    }, 12000);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleResumeOrFocus);
+      window.removeEventListener('focus', handleResumeOrFocus);
+      window.removeEventListener('pageshow', handleResumeOrFocus);
+      window.removeEventListener('online', handleOnline);
+      clearInterval(heartbeatTimer);
+    };
+  }, [currentHouse?.id, authUser?.id, syncAllHouseData]);
 
   // Escuta Notificações e Atividades em tempo real de outros dispositivos
   useHouseSocket(
     currentHouse?.id || '',
     {
+      onConnect: () => {
+        syncAllHouseData({ silent: true });
+      },
       onPresence: (presenceData) => {
         if (presenceData?.onlineUserIds) {
           setOnlineUserIds(presenceData.onlineUserIds);

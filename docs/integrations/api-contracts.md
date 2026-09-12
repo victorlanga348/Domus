@@ -346,6 +346,13 @@
 - **`house:leave`:** Saída da sala da residência com `{ houseId }`.
 - **`house:presence`:** Broadcast emitido para todos os dispositivos conectados à residência contendo `onlineCount`, `onlineUserIds` e lista de usuários.
 - **`house:code_regenerated`:** Broadcast emitido quando o Admin Geral regenera o código de convite da casa (`{ houseId, invite_code }`).
-- **`house:members_updated`:** Broadcast emitido quando ocorre alteração de membros (promoção, rebaixamento, adição, remoção ou transferência de liderança) com payload `{ houseId, members }`, atualizando cargos e permissões de todos os aparelhos conectados sem reload.
-- **`task:locked` / `task:unlocked`:** Sincronização em tempo real de travas de tarefas entre aparelhos.
+- **`house:members_updated`:** Broadcast emitido quando ocorre alteração de membros (promoção, rebaixamento, adição, remoção, alternância de casa ou transferência de liderança) com payload `{ houseId, members }`, atualizando cargos e permissões de todos os aparelhos conectados sem reload.
+- **`house:task_created` / `house:task_updated` / `house:task_deleted` / `house:task_status_changed`:** Sincronização em tempo real de criação, atualização, exclusão e alteração de status de tarefas.
+- **`task:locked` / `task:unlocked` / `task:updated` / `task:swap_requested`:** Sincronização em tempo real de travas de tarefas, trocas de escala e rotações entre aparelhos.
+- **`house:rotation_advanced`:** Notificação imediata de avanço da vez na escala de rodízio.
+- **`house:meal_updated` / `house:meal_deleted` / `house:meal_lock_toggled` / `house:meals_cleared`:** Sincronização em tempo real do cardápio e travas de refeição.
+- **`house:note_created` / `house:note_deleted`:** Sincronização em tempo real de postagens no mural de recados.
+- **`house:rule_created` / `house:rule_deleted`:** Sincronização em tempo real de regras domésticas.
+- **`house:status_changed`:** Sincronização em tempo real de status/localização de moradores.
+- **`house:preferences_updated`:** Sincronização em tempo real de horários e preferências da casa.
 - **`room:join` / `room:leave` / `room:presence` / `room:new_message`:** Sincronização em tempo real de mensagens e presenças em salas privadas.

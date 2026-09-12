@@ -23,6 +23,7 @@ interface SocketCallbacks {
   onMealUpdated?: (data: { meal: any }) => void;
   onMealDeleted?: (data: { mealId: string }) => void;
   onMealLockToggled?: (data: { isLocked: boolean; lockedBy?: string; lockedByName?: string; lockedAt?: string }) => void;
+  onConnect?: () => void;
 }
 
 export function useHouseSocket(
@@ -42,6 +43,7 @@ export function useHouseSocket(
     const socket = getSocket();
     joinHouseRoom(houseId, userRef.current);
 
+    const handleConnect = () => callbacksRef.current?.onConnect?.();
     const handleTaskLocked = (data: any) => callbacksRef.current?.onTaskLocked?.(data);
     const handleTaskUnlocked = (data: any) => callbacksRef.current?.onTaskUnlocked?.(data);
     const handleVacationChanged = (data: any) => callbacksRef.current?.onVacationChanged?.(data);
@@ -65,6 +67,7 @@ export function useHouseSocket(
     const handleMealDeleted = (data: any) => callbacksRef.current?.onMealDeleted?.(data);
     const handleMealLockToggled = (data: any) => callbacksRef.current?.onMealLockToggled?.(data);
 
+    socket.on('connect', handleConnect);
     socket.on('task:locked', handleTaskLocked);
     socket.on('task:unlocked', handleTaskUnlocked);
     socket.on('task:updated', handleTaskUpdated);
@@ -90,6 +93,7 @@ export function useHouseSocket(
     socket.on('house:meal_lock_toggled', handleMealLockToggled);
 
     return () => {
+      socket.off('connect', handleConnect);
       socket.off('task:locked', handleTaskLocked);
       socket.off('task:unlocked', handleTaskUnlocked);
       socket.off('task:updated', handleTaskUpdated);

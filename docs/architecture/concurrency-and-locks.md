@@ -39,3 +39,17 @@ Ao disparar `POST /api/tasks/:id/complete`:
    - Se o candidato estiver de férias (`isOnVacation === true` ou na janela de datas de ausência), ele é saltado e um log de auditoria é gravado (`TASK_ROTATED_VACATION_SKIP`).
    - O algoritmo incrementa `next_idx` sucessivamente até encontrar um membro ativo.
 3. Se todos os membros estiverem de férias, a tarefa permanece com o primeiro da lista e um alerta de casa desassistida é emitido.
+
+---
+
+## 3. Sincronização em Tempo Real Multi-Dispositivo & Ciclo de Vida Mobile
+
+### 3.1 Arquitetura Full-Duplex (WebSocket + REST Broadcast)
+- O backend emite eventos via WebSocket (`emitToHouse(houseId, event, payload)`) para todos os moradores da residência em qualquer mutação no banco de dados (`tasks`, `meals`, `rules`, `statuses`, `bulletin`).
+- O cliente Socket.IO opera com `reconnectionAttempts: Infinity` e reconexão resiliente contínua.
+
+### 3.2 Protocolo de Reativação Instantânea (Wake / Resume Sync)
+- Ao desbloquear o smartphone, retornar da tela de multitarefa ou alternar abas (`visibilitychange`, `focus`, `pageshow`, `online`), o cliente:
+  1. Força reconexão ativa imediata do WebSocket (`ensureSocketConnected()`).
+  2. Executa sincronização paralela de dados da residência em background (`syncAllHouseData({ silent: true })`).
+- Em primeiro plano, um heartbeat leve a cada 12 segundos garante consistência mesmo sob oscilações severas de rede móvel (pausado automaticamente em segundo plano para poupar bateria).
