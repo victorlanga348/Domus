@@ -211,4 +211,34 @@ export const authApi = {
 
     return json.data;
   },
+
+  async removeMember(
+    houseId: string,
+    targetMemberId: string,
+    requesterId: string,
+    requesterRole?: string,
+    token?: string
+  ): Promise<void> {
+    const response = await fetch(`${APP_CONFIG.API_BASE_URL}/house/remove-member`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-user-id': requesterId,
+        'x-user-role': requesterRole || '',
+        'x-house-id': houseId,
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify({
+        houseId,
+        memberId: targetMemberId,
+        requesterId,
+        requesterRole,
+      }),
+    });
+
+    if (!response.ok) {
+      const json = await response.json();
+      throw new Error(json.message || 'Erro ao remover morador da residência');
+    }
+  },
 };

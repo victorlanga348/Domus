@@ -99,19 +99,38 @@ export const tasksApi = {
     return json.data;
   },
 
-  async completeTask(taskId: string, userId: string, pin?: string) {
+  async completeTask(taskId: string, userId: string, pin?: string, userRole?: string) {
     const response = await fetch(`${APP_CONFIG.API_BASE_URL}/tasks/${taskId}/complete`, {
       method: 'PATCH',
       headers: {
         'Content-Type': 'application/json',
         'x-user-id': userId,
+        ...(userRole ? { 'x-user-role': userRole } : {}),
       },
-      body: JSON.stringify({ user_id: userId, pin }),
+      body: JSON.stringify({ user_id: userId, pin, user_role: userRole }),
     });
 
     const json = await response.json();
     if (!response.ok) {
       throw new Error(json.message || json.error || 'Erro ao concluir tarefa');
+    }
+
+    return json.data;
+  },
+
+  async rotateTask(taskId: string, userId?: string) {
+    const response = await fetch(`${APP_CONFIG.API_BASE_URL}/tasks/${taskId}/rotate`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(userId ? { 'x-user-id': userId } : {}),
+      },
+      body: JSON.stringify({ user_id: userId }),
+    });
+
+    const json = await response.json();
+    if (!response.ok) {
+      throw new Error(json.message || json.error || 'Erro ao girar rodízio');
     }
 
     return json.data;

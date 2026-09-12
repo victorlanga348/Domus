@@ -32,6 +32,11 @@ export class TaskService {
   }
 
   async getHouseTasks(houseId: string): Promise<TaskWithDetails[]> {
+    if (houseId) {
+      try {
+        await this.processDailyExpirations(houseId);
+      } catch {}
+    }
     return this.taskRepo.findByHouseId(houseId);
   }
 
@@ -76,7 +81,8 @@ export class TaskService {
   async completeTask(
     taskId: string,
     userId: string,
-    pin?: string
+    pin?: string,
+    userRole?: string
   ): Promise<{ task: Task; nextAssignee?: User | null }> {
     const task = await this.getTaskById(taskId);
 
@@ -84,7 +90,17 @@ export class TaskService {
       throw new AppError('Tarefa já foi concluída.', 400, 'TASK_ALREADY_COMPLETED');
     }
 
-    // Trava de segurança: apenas a pessoa designada para esta tarefa pode marcá-la como concluída
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+    });
+    if (!user) {
+      throw new AppError('Usuário não encontrado.', 404, 'USER_NOT_FOUND');
+    }
+
+    const role = userRole || user.role;
+    const isGeneralAdmin = user.role === 'ADMIN' || role === 'ADMIN_GERAL' || role === 'Admin Geral';
+
+    // Trava de segurança: apenas a pessoa designada para esta tarefa ou o Admin Geral pode marcá-la como concluída
     let idResponsavelValido: string;
     if (task.participants && task.participants.length > 1) {
       const responsible = await this.rotationService.getCurrentResponsible(taskId);
@@ -95,9 +111,9 @@ export class TaskService {
       idResponsavelValido = task.creator_id;
     }
 
-    if (idResponsavelValido !== userId) {
+    if (idResponsavelValido !== userId && !isGeneralAdmin) {
       throw new AppError(
-        'Apenas a pessoa designada para esta tarefa pode marcá-la como concluída.',
+        'Apenas a pessoa designada para esta tarefa ou o Admin Geral pode marcá-la como concluída.',
         403,
         'FORBIDDEN_TASK_COMPLETION'
       );
@@ -105,17 +121,15 @@ export class TaskService {
 
     // Validação de PIN caso fornecido
     if (pin) {
-      const user = await prisma.user.findUnique({
-        where: { id: userId },
-      });
-      if (!user) {
-        throw new AppError('Usuário não encontrado.', 404, 'USER_NOT_FOUND');
-      }
       const isPinValid = await bcrypt.compare(pin.trim(), user.pin_hash);
       if (!isPinValid) {
         throw new AppError('PIN incorreto.', 401, 'INVALID_PIN');
       }
     }
+
+    const logComment = isGeneralAdmin && idResponsavelValido !== userId
+      ? `${user.name} (Admin Geral) concluiu a tarefa "${task.title}"`
+      : `${user.name} concluiu a tarefa "${task.title}"`;
 
     // Registra o ActivityLog como COMPLETED
     await prisma.activityLog.create({
@@ -124,7 +138,7 @@ export class TaskService {
         user_id: userId,
         house_id: task.house_id,
         action_type: 'COMPLETED',
-        comment: 'Tarefa concluída com sucesso',
+        comment: logComment,
       },
     });
 
@@ -154,6 +168,59 @@ export class TaskService {
         nextAssignee = subsequent.assignee;
       } catch {}
     }
+
+    return {
+      task: updatedTask,
+      nextAssignee,
+    };
+  }
+
+  /**
+   * rotateTask:
+   * Avança a escala de rodízio da tarefa.
+   * Trava de segurança: apenas o morador que atualmente detém a vez ativa pode girar a escala.
+   */
+  async rotateTask(
+    taskId: string,
+    userId: string
+  ): Promise<{ task: Task; nextAssignee: User }> {
+    const task = await this.getTaskById(taskId);
+
+    if (!userId) {
+      throw new AppError('Usuário não autenticado.', 401, 'UNAUTHORIZED');
+    }
+
+    // Trava de segurança: apenas a pessoa designada / da vez pode girar o rodízio
+    let idResponsavelValido: string;
+    if (task.participants && task.participants.length > 1) {
+      const responsible = await this.rotationService.getCurrentResponsible(taskId);
+      idResponsavelValido = responsible.id;
+    } else if (task.participants && task.participants.length === 1) {
+      idResponsavelValido = task.participants[0].user_id;
+    } else {
+      idResponsavelValido = task.creator_id;
+    }
+
+    if (idResponsavelValido !== userId) {
+      throw new AppError(
+        'Apenas a pessoa da vez no rodízio pode girar a escala.',
+        403,
+        'FORBIDDEN_TASK_ROTATION'
+      );
+    }
+
+    const { task: updatedTask, nextAssignee } = await this.rotationService.rotateTask(taskId);
+
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    await prisma.activityLog.create({
+      data: {
+        task_id: taskId,
+        user_id: userId,
+        house_id: task.house_id,
+        action_type: 'ROTATED',
+        comment: `${user?.name || 'Morador'} girou a escala de rodízio da tarefa "${task.title}"`,
+      },
+    });
 
     return {
       task: updatedTask,
@@ -423,5 +490,123 @@ export class TaskService {
       task: updatedTask,
       nextAssignee,
     };
+  }
+
+  /**
+   * processDailyExpirations (Ciclo Diário de Tarefas & Rodízio Opção A):
+   * Verifica tarefas diárias cujo ciclo anterior não foi concluído.
+   * - Registra FALHA (FAILED) no histórico do morador inadimplente.
+   * - Para tarefas de rodízio (Opção A): avança imediatamente para o próximo da fila.
+   * - Para tarefas direcionadas: restaura como OPEN para o novo dia.
+   */
+  async processDailyExpirations(houseId: string): Promise<{ expiredCount: number; advancedRotations: string[] }> {
+    if (!houseId) return { expiredCount: 0, advancedRotations: [] };
+
+    const tasks = await this.taskRepo.findByHouseId(houseId);
+    const now = new Date();
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+    let expiredCount = 0;
+    const advancedRotations: string[] = [];
+
+    for (const task of tasks) {
+      if (task.frequency !== 'DAILY') continue;
+
+      const updatedAt = new Date(task.updated_at);
+      const isFromPreviousDay = updatedAt < startOfToday;
+
+      if (isFromPreviousDay && task.status !== 'COMPLETED') {
+        let responsibleUser: User;
+        if (task.participants && task.participants.length > 1) {
+          responsibleUser = await this.rotationService.getCurrentResponsible(task.id);
+        } else if (task.participants && task.participants.length === 1) {
+          responsibleUser = task.participants[0].user;
+        } else {
+          responsibleUser = task.creator;
+        }
+
+        // 1. Registra falha no histórico do morador responsável
+        await prisma.activityLog.create({
+          data: {
+            task_id: task.id,
+            user_id: responsibleUser.id,
+            house_id: houseId,
+            action_type: 'FAILED',
+            comment: `${responsibleUser.name} não concluiu a tarefa diária "${task.title}" no prazo.`,
+          },
+        });
+
+        expiredCount++;
+
+        // 2. Se for rodízio (Opção A): avança a fila circular para o próximo da lista
+        if (task.participants && task.participants.length > 1) {
+          await this.rotationService.rotateTask(task.id);
+          advancedRotations.push(task.id);
+        } else {
+          await this.taskRepo.updateStatus(task.id, 'OPEN', {
+            locked_by_id: null,
+            locked_at: null,
+          });
+        }
+      }
+    }
+
+    return { expiredCount, advancedRotations };
+  }
+
+  /**
+   * forgiveFailure (Prerrogativa exclusiva do Admin Geral):
+   * Remove a falha registrada para um morador e registra auditoria.
+   */
+  async forgiveFailure(
+    taskId: string,
+    userId: string,
+    userRole?: string
+  ): Promise<{ message: string }> {
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) {
+      throw new AppError('Usuário não encontrado.', 404, 'USER_NOT_FOUND');
+    }
+
+    const role = userRole || user.role;
+    const isGeneralAdmin = user.role === 'ADMIN' || role === 'ADMIN_GERAL' || role === 'Admin Geral';
+    if (!isGeneralAdmin) {
+      throw new AppError(
+        'Apenas o Admin Geral tem permissão para perdoar uma falha de tarefa.',
+        403,
+        'FORBIDDEN_FORGIVE_FAILURE'
+      );
+    }
+
+    const task = await this.getTaskById(taskId);
+
+    const latestFailedLog = await prisma.activityLog.findFirst({
+      where: {
+        task_id: taskId,
+        action_type: 'FAILED',
+      },
+      orderBy: { created_at: 'desc' },
+      include: { user: true },
+    });
+
+    if (!latestFailedLog) {
+      throw new AppError('Nenhuma falha recente encontrada para esta tarefa.', 404, 'NO_FAILURE_FOUND');
+    }
+
+    await prisma.activityLog.delete({
+      where: { id: latestFailedLog.id },
+    });
+
+    await prisma.activityLog.create({
+      data: {
+        task_id: taskId,
+        user_id: userId,
+        house_id: task.house_id,
+        action_type: 'ROTATED',
+        comment: `${user.name} perdoou a falta de ${latestFailedLog.user.name} na tarefa "${task.title}".`,
+      },
+    });
+
+    return { message: `Falha de ${latestFailedLog.user.name} na tarefa "${task.title}" perdoada com sucesso.` };
   }
 }

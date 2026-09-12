@@ -20,6 +20,9 @@ interface SocketCallbacks {
   onRuleDeleted?: (data: { ruleId: string }) => void;
   onRotationAdvanced?: (data: { rotationId: string }) => void;
   onCodeRegenerated?: (data: { houseId: string; invite_code: string }) => void;
+  onMealUpdated?: (data: { meal: any }) => void;
+  onMealDeleted?: (data: { mealId: string }) => void;
+  onMealLockToggled?: (data: { isLocked: boolean; lockedBy?: string; lockedByName?: string; lockedAt?: string }) => void;
 }
 
 export function useHouseSocket(
@@ -58,6 +61,9 @@ export function useHouseSocket(
     const handleRuleDeleted = (data: any) => callbacksRef.current?.onRuleDeleted?.(data);
     const handleRotationAdvanced = (data: any) => callbacksRef.current?.onRotationAdvanced?.(data);
     const handleCodeRegenerated = (data: any) => callbacksRef.current?.onCodeRegenerated?.(data);
+    const handleMealUpdated = (data: any) => callbacksRef.current?.onMealUpdated?.(data);
+    const handleMealDeleted = (data: any) => callbacksRef.current?.onMealDeleted?.(data);
+    const handleMealLockToggled = (data: any) => callbacksRef.current?.onMealLockToggled?.(data);
 
     socket.on('task:locked', handleTaskLocked);
     socket.on('task:unlocked', handleTaskUnlocked);
@@ -79,6 +85,9 @@ export function useHouseSocket(
     socket.on('house:rule_deleted', handleRuleDeleted);
     socket.on('house:rotation_advanced', handleRotationAdvanced);
     socket.on('house:code_regenerated', handleCodeRegenerated);
+    socket.on('house:meal_updated', handleMealUpdated);
+    socket.on('house:meal_deleted', handleMealDeleted);
+    socket.on('house:meal_lock_toggled', handleMealLockToggled);
 
     return () => {
       socket.off('task:locked', handleTaskLocked);
@@ -101,6 +110,9 @@ export function useHouseSocket(
       socket.off('house:rule_deleted', handleRuleDeleted);
       socket.off('house:rotation_advanced', handleRotationAdvanced);
       socket.off('house:code_regenerated', handleCodeRegenerated);
+      socket.off('house:meal_updated', handleMealUpdated);
+      socket.off('house:meal_deleted', handleMealDeleted);
+      socket.off('house:meal_lock_toggled', handleMealLockToggled);
 
       leaveHouseRoom(houseId);
     };

@@ -105,13 +105,69 @@
 - **Resposta (200):** Tarefa com status `LOCKED`, `lockedById` e `lockedAt`.
 
 ### `POST /api/tasks/:id/complete` (ou `PATCH /api/tasks/:id/complete`, alias `/api/tasks/:id/concluir`)
-- **Autorização:** Apenas o morador designado (tarefa direcionada) ou o membro da vez no rodízio.
-- **Headers:** `x-user-id`
-- **Payload:** `{ "user_id": "uuid-user", "pin": "opcional" }`
+- **Autorização:** Morador designado (tarefa direcionada), membro da vez no rodízio OU **Admin Geral** (`ADMIN`, `Admin Geral`).
+- **Headers:** `x-user-id`, `x-user-role` (opcional, para identificar privilégio de Admin Geral)
+- **Payload:** `{ "user_id": "uuid-user", "pin": "opcional", "user_role": "opcional" }`
 - **Resposta (200):** Tarefa com status `COMPLETED`, `locked_by_id` atualizado e novo `nextAssignee` (se rodízio).
 - **Erros:**
-  - `403 Forbidden`: `"Apenas a pessoa designada para esta tarefa pode marcá-la como concluída."` caso chamado por terceiro.
+  - `403 Forbidden`: `"Apenas a pessoa designada para esta tarefa ou o Admin Geral pode marcá-la como concluída."` (`FORBIDDEN_TASK_COMPLETION`) caso chamado por terceiro comum.
   - `400 Bad Request`: `"Tarefa já foi concluída."` caso já esteja finalizada.
+
+### `POST /api/tasks/:id/forgive-failure` (alias `/api/tasks/:id/perdoar-falha`)
+- **Descrição:** Perdoa uma falha registrada na tarefa de um morador inadimplente, neutralizando o débito na taxa de convivência e registrando auditoria.
+- **Autorização:** Exclusivo para o **Admin Geral** (`role === 'ADMIN' | 'Admin Geral'`).
+- **Headers:** `x-user-id`, `x-user-role`
+- **Payload:** `{ "user_id": "uuid-admin", "user_role": "ADMIN", "log_id": "uuid-log (opcional)" }`
+- **Resposta (200):**
+  ```json
+  {
+    "status": "success",
+    "message": "Falha perdoada com sucesso pelo Administrador Geral."
+  }
+  ```
+- **Erros:**
+  - `403 Forbidden`: `"Apenas o Admin Geral pode perdoar falhas de tarefas."` (`FORBIDDEN_FORGIVE_FAILURE`).
+
+### `POST /api/tasks/process-expirations`
+- **Descrição:** Processa a expiração diária de tarefas vencidas de uma residência (Opção A: registra falha no responsável inadimplente e avança a escala de rodízio circularmente).
+- **Headers:** `x-house-id`
+- **Payload:** `{ "house_id": "uuid-house" }`
+- **Resposta (200):**
+  ```json
+  {
+    "status": "success",
+    "message": "Expirações diárias processadas com sucesso."
+  }
+  ```
+
+
+### `POST /api/tasks/:id/rotate` (ou `PATCH /api/tasks/:id/rotate`, alias `/api/tasks/:id/girar`)
+- **Descrição:** Avança circularmente o `rotation_index` da escala de rodízio e atualiza o morador da vez.
+- **Autorização:** Apenas o morador que atualmente detém a vez ativa na tarefa de rodízio.
+- **Headers:** `x-user-id`
+- **Payload:** `{ "user_id": "uuid-user" }` (ou via header)
+- **Resposta (200):**
+  ```json
+  {
+    "status": "success",
+    "data": {
+      "task": {
+        "id": "uuid-task",
+        "title": "Limpar a Cozinha",
+        "rotation_index": 2,
+        "status": "OPEN"
+      },
+      "nextAssignee": {
+        "id": "uuid-user-next",
+        "name": "Bruno",
+        "vacation_mode": false
+      }
+    }
+  }
+  ```
+- **Erros:**
+  - `403 Forbidden`: `"Apenas a pessoa da vez no rodízio pode girar a escala."` (`FORBIDDEN_TASK_ROTATION`) quando acionado por usuário fora da sua vez.
+  - `404 Not Found`: `TASK_NOT_FOUND` se o ID da tarefa não existir.
 
 ### `POST /api/tasks/:id/revert` (ou `PATCH /api/tasks/:id/revert`, alias `/api/tasks/:id/reverter`)
 - **Autorização:** Exclusivo para o **Admin Geral** e **Sub-Admins** (`ADMIN`, `SUB_ADMIN`, `Admin`, `Admin Geral`).
@@ -255,6 +311,16 @@
   - Se for o `Admin Geral` e houver outros moradores, `newAdminId` é obrigatório (`ADMIN_TRANSFER_REQUIRED`).
   - **Exclusão de Casa Vazia:** Se o solicitante for o único morador na residência (0 membros restantes), a residência e todos os seus registros são excluídos em definitivo do banco de dados de forma atômica para evitar registros órfãos.
 - **Resposta (200):** `{ "status": "success", "data": { "user": {...}, "newAdmin": {...}, "houseDeleted": boolean } }`
+
+### `POST /api/houses/remove-member` (ou `/api/house/remove-member`)
+- Remove e desvincula um morador da residência no PostgreSQL (`house_id = null`, `role = 'MEMBER'`), remove participações de tarefas e registra auditoria.
+- **Payload:** `{ "houseId": "uuid-house", "memberId": "uuid-member", "requesterId": "uuid-requester", "requesterRole": "Admin Geral | Admin" }`
+- **Autorização (RBAC):**
+  - Apenas `Admin Geral` (`ADMIN`) ou `Admin` auxiliar podem remover membros.
+  - Bloqueado com `403 CANNOT_REMOVE_GENERAL_ADMIN` caso o alvo seja o Administrador Geral da casa.
+  - Bloqueado com `400 CANNOT_REMOVE_SELF` caso o usuário tente se auto-remover (deve usar `POST /api/houses/leave`).
+- **Resposta (200):** `{ "status": "success", "data": { "success": true, "removedUser": {...} } }`
+- **Broadcast:** Emite eventos WebSocket `house:member_removed` e `house:members_updated`.
 
 ### `POST /api/houses/:id/regenerate-code` (ou `PATCH /api/houses/:id/code`)
 - Invalida o código de convite anterior e gera um novo código no padrão `CASA-XXXX` garantindo unicidade `@unique`.

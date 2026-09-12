@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import { HouseTask, FamilyMember, ActivityLog } from '../../../types';
-import { ConfirmActionModal } from '../../../components/index.js';
+import { ConfirmActionModal, ReportsSkeleton } from '../../../components/index.js';
 
 interface ReportsViewProps {
   tasks?: HouseTask[];
   familyMembers?: FamilyMember[];
   activityLogs?: ActivityLog[];
+  loading?: boolean;
   currentUserRole?: string;
   onTaskStatusChange?: (taskId: string, newStatus: HouseTask['status']) => void;
   onDeleteTask?: (taskId: string) => void;
@@ -14,10 +15,14 @@ interface ReportsViewProps {
 export const ReportsView: React.FC<ReportsViewProps> = ({
   tasks = [],
   familyMembers = [],
+  loading = false,
   currentUserRole = 'Resident',
   onTaskStatusChange,
   onDeleteTask,
 }) => {
+  if (loading) {
+    return <ReportsSkeleton />;
+  }
   const [memberFilter, setMemberFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -183,16 +188,28 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
                     </div>
 
                     <div className="flex items-center gap-1.5 mt-1 text-xs text-[#727877] flex-wrap">
-                      <span className="font-medium">Responsável:</span>
+                      <span className="font-medium">
+                        {item.status === 'completed' ? 'Concluída por:' : 'Responsável:'}
+                      </span>
                       <span className="inline-flex items-center gap-1 font-bold text-[#16302e]">
-                        {item.nextMemberAvatar && (
+                        {((item.status === 'completed' && item.completedBy
+                          ? familyMembers.find((m) => m.name === item.completedBy || m.id === item.completedById)?.avatar || item.nextMemberAvatar
+                          : item.nextMemberAvatar)) && (
                           <img
-                            src={item.nextMemberAvatar}
-                            alt={item.nextMember}
+                            src={
+                              (item.status === 'completed' && item.completedBy
+                                ? familyMembers.find((m) => m.name === item.completedBy || m.id === item.completedById)?.avatar || item.nextMemberAvatar
+                                : item.nextMemberAvatar)
+                            }
+                            alt={item.status === 'completed' && item.completedBy ? item.completedBy : (item.nextMember || 'Morador')}
                             className="w-4 h-4 rounded-full object-cover shrink-0"
                           />
                         )}
-                        <span>{item.nextMember || 'Sem atribuição'}</span>
+                        <span>
+                          {item.status === 'completed' && item.completedBy
+                            ? item.completedBy
+                            : (item.nextMember || 'Sem atribuição')}
+                        </span>
                       </span>
                       <span className="text-[#c1c8c6]">•</span>
                       <span className="text-[11px] font-semibold text-[#7b5800]">

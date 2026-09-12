@@ -1,4 +1,4 @@
-export type TabType = 'dashboard' | 'tasks' | 'reports' | 'statistics' | 'settings';
+export type TabType = 'dashboard' | 'tasks' | 'meals' | 'reports' | 'statistics' | 'settings';
 
 export interface TaskAuditItem {
   id: string;
@@ -70,17 +70,6 @@ export interface TaskRotation {
   participantIds?: string[];
 }
 
-export interface ExpenseItem {
-  id: string;
-  title: string;
-  amount: number;
-  dateStr: string;
-  paidBy: string;
-  categoryIcon: string;
-  status: 'Unsettled' | 'Settled';
-  autoPay?: boolean;
-}
-
 export interface HouseRule {
   id: string;
   number: number;
@@ -132,3 +121,41 @@ export interface SystemPreferences {
     endTime: string;
   };
 }
+
+export type MealType = 'breakfast' | 'lunch' | 'snack' | 'dinner';
+
+export type DayOfWeek =
+  | 'monday'
+  | 'tuesday'
+  | 'wednesday'
+  | 'thursday'
+  | 'friday'
+  | 'saturday'
+  | 'sunday';
+
+export interface MealPeriodSchedule {
+  startTime: string;
+  endTime: string;
+}
+
+export interface MealItem {
+  id: string;
+  dayOfWeek: DayOfWeek;
+  mealType: MealType;
+  title: string;
+  description?: string;
+  tags?: string[];
+  updatedAt?: string;
+  updatedBy?: string;
+}
+
+export interface HouseMealPlan {
+  houseId: string;
+  isLocked: boolean;
+  lockedBy?: string;
+  lockedByName?: string;
+  lockedAt?: string;
+  meals: MealItem[];
+  schedules?: Record<MealType, MealPeriodSchedule>;
+}
+

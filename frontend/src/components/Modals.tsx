@@ -1,236 +1,7 @@
 import React, { useState } from 'react';
-import { FamilyMember, ExpenseItem, HouseRule, ActivityLog, HouseTask } from '../types';
+import { FamilyMember, HouseRule, ActivityLog, HouseTask } from '../types';
+import { useBodyScrollLock } from '../shared/hooks/index.js';
 
-/* --- Add Expense Modal --- */
-export const AddExpenseModal: React.FC<{
-  isOpen: boolean;
-  onClose: () => void;
-  familyMembers: FamilyMember[];
-  onAddExpense: (expense: Omit<ExpenseItem, 'id'>) => void;
-}> = ({ isOpen, onClose, familyMembers, onAddExpense }) => {
-  const [title, setTitle] = useState('');
-  const [amount, setAmount] = useState('');
-  const [paidBy, setPaidBy] = useState(familyMembers[0]?.name || 'Morador');
-  const [icon, setIcon] = useState('shopping_cart');
-
-  if (!isOpen) return null;
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    const num = parseFloat(amount);
-    if (!title.trim() || isNaN(num) || num <= 0) return;
-
-    onAddExpense({
-      title,
-      amount: num,
-      dateStr: 'Agora mesmo',
-      paidBy,
-      categoryIcon: icon,
-      status: 'Unsettled',
-    });
-
-    setTitle('');
-    setAmount('');
-    onClose();
-  };
-
-  return (
-    <div
-      onClick={onClose}
-      className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4"
-    >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        className="bg-white rounded-3xl max-w-md w-full p-5 sm:p-6 shadow-2xl border border-[#d9e5e3] max-h-[90vh] overflow-y-auto"
-      >
-        <div className="flex justify-between items-center mb-6">
-          <div className="flex items-center gap-2 text-[#16302e]">
-            <span className="material-symbols-outlined text-xl text-[#7b5800]">receipt_long</span>
-            <h3 className="text-xl font-bold">Registrar Despesa</h3>
-          </div>
-          <button onClick={onClose} className="text-[#727877] hover:text-[#16302e]">
-            <span className="material-symbols-outlined">close</span>
-          </button>
-        </div>
-
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-xs font-bold uppercase text-[#727877] mb-1">
-              Descrição / Título da Despesa
-            </label>
-            <input
-              type="text"
-              required
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="ex: Compras do Supermercado, Luz, Gás"
-              className="w-full p-3 rounded-xl border border-[#c1c8c6] text-sm text-[#131e1d] focus:border-[#7b5800]"
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-bold uppercase text-[#727877] mb-1">
-              Valor (R$ / €)
-            </label>
-            <input
-              type="number"
-              step="0.01"
-              required
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              placeholder="0.00"
-              className="w-full p-3 rounded-xl border border-[#c1c8c6] text-sm text-[#131e1d] focus:border-[#7b5800]"
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-bold uppercase text-[#727877] mb-1">
-                Pago Por
-              </label>
-              <select
-                value={paidBy}
-                onChange={(e) => setPaidBy(e.target.value)}
-                className="w-full p-3 rounded-xl border border-[#c1c8c6] text-sm text-[#131e1d] bg-white font-bold"
-              >
-                {familyMembers.map((m) => (
-                  <option key={m.id} value={m.name}>
-                    {m.name}
-                  </option>
-                ))}
-                <option value="Fundo da Casa">Fundo da Casa</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-xs font-bold uppercase text-[#727877] mb-1">
-                Categoria
-              </label>
-              <select
-                value={icon}
-                onChange={(e) => setIcon(e.target.value)}
-                className="w-full p-3 rounded-xl border border-[#c1c8c6] text-sm text-[#131e1d] bg-white font-bold"
-              >
-                <option value="shopping_cart">Mercado & Compras</option>
-                <option value="plumbing">Manutenção</option>
-                <option value="bolt">Energia & Água</option>
-                <option value="wifi">Internet & Serviços</option>
-                <option value="restaurant">Alimentação</option>
-              </select>
-            </div>
-          </div>
-
-          <div className="pt-4 flex justify-end gap-3">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2.5 rounded-xl text-xs font-bold text-[#414847] hover:bg-[#e4f0ee]"
-            >
-              Cancelar
-            </button>
-            <button
-              type="submit"
-              className="px-6 py-2.5 rounded-xl bg-[#7b5800] text-white text-xs font-extrabold uppercase hover:bg-[#5d4200]"
-            >
-              Salvar Despesa
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
-};
-
-/* --- Request Reimbursement Modal --- */
-export const RequestReimbursementModal: React.FC<{
-  isOpen: boolean;
-  onClose: () => void;
-  onSubmit: (amount: number, reason: string) => void;
-}> = ({ isOpen, onClose, onSubmit }) => {
-  const [amount, setAmount] = useState('');
-  const [reason, setReason] = useState('');
-
-  if (!isOpen) return null;
-
-  const handleForm = (e: React.FormEvent) => {
-    e.preventDefault();
-    const num = parseFloat(amount);
-    if (isNaN(num) || num <= 0 || !reason.trim()) return;
-    onSubmit(num, reason);
-    setAmount('');
-    setReason('');
-    onClose();
-  };
-
-  return (
-    <div
-      onClick={onClose}
-      className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4"
-    >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        className="bg-white rounded-3xl max-w-md w-full p-5 sm:p-6 shadow-2xl border border-[#d9e5e3] max-h-[90vh] overflow-y-auto"
-      >
-        <div className="flex justify-between items-center mb-6">
-          <div className="flex items-center gap-2 text-[#16302e]">
-            <span className="material-symbols-outlined text-xl text-[#7b5800]">currency_exchange</span>
-            <h3 className="text-xl font-bold">Solicitar Reembolso</h3>
-          </div>
-          <button onClick={onClose} className="text-[#727877] hover:text-[#16302e]">
-            <span className="material-symbols-outlined">close</span>
-          </button>
-        </div>
-
-        <form onSubmit={handleForm} className="space-y-4">
-          <div>
-            <label className="block text-xs font-bold uppercase text-[#727877] mb-1">
-              Valor (R$ / €)
-            </label>
-            <input
-              type="number"
-              step="0.01"
-              required
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              placeholder="75.00"
-              className="w-full p-3 rounded-xl border border-[#c1c8c6] text-sm text-[#131e1d] focus:border-[#7b5800]"
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-bold uppercase text-[#727877] mb-1">
-              Motivo / Descrição do Comprovante
-            </label>
-            <textarea
-              required
-              value={reason}
-              onChange={(e) => setReason(e.target.value)}
-              placeholder="ex: Paguei produtos de limpeza e lâmpadas da área comum"
-              className="w-full p-3 rounded-xl border border-[#c1c8c6] text-sm text-[#131e1d] focus:border-[#7b5800]"
-              rows={3}
-            />
-          </div>
-
-          <div className="pt-4 flex justify-end gap-3">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2.5 rounded-xl text-xs font-bold text-[#414847] hover:bg-[#e4f0ee]"
-            >
-              Cancelar
-            </button>
-            <button
-              type="submit"
-              className="px-6 py-2.5 rounded-xl bg-[#16302e] text-white text-xs font-extrabold uppercase hover:bg-[#2d4644]"
-            >
-              Enviar Solicitação
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
-};
 
 /* --- Add House Rule Modal --- */
 export const AddHouseRuleModal: React.FC<{
@@ -238,6 +9,8 @@ export const AddHouseRuleModal: React.FC<{
   onClose: () => void;
   onAddRule: (rule: Omit<HouseRule, 'id' | 'number'>) => void;
 }> = ({ isOpen, onClose, onAddRule }) => {
+  useBodyScrollLock(isOpen);
+
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
 
@@ -328,6 +101,7 @@ export const LeadershipTransferModal: React.FC<{
   onConfirm: () => void;
   targetMemberName: string;
 }> = ({ isOpen, onClose, onConfirm, targetMemberName }) => {
+  useBodyScrollLock(isOpen);
   if (!isOpen) return null;
 
   return (
@@ -396,6 +170,8 @@ export const AddMemberModal: React.FC<{
   currentUserRole?: FamilyMember['role'];
   onInitiateTransferGeneralAdmin?: (pendingMember: Omit<FamilyMember, 'id'>) => void;
 }> = ({ isOpen, onClose, onAddMember, currentUserRole = 'Admin Geral', onInitiateTransferGeneralAdmin }) => {
+  useBodyScrollLock(isOpen);
+
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [role, setRole] = useState<FamilyMember['role']>('Resident');
@@ -559,6 +335,9 @@ export const NotificationsDrawer: React.FC<{
   onClearReadNotifications?: () => void;
   onMarkAllAsRead?: () => void;
   onNavigateToReports?: () => void;
+  currentUserId?: string;
+  currentUserName?: string;
+  currentUserRole?: string;
 }> = ({
   isOpen,
   onClose,
@@ -570,7 +349,12 @@ export const NotificationsDrawer: React.FC<{
   onClearReadNotifications,
   onMarkAllAsRead,
   onNavigateToReports,
+  currentUserId,
+  currentUserName,
+  currentUserRole,
 }) => {
+  useBodyScrollLock(isOpen);
+
   const [activeTab, setActiveTab] = useState<'alerts' | 'notifications'>('alerts');
 
   if (!isOpen) return null;
@@ -673,62 +457,91 @@ export const NotificationsDrawer: React.FC<{
                   <p className="text-[11px] text-[#98b3b0]">Todas as atividades programadas foram concluídas!</p>
                 </div>
               ) : (
-                alertTasks.map((task) => (
-                  <div
-                    key={task.id}
-                    className="p-3.5 rounded-2xl bg-[#fffcf5] border border-[#ffca5e] shadow-xs flex flex-col gap-2 hover:border-[#7b5800] transition-all"
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <div className="w-8 h-8 rounded-xl bg-[#fff8e6] border border-[#fde396] flex items-center justify-center text-[#7b5800] shrink-0">
-                          <span className="material-symbols-outlined text-lg">{task.icon || 'alarm'}</span>
-                        </div>
-                        <div className="min-w-0">
-                          <h4 className="text-xs font-bold text-[#16302e] truncate">{task.title}</h4>
-                          <p className="text-[10px] text-[#727877]">
-                            Turno da {task.period === 'morning' ? 'Manhã' : task.period === 'afternoon' ? 'Tarde' : 'Noite'}
-                          </p>
-                        </div>
-                      </div>
+                alertTasks.map((task) => {
+                  const isGeneralAdmin = currentUserRole === 'Admin Geral' || currentUserRole === 'ADMIN';
+                  const isAssignedUser = Boolean(
+                    (currentUserId && task.nextMemberId && task.nextMemberId === currentUserId) ||
+                    (currentUserName && task.nextMember && task.nextMember.trim().toLowerCase() === currentUserName.trim().toLowerCase())
+                  );
+                  const canComplete = isAssignedUser || isGeneralAdmin;
 
-                      {task.advanceNotice ? (
-                        <span className="px-2 py-0.5 rounded-md text-[10px] font-extrabold bg-[#7b5800] text-white shrink-0 flex items-center gap-1 shadow-2xs">
-                          <span className="material-symbols-outlined text-[11px]">timer</span>
-                          <span>{task.advanceNotice}</span>
-                        </span>
-                      ) : (
-                        <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-[#f0fcfa] text-[#16302e] border border-[#d0dddb] shrink-0">
-                          Prestes a vencer
-                        </span>
-                      )}
-                    </div>
+                  return (
+                    <div
+                      key={task.id}
+                      className="p-3.5 rounded-2xl bg-[#fffcf5] border border-[#ffca5e] shadow-xs flex flex-col gap-2 hover:border-[#7b5800] transition-all"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <div className="w-8 h-8 rounded-xl bg-[#fff8e6] border border-[#fde396] flex items-center justify-center text-[#7b5800] shrink-0">
+                            <span className="material-symbols-outlined text-lg">{task.icon || 'alarm'}</span>
+                          </div>
+                          <div className="min-w-0">
+                            <h4 className="text-xs font-bold text-[#16302e] truncate">{task.title}</h4>
+                            <p className="text-[10px] text-[#727877]">
+                              Turno da {task.period === 'morning' ? 'Manhã' : task.period === 'afternoon' ? 'Tarde' : 'Noite'}
+                            </p>
+                          </div>
+                        </div>
 
-                    <div className="flex items-center justify-between pt-2 border-t border-[#f7e6bc] text-[11px]">
-                      <div className="flex items-center gap-1 min-w-0">
-                        {task.nextMemberAvatar && (
-                          <img
-                            src={task.nextMemberAvatar}
-                            alt={task.nextMember}
-                            className="w-4 h-4 rounded-full object-cover shrink-0"
-                          />
+                        {task.advanceNotice ? (
+                          <span className="px-2 py-0.5 rounded-md text-[10px] font-extrabold bg-[#7b5800] text-white shrink-0 flex items-center gap-1 shadow-2xs">
+                            <span className="material-symbols-outlined text-[11px]">timer</span>
+                            <span>{task.advanceNotice}</span>
+                          </span>
+                        ) : (
+                          <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-[#f0fcfa] text-[#16302e] border border-[#d0dddb] shrink-0">
+                            Prestes a vencer
+                          </span>
                         )}
-                        <span className="font-bold text-[#16302e] truncate">
-                          Responsável: {task.nextMember || 'Todos'}
-                        </span>
                       </div>
 
-                      {onTaskStatusChange && (
-                        <button
-                          onClick={() => onTaskStatusChange(task.id, 'completed')}
-                          className="px-2.5 py-1 bg-[#16302e] hover:bg-[#2d4644] active:scale-95 text-white text-[11px] font-bold rounded-lg flex items-center gap-1 transition-all shadow-2xs shrink-0 cursor-pointer"
-                        >
-                          <span className="material-symbols-outlined text-xs">check_circle</span>
-                          <span>Concluir</span>
-                        </button>
-                      )}
+                      <div className="flex items-center justify-between pt-2 border-t border-[#f7e6bc] text-[11px]">
+                        <div className="flex items-center gap-1 min-w-0">
+                          {task.nextMemberAvatar && (
+                            <img
+                              src={task.nextMemberAvatar}
+                              alt={task.nextMember}
+                              className="w-4 h-4 rounded-full object-cover shrink-0"
+                            />
+                          )}
+                          <span className="font-bold text-[#16302e] truncate">
+                            Responsável: {task.nextMember || 'Todos'}
+                          </span>
+                        </div>
+
+                        {onTaskStatusChange && (
+                          canComplete ? (
+                            <button
+                              type="button"
+                              onClick={() => onTaskStatusChange(task.id, 'completed')}
+                              className="px-2.5 py-1 bg-[#16302e] hover:bg-[#2d4644] active:scale-95 text-white text-[11px] font-bold rounded-lg flex items-center gap-1 transition-all shadow-2xs shrink-0 cursor-pointer"
+                              aria-label="Concluir Tarefa"
+                            >
+                              <span className="material-symbols-outlined text-xs">check_circle</span>
+                              <span>Concluir</span>
+                            </button>
+                          ) : (
+                            <div className="relative group inline-block shrink-0">
+                              <button
+                                type="button"
+                                disabled
+                                className="px-2.5 py-1 bg-slate-100 text-slate-400 border border-slate-200 text-[11px] font-bold rounded-lg flex items-center gap-1 cursor-not-allowed opacity-80"
+                                aria-disabled="true"
+                                aria-label="Conclusão bloqueada"
+                              >
+                                <span className="material-symbols-outlined text-xs text-slate-400">lock</span>
+                                <span>Concluir</span>
+                              </button>
+                              <div className="hidden group-hover:block absolute bottom-full right-0 mb-1.5 z-30 px-2 py-1 bg-[#16302e] text-white text-[10px] font-medium rounded-md shadow-md whitespace-nowrap pointer-events-none">
+                                Aguardando confirmação de {task.nextMember || 'outro morador'}
+                              </div>
+                            </div>
+                          )
+                        )}
+                      </div>
                     </div>
-                  </div>
-                ))
+                  );
+                })
               )}
             </div>
           )}
@@ -867,10 +680,6 @@ export const FamilyMembersDrawer: React.FC<{
   onOpenAddMemberModal?: () => void;
   currentUserRole?: FamilyMember['role'];
   currentUserId?: string;
-  onPromoteToAdmin?: (memberId: string) => void;
-  onDemoteToResident?: (memberId: string) => void;
-  onTransferGeneralAdmin?: (member: FamilyMember) => void;
-  onRemoveMember?: (memberId: string, memberName: string) => void;
 }> = ({
   isOpen,
   onClose,
@@ -880,11 +689,8 @@ export const FamilyMembersDrawer: React.FC<{
   onOpenAddMemberModal,
   currentUserRole = 'Admin Geral',
   currentUserId,
-  onPromoteToAdmin,
-  onDemoteToResident,
-  onTransferGeneralAdmin,
-  onRemoveMember,
 }) => {
+  useBodyScrollLock(isOpen);
   const [editingMemberId, setEditingMemberId] = useState<string | null>(null);
   const [locationInput, setLocationInput] = useState('');
   const [selectedIcon, setSelectedIcon] = useState('home');
@@ -941,7 +747,7 @@ export const FamilyMembersDrawer: React.FC<{
               </div>
               <div>
                 <h3 className="text-lg font-black tracking-tight">Membros da Residência</h3>
-                <p className="text-xs text-[#727877]">Status, localizações e governança</p>
+                <p className="text-xs text-[#727877]">Status e localizações dos moradores</p>
               </div>
             </div>
             <button
@@ -961,13 +767,7 @@ export const FamilyMembersDrawer: React.FC<{
               const isEditing = editingMemberId === member.id;
               const isTargetGeneralAdmin = member.role === 'Admin Geral';
               const isTargetAdmin = member.role === 'Admin';
-              const isTargetResident = member.role === 'Resident';
               const isSelf = member.id === currentUserId;
-
-              const canRemoveThisMember =
-                !isSelf &&
-                ((isGeneralAdmin && !isTargetGeneralAdmin) ||
-                  (isAdmin && !isTargetGeneralAdmin && !isTargetAdmin));
 
               return (
                 <div
@@ -1031,59 +831,6 @@ export const FamilyMembersDrawer: React.FC<{
                       )}
                     </div>
                   </div>
-
-                  {/* Ações Administrativas de Governança e Remoção */}
-                  {(isGeneralAdmin || canRemoveThisMember) && !isSelf && (
-                    <div className="pt-2 border-t border-[#d0dddb] flex items-center justify-end gap-2 flex-wrap">
-                      {isGeneralAdmin && isTargetResident && onPromoteToAdmin && (
-                        <button
-                          type="button"
-                          onClick={() => onPromoteToAdmin(member.id)}
-                          className="px-2 py-1 bg-[#16302e] hover:bg-[#2d4644] text-white rounded-lg text-[10px] font-bold flex items-center gap-1 transition-all"
-                          title="Promover a Administrador Normal"
-                        >
-                          <span className="material-symbols-outlined text-xs">shield_person</span>
-                          <span>Tornar Admin</span>
-                        </button>
-                      )}
-
-                      {isGeneralAdmin && isTargetAdmin && onDemoteToResident && (
-                        <button
-                          type="button"
-                          onClick={() => onDemoteToResident(member.id)}
-                          className="px-2 py-1 bg-white hover:bg-amber-50 text-[#7b5800] border border-[#ffca5e] rounded-lg text-[10px] font-bold flex items-center gap-1 transition-all"
-                          title="Destituir para Morador"
-                        >
-                          <span className="material-symbols-outlined text-xs">arrow_downward</span>
-                          <span>Despromover</span>
-                        </button>
-                      )}
-
-                      {isGeneralAdmin && onTransferGeneralAdmin && (
-                        <button
-                          type="button"
-                          onClick={() => onTransferGeneralAdmin(member)}
-                          className="px-2 py-1 bg-[#fff8e6] hover:bg-[#ffeec2] text-[#7b5800] border border-[#ffca5e] rounded-lg text-[10px] font-black flex items-center gap-1 transition-all"
-                          title="Transferir Liderança da Residência"
-                        >
-                          <span className="material-symbols-outlined text-xs">workspace_premium</span>
-                          <span>Passar Admin Geral</span>
-                        </button>
-                      )}
-
-                      {canRemoveThisMember && onRemoveMember && (
-                        <button
-                          type="button"
-                          onClick={() => onRemoveMember(member.id, member.name)}
-                          className="px-2 py-1 bg-white hover:bg-rose-50 text-rose-700 border border-rose-300 rounded-lg text-[10px] font-bold flex items-center gap-1 transition-all"
-                          title="Remover Morador da Residência"
-                        >
-                          <span className="material-symbols-outlined text-xs">person_remove</span>
-                          <span>Remover</span>
-                        </button>
-                      )}
-                    </div>
-                  )}
 
                   {/* Formulário Inline de Edição de Status (Apenas para o próprio morador) */}
                   {isEditing && isSelf && (
@@ -1197,6 +944,8 @@ export const LeaveHouseModal: React.FC<{
   houseName,
   loading = false,
 }) => {
+  useBodyScrollLock(isOpen);
+
   const [selectedSuccessorId, setSelectedSuccessorId] = React.useState<string>('');
 
   React.useEffect(() => {
@@ -1383,9 +1132,10 @@ export const ConfirmActionModal: React.FC<{
   confirmText = 'Confirmar',
   cancelText = 'Cancelar',
   variant = 'danger',
-  icon,
+  icon = 'warning',
   loading = false,
 }) => {
+  useBodyScrollLock(isOpen);
   if (!isOpen) return null;
 
   const defaultIcon = variant === 'danger' ? 'warning' : variant === 'warning' ? 'info' : 'check_circle';

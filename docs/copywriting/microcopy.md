@@ -12,6 +12,8 @@ Proibido inventar textos, mensagens de erro ou rótulos soltos no código. Todo 
 | `LOCK_TASK` | **Iniciar Tarefa** | Quando a tarefa está `OPEN` |
 | `COMPLETE_TASK`| **Concluir** | Botão verde ativo para o responsável da vez |
 | `WAITING_CONFIRMATION` | **Aguardando confirmação de [Nome]** | Tooltip no botão desabilitado para terceiros |
+| `ROTATE_TASK` | **Girar** | Botão dourado para avançar escala do rodízio |
+| `WAITING_ROTATION_TURN` | **Aguardando a vez de [Nome]** | Tooltip no botão girar desabilitado para terceiros |
 | `STATUS_COMPLETED` | **Concluída** | Selo verde de status da tarefa |
 | `REVERT_TASK` | **Reverter para Pendente** | Botão discreto para Admin Geral e Sub-Admin |
 | `BLOCK_TASK` | **Reportar Impedimento** | Para registrar que a tarefa não pode ser feita |
@@ -26,13 +28,18 @@ Proibido inventar textos, mensagens de erro ou rótulos soltos no código. Todo 
 
 - **Lock Iniciado:** *"Tarefa bloqueada para sua execução. Você tem 45 minutos."*
 - **Tarefa Concluída:** *"Tarefa concluída! Rodízio avançado para [Nome do Próximo]."*
+- **Rodízio Avançado:** *"Rodízio avançado."*
 - **Tarefa Revertida:** *"Tarefa [Título] revertida para pendente."*
 - **Impedimento Registrado:** *"Impedimento reportado com sucesso. A casa foi notificada."*
 - **Férias Ativadas:** *"Modo férias ativado. Você será temporariamente saltado dos rodízios."*
 - **Erro de PIN:** *"PIN incorreto. Verifique seus dígitos e tente novamente."*
-- **Erro 403 (Concluir Tarefa de Outro):** *"Apenas a pessoa designada para esta tarefa pode marcá-la como concluída."*
+- **Erro 403 (Concluir Tarefa de Outro):** *"Apenas a pessoa designada para esta tarefa ou o Admin Geral pode marcá-la como concluída."*
+- **Erro 403 (Girar Rodízio de Outro):** *"Apenas a pessoa da vez no rodízio pode girar a escala."*
 - **Erro 403 (Reverter Tarefa sem Privilégio):** *"Apenas administradores e o Admin Geral têm permissão para reverter uma tarefa concluída."*
 - **Erro de Permissão (Adicionar Membros):** *"Apenas administradores ou o Admin Geral podem adicionar novos membros."*
+- **Auditoria Executiva:** *"Tarefa concluída pelo Admin Geral ([Nome])"*
+- **Expiração com Falha (Opção A):** *"[Nome] não concluiu a tarefa diária [Título] no prazo."*
+- **Perdão de Falha pelo Admin Geral:** *"[Admin Geral] perdoou a falha de [Nome] na tarefa [Título]"*
 
 ---
 

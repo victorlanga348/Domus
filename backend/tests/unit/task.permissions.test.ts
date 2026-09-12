@@ -47,17 +47,18 @@ function resolveValidAssigneeId(task: MockTask): string {
 }
 
 /**
- * Validação canônica de permissão para concluir tarefa
+ * Validação canônica de permissão para concluir tarefa (morador da vez ou Admin Geral)
  */
-function validateCompleteTaskPermission(task: MockTask, userId: string): void {
+function validateCompleteTaskPermission(task: MockTask, userId: string, userRole?: string): void {
   if (task.status === 'COMPLETED') {
     throw new Error('Tarefa já foi concluída.');
   }
 
+  const isGeneralAdmin = userRole === 'ADMIN' || userRole === 'ADMIN_GERAL' || userRole === 'Admin Geral';
   const idResponsavelValido = resolveValidAssigneeId(task);
 
-  if (idResponsavelValido !== userId) {
-    const err: any = new Error('Apenas a pessoa designada para esta tarefa pode marcá-la como concluída.');
+  if (idResponsavelValido !== userId && !isGeneralAdmin) {
+    const err: any = new Error('Apenas a pessoa designada para esta tarefa ou o Admin Geral pode marcá-la como concluída.');
     err.statusCode = 403;
     err.code = 'FORBIDDEN_TASK_COMPLETION';
     throw err;
@@ -75,6 +76,20 @@ function validateRevertTaskPermission(userRole: string): void {
     const err: any = new Error('Apenas administradores e o Admin Geral têm permissão para reverter uma tarefa concluída.');
     err.statusCode = 403;
     err.code = 'FORBIDDEN_TASK_REVERT';
+    throw err;
+  }
+}
+
+/**
+ * Validação canônica de permissão para girar tarefa de rodízio
+ */
+function validateRotateTaskPermission(task: MockTask, userId: string): void {
+  const idResponsavelValido = resolveValidAssigneeId(task);
+
+  if (idResponsavelValido !== userId) {
+    const err: any = new Error('Apenas a pessoa da vez no rodízio pode girar a escala.');
+    err.statusCode = 403;
+    err.code = 'FORBIDDEN_TASK_ROTATION';
     throw err;
   }
 }
@@ -119,11 +134,33 @@ describe('Regras de Permissão: Conclusão de Tarefas (Backend)', () => {
         assert.strictEqual(err.statusCode, 403);
         assert.strictEqual(
           err.message,
-          'Apenas a pessoa designada para esta tarefa pode marcá-la como concluída.'
+          'Apenas a pessoa designada para esta tarefa ou o Admin Geral pode marcá-la como concluída.'
         );
         return true;
       }
     );
+  });
+
+  it('deve permitir que o Admin Geral conclua qualquer tarefa mesmo não sendo o responsável', () => {
+    const task: MockTask = {
+      id: 'task-1',
+      title: 'Lavar louça',
+      status: 'OPEN',
+      rotation_index: 0,
+      creator_id: 'user-admin',
+      house_id: 'house-1',
+      participants: [
+        { user_id: 'user-maria', user: { id: 'user-maria', name: 'Maria', vacation_mode: false } },
+      ],
+    };
+
+    // Admin Geral tem prerrogativa executiva universal
+    assert.doesNotThrow(() => {
+      validateCompleteTaskPermission(task, 'user-admin-geral', 'Admin Geral');
+    });
+    assert.doesNotThrow(() => {
+      validateCompleteTaskPermission(task, 'user-admin-geral', 'ADMIN');
+    });
   });
 
   it('deve permitir que apenas o membro da vez conclua uma tarefa de rodízio', () => {
@@ -156,7 +193,7 @@ describe('Regras de Permissão: Conclusão de Tarefas (Backend)', () => {
         assert.strictEqual(err.statusCode, 403);
         assert.strictEqual(
           err.message,
-          'Apenas a pessoa designada para esta tarefa pode marcá-la como concluída.'
+          'Apenas a pessoa designada para esta tarefa ou o Admin Geral pode marcá-la como concluída.'
         );
         return true;
       }
@@ -229,3 +266,253 @@ describe('Regras de Permissão: Reversão / Cancelamento de Tarefas Feitas (Back
     }
   });
 });
+
+describe('Regras de Permissão: Giro de Escala de Rodízio (Backend)', () => {
+  it('deve permitir que o morador da vez gire o rodízio', () => {
+    // Ordem A-Z: Alice, Bruno, Carlos. rotation_index: 0 -> Alice
+    const task: MockTask = {
+      id: 'task-rot',
+      title: 'Limpar cozinha',
+      status: 'OPEN',
+      rotation_index: 0,
+      creator_id: 'user-admin',
+      house_id: 'house-1',
+      participants: [
+        { user_id: 'u-carlos', user: { id: 'u-carlos', name: 'Carlos', vacation_mode: false } },
+        { user_id: 'u-alice', user: { id: 'u-alice', name: 'Alice', vacation_mode: false } },
+        { user_id: 'u-bruno', user: { id: 'u-bruno', name: 'Bruno', vacation_mode: false } },
+      ],
+    };
+
+    // Alice tem a vez atual -> permissão concedida
+    assert.doesNotThrow(() => {
+      validateRotateTaskPermission(task, 'u-alice');
+    });
+  });
+
+  it('deve bloquear com 403 quando outro morador tentar girar fora da sua vez', () => {
+    const task: MockTask = {
+      id: 'task-rot',
+      title: 'Limpar cozinha',
+      status: 'OPEN',
+      rotation_index: 0,
+      creator_id: 'user-admin',
+      house_id: 'house-1',
+      participants: [
+        { user_id: 'u-carlos', user: { id: 'u-carlos', name: 'Carlos', vacation_mode: false } },
+        { user_id: 'u-alice', user: { id: 'u-alice', name: 'Alice', vacation_mode: false } },
+        { user_id: 'u-bruno', user: { id: 'u-bruno', name: 'Bruno', vacation_mode: false } },
+      ],
+    };
+
+    // Bruno tenta girar quando a vez é da Alice -> 403 FORBIDDEN_TASK_ROTATION
+    assert.throws(
+      () => {
+        validateRotateTaskPermission(task, 'u-bruno');
+      },
+      (err: any) => {
+        assert.strictEqual(err.statusCode, 403);
+        assert.strictEqual(err.code, 'FORBIDDEN_TASK_ROTATION');
+        assert.strictEqual(
+          err.message,
+          'Apenas a pessoa da vez no rodízio pode girar a escala.'
+        );
+        return true;
+      }
+    );
+
+    // Carlos tenta girar quando a vez é da Alice -> 403 FORBIDDEN_TASK_ROTATION
+    assert.throws(
+      () => {
+        validateRotateTaskPermission(task, 'u-carlos');
+      },
+      (err: any) => {
+        assert.strictEqual(err.statusCode, 403);
+        assert.strictEqual(err.code, 'FORBIDDEN_TASK_ROTATION');
+        return true;
+      }
+    );
+  });
+
+  it('deve respeitar o salto de férias ao definir quem tem permissão para girar', () => {
+    // Alice está de férias -> Bruno assume a vez ativa
+    const task: MockTask = {
+      id: 'task-rot',
+      title: 'Limpar cozinha',
+      status: 'OPEN',
+      rotation_index: 0,
+      creator_id: 'user-admin',
+      house_id: 'house-1',
+      participants: [
+        { user_id: 'u-alice', user: { id: 'u-alice', name: 'Alice', vacation_mode: true } },
+        { user_id: 'u-bruno', user: { id: 'u-bruno', name: 'Bruno', vacation_mode: false } },
+      ],
+    };
+
+    // Bruno é o responsável ativo
+    assert.doesNotThrow(() => {
+      validateRotateTaskPermission(task, 'u-bruno');
+    });
+
+    // Alice (de férias) é bloqueada com 403
+    assert.throws(
+      () => {
+        validateRotateTaskPermission(task, 'u-alice');
+      },
+      (err: any) => {
+        assert.strictEqual(err.statusCode, 403);
+        assert.strictEqual(err.code, 'FORBIDDEN_TASK_ROTATION');
+        return true;
+      }
+    );
+  });
+});
+
+/**
+ * Validação canônica de permissão para perdoar falha (apenas Admin Geral)
+ */
+function validateForgiveFailurePermission(userRole: string): void {
+  const isGeneralAdmin = userRole === 'ADMIN' || userRole === 'ADMIN_GERAL' || userRole === 'Admin Geral';
+  if (!isGeneralAdmin) {
+    const err: any = new Error('Apenas o Admin Geral tem permissão para perdoar uma falha de tarefa.');
+    err.statusCode = 403;
+    err.code = 'FORBIDDEN_FORGIVE_FAILURE';
+    throw err;
+  }
+}
+
+/**
+ * Simulação canônica da expiração diária com rodízio (Opção A)
+ */
+function simulateDailyExpirationOptionA(task: MockTask): { failedUserId: string; nextAssigneeId: string; newRotationIndex: number } {
+  const failedUserId = resolveValidAssigneeId(task);
+  const sorted = [...task.participants].map((p) => p.user).sort((a, b) =>
+    a.name.localeCompare(b.name, 'pt-BR', { sensitivity: 'base' })
+  );
+  const poolSize = sorted.length;
+  const baseIndex = ((task.rotation_index % poolSize) + poolSize) % poolSize;
+  let effectiveIndex = baseIndex;
+  for (let i = 0; i < poolSize; i++) {
+    const cand = sorted[(baseIndex + i) % poolSize];
+    if (!cand.vacation_mode) {
+      effectiveIndex = (baseIndex + i) % poolSize;
+      break;
+    }
+  }
+  const nextRotationIndex = (effectiveIndex + 1) % poolSize;
+  let nextAssigneeId = sorted[nextRotationIndex].id;
+  for (let i = 0; i < poolSize; i++) {
+    const cand = sorted[(nextRotationIndex + i) % poolSize];
+    if (!cand.vacation_mode) {
+      nextAssigneeId = cand.id;
+      break;
+    }
+  }
+  return { failedUserId, nextAssigneeId, newRotationIndex: nextRotationIndex };
+}
+
+describe('Regras de Expiração Diária & Perdão de Falhas (Opção A)', () => {
+  it('deve permitir que apenas o Admin Geral perdoe falhas registradas', () => {
+    assert.doesNotThrow(() => {
+      validateForgiveFailurePermission('ADMIN');
+    });
+    assert.doesNotThrow(() => {
+      validateForgiveFailurePermission('Admin Geral');
+    });
+
+    const forbiddenRoles = ['SUB_ADMIN', 'Admin', 'MEMBER', 'Resident'];
+    for (const role of forbiddenRoles) {
+      assert.throws(
+        () => {
+          validateForgiveFailurePermission(role);
+        },
+        (err: any) => {
+          assert.strictEqual(err.statusCode, 403);
+          assert.strictEqual(err.code, 'FORBIDDEN_FORGIVE_FAILURE');
+          return true;
+        }
+      );
+    }
+  });
+
+  it('deve simular avanço com penalidade (Opção A) penalizando o inadimplente e avançando para o próximo ativo', () => {
+    // Ordem A-Z: Alice, Bruno, Carlos. rotation_index 0 = Alice
+    const task: MockTask = {
+      id: 'task-rot-exp',
+      title: 'Limpar cozinha',
+      status: 'OPEN',
+      rotation_index: 0,
+      creator_id: 'user-admin',
+      house_id: 'house-1',
+      participants: [
+        { user_id: 'u-carlos', user: { id: 'u-carlos', name: 'Carlos', vacation_mode: false } },
+        { user_id: 'u-alice', user: { id: 'u-alice', name: 'Alice', vacation_mode: false } },
+        { user_id: 'u-bruno', user: { id: 'u-bruno', name: 'Bruno', vacation_mode: false } },
+      ],
+    };
+
+    // Alice não fez a tarefa -> Alice recebe a falha, Bruno recebe a vez ativa (Opção A)
+    const result = simulateDailyExpirationOptionA(task);
+    assert.strictEqual(result.failedUserId, 'u-alice');
+    assert.strictEqual(result.nextAssigneeId, 'u-bruno');
+    assert.strictEqual(result.newRotationIndex, 1);
+  });
+});
+
+describe('Giro Automático de Rodízio & Registro de Autor na Conclusão (Backend)', () => {
+  it('deve gerar comentário de log explicitando o nome do morador e o título da tarefa', () => {
+    const user = { id: 'u-alice', name: 'Alice', role: 'MEMBER' };
+    const task = { id: 'task-1', title: 'Lavar Louça' };
+    const idResponsavelValido = 'u-alice';
+    const isGeneralAdmin = false;
+
+    const logComment = isGeneralAdmin && idResponsavelValido !== user.id
+      ? `${user.name} (Admin Geral) concluiu a tarefa "${task.title}"`
+      : `${user.name} concluiu a tarefa "${task.title}"`;
+
+    assert.strictEqual(logComment, 'Alice concluiu a tarefa "Lavar Louça"');
+  });
+
+  it('deve indicar claramente quando o Admin Geral concluir a tarefa em nome de outro morador', () => {
+    const adminUser = { id: 'u-admin', name: 'Carlos', role: 'ADMIN' };
+    const task = { id: 'task-1', title: 'Recolher Lixo' };
+    const idResponsavelValido = 'u-bob';
+    const isGeneralAdmin = true;
+
+    const logComment = isGeneralAdmin && idResponsavelValido !== adminUser.id
+      ? `${adminUser.name} (Admin Geral) concluiu a tarefa "${task.title}"`
+      : `${adminUser.name} concluiu a tarefa "${task.title}"`;
+
+    assert.strictEqual(logComment, 'Carlos (Admin Geral) concluiu a tarefa "Recolher Lixo"');
+  });
+
+  it('deve avançar o rotation_index de forma circular ao concluir tarefa com múltiplos participantes', () => {
+    const task: MockTask = {
+      id: 'task-rot-complete',
+      title: 'Limpar Banheiro',
+      status: 'OPEN',
+      rotation_index: 0,
+      creator_id: 'u-alice',
+      house_id: 'house-1',
+      participants: [
+        { user_id: 'u-alice', user: { id: 'u-alice', name: 'Alice', vacation_mode: false } },
+        { user_id: 'u-bruno', user: { id: 'u-bruno', name: 'Bruno', vacation_mode: false } },
+      ],
+    };
+
+    // Validar quem é o responsável atual: Alice (index 0)
+    const currentResponsibleId = resolveValidAssigneeId(task);
+    assert.strictEqual(currentResponsibleId, 'u-alice');
+
+    // Ao concluir, o índice avança para a próxima pessoa da escala: Bruno (index 1)
+    const poolSize = task.participants.length;
+    const nextRotationIndex = (task.rotation_index + 1) % poolSize;
+    task.rotation_index = nextRotationIndex;
+    task.status = 'COMPLETED';
+
+    assert.strictEqual(nextRotationIndex, 1);
+    const nextAssigneeId = resolveValidAssigneeId(task);
+    assert.strictEqual(nextAssigneeId, 'u-bruno');
+  });
+});
+

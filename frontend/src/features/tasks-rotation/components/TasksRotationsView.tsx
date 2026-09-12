@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { HouseTask, TaskRotation, FamilyMember } from '../../../types';
 import { ConfirmActionModal, TasksSkeleton } from '../../../components/index.js';
+import { useBodyScrollLock } from '../../../shared/hooks/index.js';
 
 interface TasksRotationsViewProps {
   tasks: HouseTask[];
@@ -47,8 +48,8 @@ export const TasksRotationsView: React.FC<TasksRotationsViewProps> = ({
   const [statusFilter, setStatusFilter] = useState<'pending' | 'completed' | 'all'>('pending');
   const [taskToRevert, setTaskToRevert] = useState<HouseTask | null>(null);
 
-  const isGeneralAdmin = currentUserRole === 'Admin Geral';
-  const isAdmin = currentUserRole === 'Admin';
+  const isGeneralAdmin = currentUserRole === 'Admin Geral' || currentUserRole === 'ADMIN';
+  const isAdmin = currentUserRole === 'Admin' || currentUserRole === 'SUB_ADMIN';
   const canRevert = isGeneralAdmin || isAdmin;
   const currentMember = familyMembers.find((m) => m.id === currentUserId);
   const effectiveUserName = currentUserName || currentMember?.name;
@@ -86,6 +87,9 @@ export const TasksRotationsView: React.FC<TasksRotationsViewProps> = ({
   const [editParticipantIds, setEditParticipantIds] = useState<string[]>([]);
   const [isSavingEdit, setIsSavingEdit] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
+
+  // Lock background scroll when task modal or edit modal is active
+  useBodyScrollLock(isAddTaskModalOpen || Boolean(editingTask));
 
   const handleOpenEditRotation = (task: HouseTask) => {
     setEditingTask(task);
@@ -326,6 +330,20 @@ export const TasksRotationsView: React.FC<TasksRotationsViewProps> = ({
     const finalFrequency = getFinalFrequencyString();
     const finalNotice = getFinalAdvanceNoticeString();
 
+    let taskParticipantIds: string[] = [];
+    if (taskAssignmentType === 'member') {
+      const found = familyMembers.find((m) => m.name === selectedMember);
+      if (found?.id) taskParticipantIds = [found.id];
+    } else {
+      const participants = familyMembers.filter((m) =>
+        selectedRotationMembers.includes(m.name)
+      );
+      taskParticipantIds = participants.map((p) => p.id).filter(Boolean);
+      if (taskParticipantIds.length === 0 && familyMembers[0]?.id) {
+        taskParticipantIds = [familyMembers[0].id];
+      }
+    }
+
     if (onAddTask) {
       onAddTask({
         title: taskTitle.trim(),
@@ -336,6 +354,7 @@ export const TasksRotationsView: React.FC<TasksRotationsViewProps> = ({
         icon: taskIcon,
         period: taskPeriod,
         advanceNotice: finalNotice !== 'Sem aviso' ? finalNotice : undefined,
+        participantIds: taskParticipantIds,
       });
     }
 
@@ -564,14 +583,16 @@ export const TasksRotationsView: React.FC<TasksRotationsViewProps> = ({
                             <>
                               {Boolean(
                                 (currentUserId && task.nextMemberId && task.nextMemberId === currentUserId) ||
-                                (effectiveUserName && task.nextMember && task.nextMember.trim().toLowerCase() === effectiveUserName.trim().toLowerCase())
+                                (effectiveUserName && task.nextMember && task.nextMember.trim().toLowerCase() === effectiveUserName.trim().toLowerCase()) ||
+                                isGeneralAdmin
                               ) ? (
                                 <button
                                   type="button"
                                   onClick={() => {
                                     onTaskStatusChange(task.id, 'completed');
                                     if (task.isRotation && rotations.length > 0) {
-                                      onRotateNext(rotations[0].id);
+                                      const matchingRot = rotations.find((r) => r.taskId === task.id || r.id === task.id) || rotations[0];
+                                      onRotateNext(matchingRot.id);
                                     }
                                   }}
                                   className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 active:scale-[0.96] text-white text-[11px] font-bold rounded-lg transition-all shadow-2xs flex items-center gap-1 cursor-pointer"
@@ -605,7 +626,8 @@ export const TasksRotationsView: React.FC<TasksRotationsViewProps> = ({
                                 <button
                                   type="button"
                                   onClick={() => {
-                                    onRotateNext(rotations[0].id);
+                                    const matchingRot = rotations.find((r) => r.taskId === task.id || r.id === task.id) || rotations[0];
+                                    onRotateNext(matchingRot.id);
                                     onTaskStatusChange(task.id, 'skipped');
                                   }}
                                   className="px-2 py-1 bg-white border border-[#c1c8c6] text-[#7b5800] hover:bg-amber-50 active:scale-[0.96] text-[11px] font-bold rounded-lg transition-all flex items-center gap-1 cursor-pointer"
@@ -656,90 +678,118 @@ export const TasksRotationsView: React.FC<TasksRotationsViewProps> = ({
       {/* TAB 2: ROTATIONS LIST */}
       {activeTab === 'rotations' && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          {rotations.map((rot) => (
-            <div
-              key={rot.id}
-              className="bg-white p-3.5 rounded-xl border border-[#d9e5e3] shadow-2xs space-y-2.5 flex flex-col justify-between"
-            >
-              <div>
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <div className="w-8 h-8 rounded-lg bg-[#f0fcfa] border border-[#d0dddb] flex items-center justify-center text-[#7b5800] shrink-0">
-                      <span className="material-symbols-outlined text-lg">{rot.icon}</span>
-                    </div>
-                    <div className="min-w-0">
-                      <h3 className="text-xs sm:text-sm font-bold text-[#16302e] truncate">{rot.title}</h3>
-                      <p className="text-[10px] text-[#727877] mt-0.5">{rot.schedule}</p>
-                    </div>
-                  </div>
+          {rotations.map((rot) => {
+            const nextUser = rot.queue.find((q) => q.isNext);
+            const isMyTurn = Boolean(
+              (currentUserId && nextUser?.id && nextUser.id === currentUserId) ||
+              (effectiveUserName && nextUser?.name && nextUser.name.trim().toLowerCase() === effectiveUserName.trim().toLowerCase()) ||
+              (effectiveUserName && rot.nextMember && rot.nextMember.trim().toLowerCase() === effectiveUserName.trim().toLowerCase())
+            );
 
-                  <div className="flex items-center gap-1.5 shrink-0">
-                    {canRevert && onUpdateTask && (
-                      <button
-                        type="button"
-                        onClick={() => handleOpenEditFromRotation(rot)}
-                        className="px-2.5 py-1 bg-white border border-[#c1c8c6] hover:bg-[#f0fcfa] hover:border-[#7b5800] text-[#16302e] active:scale-[0.96] rounded-lg text-[11px] font-bold transition-all flex items-center gap-1 cursor-pointer"
-                        title="Editar participantes e escala deste rodízio"
-                        aria-label={`Editar participantes e escala do rodízio ${rot.title}`}
-                      >
-                        <span className="material-symbols-outlined text-xs text-[#7b5800]">edit</span>
-                        <span>Editar</span>
-                      </button>
-                    )}
-                    <button
-                      onClick={() => onRotateNext(rot.id)}
-                      className="px-2.5 py-1 bg-[#7b5800] hover:bg-[#5d4200] active:scale-[0.96] text-white rounded-lg text-[11px] font-bold transition-all flex items-center gap-1 shrink-0 cursor-pointer"
-                      aria-label={`Girar rodízio de ${rot.title}`}
-                    >
-                      <span className="material-symbols-outlined text-xs">sync</span>
-                      <span>Girar</span>
-                    </button>
-                  </div>
-                </div>
+            return (
+              <div
+                key={rot.id}
+                className="bg-white p-3.5 rounded-xl border border-[#d9e5e3] shadow-2xs space-y-2.5 flex flex-col justify-between"
+              >
+                <div>
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <div className="w-8 h-8 rounded-lg bg-[#f0fcfa] border border-[#d0dddb] flex items-center justify-center text-[#7b5800] shrink-0">
+                        <span className="material-symbols-outlined text-lg">{rot.icon}</span>
+                      </div>
+                      <div className="min-w-0">
+                        <h3 className="text-xs sm:text-sm font-bold text-[#16302e] truncate">{rot.title}</h3>
+                        <p className="text-[10px] text-[#727877] mt-0.5">{rot.schedule}</p>
+                      </div>
+                    </div>
 
-                {/* Queue Display */}
-                <div className="mt-2.5 bg-[#f0fcfa] p-2 rounded-lg border border-[#e4f0ee] space-y-1">
-                  <span className="text-[9px] font-bold text-[#727877] uppercase tracking-wider block">
-                    Ordem do Rodízio (<span className="tabular-nums">{rot.queue.length}</span> membros):
-                  </span>
-                  <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 scrollbar-none">
-                    {rot.queue.map((q, idx) => {
-                      const memberObj = familyMembers.find((m) => m.id === q.id || m.name === q.name);
-                      const isOnVacation = Boolean(q.vacation_mode || memberObj?.vacation_mode || memberObj?.statusTag === 'Férias');
-                      return (
-                        <div
-                          key={idx}
-                          className={`flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-bold shrink-0 border ${
-                            q.isNext
-                              ? 'bg-[#16302e] text-white border-[#16302e] shadow-2xs'
-                              : isOnVacation
-                              ? 'bg-amber-50/80 text-amber-900 border-amber-300 opacity-80'
-                              : 'bg-white text-[#727877] border-[#c1c8c6]'
-                          }`}
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      {canRevert && onUpdateTask && (
+                        <button
+                          type="button"
+                          onClick={() => handleOpenEditFromRotation(rot)}
+                          className="px-2.5 py-1 bg-white border border-[#c1c8c6] hover:bg-[#f0fcfa] hover:border-[#7b5800] text-[#16302e] active:scale-[0.96] rounded-lg text-[11px] font-bold transition-all flex items-center gap-1 cursor-pointer"
+                          title="Editar participantes e escala deste rodízio"
+                          aria-label={`Editar participantes e escala do rodízio ${rot.title}`}
                         >
-                          <img
-                            src={q.avatar}
-                            alt={q.name}
-                            className="w-3.5 h-3.5 rounded-full object-cover"
-                          />
-                          <span>{q.name}</span>
-                          {isOnVacation && (
-                            <span
-                              className="text-[9px] font-semibold text-amber-800 bg-amber-100 px-1 rounded ml-0.5"
-                              title="Membro em férias (pulado automaticamente na escala ativa)"
-                            >
-                              🏖️ Férias
-                            </span>
-                          )}
-                          {q.isNext && <span className="text-[9px]">⭐</span>}
+                          <span className="material-symbols-outlined text-xs text-[#7b5800]">edit</span>
+                          <span>Editar</span>
+                        </button>
+                      )}
+                      {isMyTurn ? (
+                        <button
+                          type="button"
+                          onClick={() => onRotateNext(rot.id)}
+                          className="px-2.5 py-1 bg-[#7b5800] hover:bg-[#5d4200] active:scale-[0.96] text-white rounded-lg text-[11px] font-bold transition-all flex items-center gap-1 shrink-0 cursor-pointer"
+                          aria-label={`Girar rodízio de ${rot.title}`}
+                        >
+                          <span className="material-symbols-outlined text-xs">sync</span>
+                          <span>Girar</span>
+                        </button>
+                      ) : (
+                        <div className="relative group inline-block shrink-0">
+                          <button
+                            type="button"
+                            disabled
+                            className="px-2.5 py-1 bg-slate-100 text-slate-400 border border-slate-200 text-[11px] font-bold rounded-lg flex items-center gap-1 cursor-not-allowed opacity-80"
+                            aria-disabled="true"
+                            aria-label={`Giro de rodízio bloqueado: aguardando a vez de ${rot.nextMember || 'outro morador'}`}
+                          >
+                            <span className="material-symbols-outlined text-xs text-slate-400">lock</span>
+                            <span>Girar</span>
+                          </button>
+                          <div className="hidden group-hover:block absolute bottom-full right-0 mb-1.5 z-30 px-2 py-1 bg-[#16302e] text-white text-[10px] font-medium rounded-md shadow-md whitespace-nowrap pointer-events-none">
+                            Aguardando a vez de {rot.nextMember || 'outro morador'}
+                          </div>
                         </div>
-                      );
-                    })}
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Queue Display */}
+                  <div className="mt-2.5 bg-[#f0fcfa] p-2 rounded-lg border border-[#e4f0ee] space-y-1">
+                    <span className="text-[9px] font-bold text-[#727877] uppercase tracking-wider block">
+                      Ordem do Rodízio (<span className="tabular-nums">{rot.queue.length}</span> membros):
+                    </span>
+                    <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 scrollbar-none">
+                      {rot.queue.map((q, idx) => {
+                        const memberObj = familyMembers.find((m) => m.id === q.id || m.name === q.name);
+                        const isOnVacation = Boolean(q.vacation_mode || memberObj?.vacation_mode || memberObj?.statusTag === 'Férias');
+                        return (
+                          <div
+                            key={idx}
+                            className={`flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-bold shrink-0 border ${
+                              q.isNext
+                                ? 'bg-[#16302e] text-white border-[#16302e] shadow-2xs'
+                                : isOnVacation
+                                ? 'bg-amber-50/80 text-amber-900 border-amber-300 opacity-80'
+                                : 'bg-white text-[#727877] border-[#c1c8c6]'
+                            }`}
+                          >
+                            <img
+                              src={q.avatar}
+                              alt={q.name}
+                              className="w-3.5 h-3.5 rounded-full object-cover"
+                            />
+                            <span>{q.name}</span>
+                            {isOnVacation && (
+                              <span
+                                className="text-[9px] font-semibold text-amber-800 bg-amber-100 px-1 rounded ml-0.5"
+                                title="Membro em férias (pulado automaticamente na escala ativa)"
+                              >
+                                🏖️ Férias
+                              </span>
+                            )}
+                            {q.isNext && <span className="text-[9px]">⭐</span>}
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 

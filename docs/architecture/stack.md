@@ -82,3 +82,19 @@ frontend/src/
 ## 3. Padrões de Qualidade
 1. **Tipagem Estrita:** `strict: true` ativado em `tsconfig.json` de ambos os pacotes.
 2. **Zero Invenção de Contratos:** Todas as interfaces TypeScript em `frontend/src/types.ts` e `backend/src/core/` devem derivar estritamente de [docs/architecture/data-model.md](file:///c:/Users/victo/OneDrive/Documentos/Github/Domus/docs/architecture/data-model.md) e [docs/integrations/api-contracts.md](file:///c:/Users/victo/OneDrive/Documentos/Github/Domus/docs/integrations/api-contracts.md).
+
+---
+
+## 4. Containerização & Orquestração (Docker)
+O backend conta com empacotamento completo em Docker e orquestração via Docker Compose:
+- **`backend/Dockerfile`**: Imagem base `node:20-alpine`, `openssl` instalado, compilação de Prisma Client e script `docker-entrypoint.sh` para aplicar migrações na inicialização.
+- **`backend/docker-compose.yml`**:
+  - `postgres_db`: PostgreSQL 16 Alpine com healthcheck (`pg_isready`) e volume persistente `postgres_data`.
+  - `api`: API Express Node.js conectada com `depends_on: { postgres_db: { condition: service_healthy } }` para evitar race condition nas migrações.
+- **Execução**:
+  ```bash
+  cd backend
+  docker compose up --build -d
+  docker compose logs -f api
+  ```
+

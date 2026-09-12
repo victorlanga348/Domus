@@ -20,3 +20,6 @@ Apresentar métricas consolidadas sobre o cumprimento das rotinas domésticas, �
 - Lista cronológica de tarefas finalizadas com filtros por membro, status e busca textual.
 - **Governança de Reversão:** Ação de reverter tarefa para pendente disponível exclusivamente para o **Admin Geral** e **Sub-Admins**, exigindo modal de confirmação antes da chamada à API.
 - **Moradores Comuns:** Visualizam os itens com o selo `"Concluída"` sem botões de reversão.
+
+### 2.5 Estados de Carregamento (`ReportsSkeleton`)
+- Durante o carregamento e paginação inicial de relatórios e logs de atividade (`loading === true`), a visão renderiza o `ReportsSkeleton` com placeholders de busca, filtros e linhas de tarefas para evitar Layout Shift.

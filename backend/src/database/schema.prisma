@@ -57,11 +57,15 @@ model House {
   created_at    DateTime @default(now())
   updated_at    DateTime @updatedAt
 
-  users          User[]
-  tasks          Task[]
-  activity_logs  ActivityLog[]
-  bulletin_posts BulletinBoard[]
-  rooms          Room[]
+  users           User[]
+  tasks           Task[]
+  activity_logs   ActivityLog[]
+  bulletin_posts  BulletinBoard[]
+  rooms           Room[]
+  rules           HouseRule[]
+  preference      HousePreference?
+  meal_plan       MealPlan?
+  member_statuses MemberStatus[]
 
   @@map("houses")
 }
@@ -88,6 +92,8 @@ model User {
   bulletin_posts      BulletinBoard[]
   room_memberships    Participant[]
   messages            Message[]
+  locked_meal_plans   MealPlan[]        @relation("MealPlanLockedBy")
+  member_statuses     MemberStatus[]
 
   @@map("users")
 }
@@ -202,4 +208,81 @@ model BulletinBoard {
   house  House @relation(fields: [house_id], references: [id], onDelete: Cascade)
 
   @@map("bulletin_board")
+}
+
+model HouseRule {
+  id          String   @id @default(uuid())
+  house_id    String
+  number      Int
+  title       String
+  description String
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+
+  house House @relation(fields: [house_id], references: [id], onDelete: Cascade)
+
+  @@map("house_rules")
+}
+
+model HousePreference {
+  id          String   @id @default(uuid())
+  house_id    String   @unique
+  night_mode  Boolean  @default(true)
+  start_time  String   @default("23:00")
+  end_time    String   @default("07:00")
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+
+  house House @relation(fields: [house_id], references: [id], onDelete: Cascade)
+
+  @@map("house_preferences")
+}
+
+model MealPlan {
+  id             String    @id @default(uuid())
+  house_id       String    @unique
+  is_locked      Boolean   @default(false)
+  locked_by_id   String?
+  locked_at      DateTime?
+  schedules_json String?   // JSON serializado de Record<MealType, MealPeriodSchedule>
+  created_at     DateTime  @default(now())
+  updated_at     DateTime  @updatedAt
+
+  house     House      @relation(fields: [house_id], references: [id], onDelete: Cascade)
+  locked_by User?      @relation("MealPlanLockedBy", fields: [locked_by_id], references: [id], onDelete: SetNull)
+  meals     MealItem[]
+
+  @@map("meal_plans")
+}
+
+model MealItem {
+  id           String   @id @default(uuid())
+  meal_plan_id String
+  day_of_week  String   // monday, tuesday, wednesday, thursday, friday, saturday, sunday
+  meal_type    String   // breakfast, lunch, snack, dinner
+  title        String
+  description  String?
+  tags_json    String?  // Array de tags serializado em JSON
+  updated_by   String?
+  created_at   DateTime @default(now())
+  updated_at   DateTime @updatedAt
+
+  meal_plan MealPlan @relation(fields: [meal_plan_id], references: [id], onDelete: Cascade)
+
+  @@map("meal_items")
+}
+
+model MemberStatus {
+  id         String   @id @default(uuid())
+  user_id    String
+  house_id   String
+  location   String   @default("Em Casa")
+  icon       String   @default("home")
+  updated_at DateTime @updatedAt
+
+  user  User  @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  house House @relation(fields: [house_id], references: [id], onDelete: Cascade)
+
+  @@unique([user_id, house_id])
+  @@map("member_statuses")
 }

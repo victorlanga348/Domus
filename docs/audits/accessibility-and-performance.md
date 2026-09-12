@@ -13,6 +13,8 @@
 - **Largest Contentful Paint (LCP):** < 1.5s
 - **Interaction to Next Paint (INP):** < 150ms
 - **Cumulative Layout Shift (CLS):** < 0.05
+- **First Contentful Paint (FCP Mobile):** Instantâneo (~0ms) via Skeleton Inline puro no `index.html`, prevenindo o flash de tela preta causado por navegadores em Dark Mode antes da inicialização do bundle JS.
+- **Isolamento de Canvas Mobile:** Configuração explícita de `<meta name="color-scheme" content="light">` e estilos inline que forçam a paleta oficial `#F4F9F7` desde o primeiro frame de renderização do SO.
 - **Bundle Size:** Otimização de imports no Vite evitando carregar bibliotecas não utilizadas no bundle inicial.
 - **Compositing GPU:** Animações e transições executadas estritamente em propriedades compostas pela GPU (`transform`, `opacity`).
 

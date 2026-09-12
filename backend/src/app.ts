@@ -11,6 +11,10 @@ import { roomRoutes } from './modules/rooms/rooms.routes.js';
 import { authRoutes } from './modules/auth/auth.routes.js';
 import { dashboardRoutes } from './modules/dashboard/dashboard.routes.js';
 import { statisticsRoutes } from './modules/statistics/statistics.routes.js';
+import { rulesRoutes } from './modules/rules/rules.routes.js';
+import { preferencesRoutes } from './modules/preferences/preferences.routes.js';
+import { mealsRoutes } from './modules/meals/meals.routes.js';
+import { memberStatusesRoutes } from './modules/member-statuses/member-statuses.routes.js';
 
 const isAllowedOrigin = (origin?: string): boolean => {
   if (!origin) return true;
@@ -55,6 +59,10 @@ app.use('/tarefas', taskRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/activity-logs', activityLogRoutes);
 app.use('/api/rooms', roomRoutes);
+app.use('/api/rules', rulesRoutes);
+app.use('/api/preferences', preferencesRoutes);
+app.use('/api/meals', mealsRoutes);
+app.use('/api/statuses', memberStatusesRoutes);
 
 // Error Handler Central
 app.use(errorHandler);

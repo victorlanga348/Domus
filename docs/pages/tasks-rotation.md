@@ -26,11 +26,20 @@ Cada cartão exibe:
 - Fila de próximos participantes no rodízio (ordem alfabética).
 - Botões de ação contextuais:
   - Se `OPEN`:
-    - **Para o Morador Responsável:** Botão `[ Concluir ]` verde ativo.
-    - **Para Outros Moradores / Sub-Admin:** Botão desabilitado em cinza com tooltip: `"Aguardando confirmação de [Nome do Responsável]"`.
+    - **Para o Morador Responsável OU Admin Geral:** Botão `[ Concluir ]` verde ativo.
+    - **Para Outros Moradores (inclusive Sub-Admins não designados):** Botão desabilitado em cinza com tooltip: `"Aguardando confirmação de [Nome do Responsável]"`.
   - Se `COMPLETED`:
     - **Para Moradores Comuns:** Apenas o selo verde `"Concluída"` (sem botões de ação).
     - **Para Admin Geral e Sub-Admins:** Selo `"Concluída"` acompanhado de botão discreto `[ Reverter para Pendente ]`, abrindo modal de confirmação.
+
+### 2.4 Cartão de Rodízio (`Rotations View`)
+Na aba "Rodízios", cada cartão de rodízio exibe:
+- Título do rodízio, ícone temático e periodicidade (ex.: `Diária • Turno Manhã`).
+- Botão `[ Editar ]`: Visível exclusivamente para **Admin Geral** e **Sub-Admins** para alterar participantes e escala.
+- Botão `[ Girar ]`:
+  - **Para o Morador da Vez (`isNext === true`):** Botão dourado ativo (`bg-[#7b5800]`), acionando o avanço imediato da fila.
+  - **Para Outros Moradores / Usuários sem a Vez:** Botão desabilitado em cinza (`bg-slate-100 text-slate-400 cursor-not-allowed`) com ícone de cadeado (`lock`) e tooltip em hover: `"Aguardando a vez de [Nome do Morador da Vez]"`.
+- Fila visual de participantes ordenada alfabeticamente (A-Z), destacando com estrela (`⭐`) o membro ativo da vez e com badge `🏖️ Férias` os membros ausentes.
 
 ---
 
@@ -39,6 +48,7 @@ Cada cartão exibe:
 - **Reordenação Fluida (`Layout Animation`):** Transições de status e remoções são envolvidas em `<AnimatePresence mode="popLayout">` com a propriedade `layout`, garantindo estabilidade espacial e transições contínuas.
 - **Feedback Tátil (`Scale on Press`):** Botões de ação (`[ Nova Tarefa ]`, `[ Concluir ]`, `[ Pular ]`, `[ Girar ]`, `[ Reverter ]`) utilizam feedback háptico/tátil `active:scale-[0.96]`.
 - **Prevenção de Layout Shift (`tabular-nums`):** Contadores de tarefas pendentes, concluídas e membros da fila do rodízio utilizam `font-variant-numeric: tabular-nums`.
+- **Estado de Carregamento Reativo (`TasksSkeleton`):** Enquanto as tarefas são sincronizadas a partir do PostgreSQL (`tasksLoading === true`), a visão exibe o `TasksSkeleton` reproduzindo a geometria dos turnos, filtros e cartões para garantir transições suaves sem flashes vazios.
 
 ---
 
@@ -47,6 +57,7 @@ Cada cartão exibe:
 - **Fluxos Centralizados:**
   - `GET /api/tasks?houseId=...`: Lista todas as tarefas ativas da residência na montagem da tela.
   - `POST /api/tasks`: Criação persistente no banco de dados vinculada aos membros e emissão imediata de evento `task:created` via WebSocket.
+  - `POST /api/tasks/:id/rotate` (alias `/api/tasks/:id/girar`): Avanço de escala com validação estrita da vez do morador e emissão de `house:rotation_advanced`.
   - `PATCH /api/tasks/:id/complete` (alias `/api/tasks/:id/concluir`): Conclusão com validação restrita do morador responsável da vez e emissão de `task:status_changed`.
   - `PATCH /api/tasks/:id/revert` (alias `/api/tasks/:id/reverter`): Reversão de status exclusiva para Admin Geral e Sub-Admin com emissão de `task:status_changed`.
   - `DELETE /api/tasks/:id`: Exclusão persistente no banco e emissão de `task:deleted`.

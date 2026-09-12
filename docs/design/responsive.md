@@ -78,3 +78,27 @@
 - **Estabilidade ao Despertar (Wake from Sleep & Reativação Instantânea):**
   - O estado do painel principal é hidratado imediatamente a partir do cache local (`${houseKey}_dashboard_cache`). Quando a tela do celular é ligada ou reaberta, o conteúdo real é renderizado em < 16ms sem exibição de skeletons transitórios e sem saltos de layout ("pulada"). A sincronização com a API e WebSocket acontece em segundo plano de forma silenciosa.
 
+---
+
+## 8. Micro-interações Nativas, Animações e Modais Bottom Sheet
+- **Transição de Telas/Abas:**
+  - Alternância de visões em `App.tsx` via `motion` (`AnimatePresence mode="wait" initial={false}`) com curva cinematográfica rápida (`duration: 0.22s, ease: [0.16, 1, 0.3, 1]`) e leve elevação (`y: 8 -> 0`), prevenindo layout shifts.
+- **Efeito Cascata (Stagger):**
+  - Carregamento de cards em lote (pratos do dia em `MealsView`, recados no mural em `DashboardView`) com atraso sequencial progressivo (`delay: index * 0.04s`), evitando aparições em bloco abruptas.
+- **Feedback Tátil Universal:**
+  - Remoção de flash de toque nativo do WebKit (`-webkit-tap-highlight-color: transparent`).
+  - Botões de ação e itens interativos recebem compressão suave ao toque (`active:scale-[0.97] transition-all`).
+- **Modais Mobile (Bottom Sheet):**
+  - Em smartphones (`< 640px`), modais abrem alinhados à base (`items-end sm:items-center`), com cantos arredondados no topo (`rounded-t-3xl sm:rounded-3xl`), animação elástica de subida (`animate-sheet-slide-up`), altura máxima de `90dvh` e barra tátil indicadora superior (*grab handle*). Em tablets e desktops, comportam-se como modais flutuantes centralizados (`sm:items-center`).
+- **Menu Lateral / Drawer Mobile:**
+  - Persistente na árvore sem desmonte abrupto, com backdrop progressivo (`transition-opacity duration-300 ease-out` com `backdrop-blur-xs`).
+  - Painel lateral desliza pela esquerda via hardware GPU (`will-change-transform`, `translate-x-0` vs `-translate-x-full`) com curva de desaceleração suave de app nativo (`cubic-bezier(0.32, 0.72, 0, 1)`).
+  - Links de navegação entram em cascata (*stagger* progressivo de 30ms com `opacity` e deslocamento lateral `translate-x-2` -> `translate-x-0`) e feedback tátil `active:scale-[0.98]`.
+  - Respeito integral a Safe Area física superior (`env(safe-area-inset-top)`) e inferior (`env(safe-area-inset-bottom)`).
+- **Contadores Progressivos (Count-Up / Number Rolling):**
+  - Componente `AnimatedCounter` baseado em `requestAnimationFrame` com desaceleração exponencial (`easeOutExpo`), utilizado no score da "Saúde da Convivência" e nos cards de métricas de tarefas em `StatisticsView`.
+  - Contadores secundários entram com atraso progressivo (100ms) e o badge de status realiza transição de entrada suave (`scale-95 opacity-0` -> `scale-100 opacity-100`) ao término da contagem.
+  - Botão de atualização com rotação contínua (`animate-spin`) e recálculo com nova animação de contagem ao concluir.
+- **Acessibilidade Motora & Redução de Movimento:**
+  - Todas as animações e transições respeitam `@media (prefers-reduced-motion: reduce)`, desativando efeitos para evitar desconforto em usuários com sensibilidade vestibular.
+

@@ -4,29 +4,33 @@
  */
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
 import {
   TabType,
   FamilyMember,
   HouseTask,
   TaskRotation,
-  ExpenseItem,
   HouseRule,
   ActivityLog,
   SystemPreferences,
   MuralNote,
   MemberStatus,
+  MealItem,
+  HouseMealPlan,
+  MealPeriodSchedule,
+  DayOfWeek,
+  MealType,
 } from './types';
 import { INITIAL_PREFERENCES } from './data.js';
 import { Sidebar, Header } from './layouts/index.js';
-import { DashboardView, dashboardApi } from './features/dashboard/index.js';
+import { DashboardView, dashboardApi, memberStatusesApi } from './features/dashboard/index.js';
 import { TasksRotationsView, tasksApi } from './features/tasks-rotation/index.js';
-import { SettingsView } from './features/settings/index.js';
+import { MealsView, createDefaultMealPlan, DEFAULT_MEAL_SCHEDULES, mealsApi } from './features/meals/index.js';
+import { SettingsView, rulesApi, preferencesApi } from './features/settings/index.js';
 import { ReportsView } from './features/reports/index.js';
 import { StatisticsView } from './features/statistics/index.js';
 import { activityLogsApi } from './features/activity-logs/index.js';
 import {
-  AddExpenseModal,
-  RequestReimbursementModal,
   AddHouseRuleModal,
   AddMemberModal,
   NotificationsDrawer,
@@ -50,6 +54,9 @@ import {
   emitRuleDeleted,
   emitRotationAdvanced,
   emitMembersUpdated,
+  emitMealUpdated,
+  emitMealDeleted,
+  emitMealLockToggled,
 } from './shared/socket/index.js';
 
 function mapBackendTaskToHouseTask(task: any, currentMembers: FamilyMember[]): HouseTask {
@@ -252,7 +259,7 @@ export default function App() {
   // 3. Navegação & Abas (Persistidas para manter o estado após bloqueio/reativação do celular)
   const [currentTab, setCurrentTab] = useState<TabType>(() => {
     const saved = localStorage.getItem('domus_active_tab') as TabType | null;
-    return saved && ['dashboard', 'tasks', 'reports', 'statistics', 'settings'].includes(saved) ? saved : 'dashboard';
+    return saved && ['dashboard', 'tasks', 'meals', 'reports', 'statistics', 'settings'].includes(saved) ? saved : 'dashboard';
   });
   const [subTab, setSubTab] = useState<string>(() => {
     return localStorage.getItem('domus_active_subtab') || 'bulletin';
@@ -311,12 +318,6 @@ export default function App() {
   const [rotations, setRotations] = useState<TaskRotation[]>(() => {
     if (!houseKey) return [];
     const saved = localStorage.getItem(`${houseKey}_rotations`);
-    return saved ? JSON.parse(saved) : [];
-  });
-
-  const [expenses, setExpenses] = useState<ExpenseItem[]>(() => {
-    if (!houseKey) return [];
-    const saved = localStorage.getItem(`${houseKey}_expenses`);
     return saved ? JSON.parse(saved) : [];
   });
 
@@ -382,9 +383,59 @@ export default function App() {
     return saved ? JSON.parse(saved) : [];
   });
 
+  const [mealPlan, setMealPlan] = useState<HouseMealPlan>(() => {
+    if (!houseKey) return { houseId: '', isLocked: false, meals: [], schedules: DEFAULT_MEAL_SCHEDULES };
+    const saved = localStorage.getItem(`${houseKey}_meals`);
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        const cleanMeals = (parsed.meals || [])
+          .filter(
+            (m: any) =>
+              m.title &&
+              m.title.trim() &&
+              !m.id?.startsWith('meal_mon_') &&
+              !m.id?.startsWith('meal_tue_') &&
+              !m.id?.startsWith('meal_wed_') &&
+              !m.id?.startsWith('meal_thu_') &&
+              !m.id?.startsWith('meal_fri_') &&
+              !m.id?.startsWith('meal_sat_') &&
+              !m.id?.startsWith('meal_sun_')
+          )
+          .map((m: any) => {
+            const { chefs, chefId, chefName, chefAvatar, ...rest } = m;
+            return rest as MealItem;
+          });
+        return {
+          ...parsed,
+          meals: cleanMeals,
+          schedules: parsed.schedules || DEFAULT_MEAL_SCHEDULES,
+        };
+      } catch {}
+    }
+    return createDefaultMealPlan(currentHouse?.id || '');
+  });
+
+  // Estados de Carregamento dos Módulos para Renderização Reativa de Skeletons
+  const [tasksLoading, setTasksLoading] = useState<boolean>(() => {
+    if (!houseKey) return true;
+    const saved = localStorage.getItem(`${houseKey}_tasks`);
+    return !saved || saved === '[]';
+  });
+
+  const [mealsLoading, setMealsLoading] = useState<boolean>(() => {
+    if (!houseKey) return true;
+    const saved = localStorage.getItem(`${houseKey}_meals`);
+    return !saved;
+  });
+
+  const [reportsLoading, setReportsLoading] = useState<boolean>(() => {
+    if (!houseKey) return true;
+    const saved = localStorage.getItem(`${houseKey}_tasks`);
+    return !saved || saved === '[]';
+  });
+
   // Modal Visibility States
-  const [isAddExpenseOpen, setIsAddExpenseOpen] = useState(false);
-  const [isReimbursementOpen, setIsReimbursementOpen] = useState(false);
   const [isAddRuleOpen, setIsAddRuleOpen] = useState(false);
   const [isAddMemberOpen, setIsAddMemberOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
@@ -415,7 +466,6 @@ export default function App() {
       localStorage.setItem(`${houseKey}_members`, JSON.stringify(familyMembers));
       localStorage.setItem(`${houseKey}_tasks`, JSON.stringify(tasks));
       localStorage.setItem(`${houseKey}_rotations`, JSON.stringify(rotations));
-      localStorage.setItem(`${houseKey}_expenses`, JSON.stringify(expenses));
       localStorage.setItem(`${houseKey}_rules`, JSON.stringify(houseRules));
       localStorage.setItem(`${houseKey}_logs`, JSON.stringify(activityLogs));
       localStorage.setItem(`${houseKey}_read_notifications`, JSON.stringify(readNotificationIds));
@@ -423,13 +473,13 @@ export default function App() {
       localStorage.setItem(`${houseKey}_prefs`, JSON.stringify(preferences));
       localStorage.setItem(`${houseKey}_notes`, JSON.stringify(muralNotes));
       localStorage.setItem(`${houseKey}_statuses`, JSON.stringify(memberStatuses));
+      localStorage.setItem(`${houseKey}_meals`, JSON.stringify(mealPlan));
     }
   }, [
     houseKey,
     familyMembers,
     tasks,
     rotations,
-    expenses,
     houseRules,
     activityLogs,
     readNotificationIds,
@@ -437,6 +487,7 @@ export default function App() {
     preferences,
     muralNotes,
     memberStatuses,
+    mealPlan,
   ]);
 
   const showToast = useCallback((msg: string) => {
@@ -540,20 +591,22 @@ export default function App() {
           console.warn('[DOMUS] Erro ao sincronizar membros da casa:', err);
         });
 
-      // 2. Tarefas Centrais da Residência (PostgreSQL)
+      // 2. Tarefas Centrais da Residência (PostgreSQL - Visibilidade Universal)
       tasksApi
         .getTasks(currentHouse.id, authUser.id)
         .then((backendTasks) => {
-          if (Array.isArray(backendTasks) && backendTasks.length > 0) {
+          if (Array.isArray(backendTasks)) {
             setTasks(backendTasks.map((t) => mapBackendTaskToHouseTask(t, familyMembers)));
             const generatedRotations = mapBackendTasksToRotations(backendTasks, familyMembers);
-            if (generatedRotations.length > 0) {
-              setRotations(generatedRotations);
-            }
+            setRotations(generatedRotations);
           }
         })
         .catch((err) => {
           console.warn('[DOMUS] Erro ao sincronizar tarefas centralizadas:', err);
+        })
+        .finally(() => {
+          setTasksLoading(false);
+          setReportsLoading(false);
         });
 
       // 3. Histórico e Notificações Centrais da Residência (PostgreSQL)
@@ -566,6 +619,57 @@ export default function App() {
         })
         .catch((err) => {
           console.warn('[DOMUS] Erro ao sincronizar logs de atividade centralizados:', err);
+        });
+
+      // 4. Regras da Residência (PostgreSQL)
+      rulesApi
+        .getRules(currentHouse.id)
+        .then((backendRules) => {
+          if (Array.isArray(backendRules) && backendRules.length > 0) {
+            setHouseRules(backendRules);
+          }
+        })
+        .catch((err) => {
+          console.warn('[DOMUS] Erro ao sincronizar regras da residência:', err);
+        });
+
+      // 5. Preferências da Residência (PostgreSQL)
+      preferencesApi
+        .getPreferences(currentHouse.id)
+        .then((backendPrefs) => {
+          if (backendPrefs) {
+            setPreferences(backendPrefs);
+          }
+        })
+        .catch((err) => {
+          console.warn('[DOMUS] Erro ao sincronizar preferências da residência:', err);
+        });
+
+      // 6. Cardápio / Refeições da Residência (PostgreSQL)
+      mealsApi
+        .getMealPlan(currentHouse.id)
+        .then((backendPlan) => {
+          if (backendPlan) {
+            setMealPlan(backendPlan);
+          }
+        })
+        .catch((err) => {
+          console.warn('[DOMUS] Erro ao sincronizar cardápio da residência:', err);
+        })
+        .finally(() => {
+          setMealsLoading(false);
+        });
+
+      // 7. Status dos Moradores (PostgreSQL)
+      memberStatusesApi
+        .getStatuses(currentHouse.id)
+        .then((backendStatuses) => {
+          if (Array.isArray(backendStatuses) && backendStatuses.length > 0) {
+            setMemberStatuses(backendStatuses);
+          }
+        })
+        .catch((err) => {
+          console.warn('[DOMUS] Erro ao sincronizar status dos moradores:', err);
         });
     }
   }, [currentHouse?.id, authUser?.id, handleSyncMembers]);
@@ -672,16 +776,23 @@ export default function App() {
       onRuleDeleted: ({ ruleId }: { ruleId: string }) => {
         setHouseRules((prev) => prev.filter((r) => r.id !== ruleId));
       },
-      onRotationAdvanced: ({ rotationId }: { rotationId: string }) => {
+      onRotationAdvanced: ({ rotationId, taskId }: { rotationId: string; taskId?: string }) => {
+        let nextMemberName = '';
+        let nextMemberAvatar = '';
+        let nextMemberId: string | undefined = undefined;
+
         setRotations((prev) =>
           prev.map((rot) => {
-            if (rot.id === rotationId) {
+            if (rot.id === rotationId || rot.taskId === rotationId) {
               const queue = [...rot.queue];
               if (queue.length > 0) {
                 const first = queue.shift()!;
                 first.isNext = false;
                 queue.push(first);
                 queue[0].isNext = true;
+                nextMemberName = queue[0].name;
+                nextMemberAvatar = queue[0].avatar;
+                nextMemberId = queue[0].id;
                 return {
                   ...rot,
                   nextMember: queue[0].name,
@@ -693,10 +804,56 @@ export default function App() {
             return rot;
           })
         );
+
+        const targetTaskId = taskId || rotationId;
+        if (nextMemberName) {
+          setTasks((prev) =>
+            prev.map((t) => {
+              if (t.id === targetTaskId) {
+                return {
+                  ...t,
+                  nextMember: nextMemberName,
+                  nextMemberAvatar: nextMemberAvatar,
+                  nextMemberId: nextMemberId,
+                };
+              }
+              return t;
+            })
+          );
+        }
       },
       onCodeRegenerated: ({ invite_code }: { invite_code: string }) => {
         setCurrentHouse((prev) => (prev ? { ...prev, invite_code } : prev));
         showToast(`O código de convite da casa foi atualizado para: ${invite_code}`);
+      },
+      onMealUpdated: ({ meal }: { meal: any }) => {
+        if (!meal) return;
+        setMealPlan((prev) => {
+          const exists = prev.meals.some(
+            (m) => m.id === meal.id || (m.dayOfWeek === meal.dayOfWeek && m.mealType === meal.mealType)
+          );
+          const updatedMeals = exists
+            ? prev.meals.map((m) =>
+                m.id === meal.id || (m.dayOfWeek === meal.dayOfWeek && m.mealType === meal.mealType) ? meal : m
+              )
+            : [...prev.meals, meal];
+          return { ...prev, meals: updatedMeals };
+        });
+      },
+      onMealDeleted: ({ mealId }: { mealId: string }) => {
+        setMealPlan((prev) => ({
+          ...prev,
+          meals: prev.meals.filter((m) => m.id !== mealId),
+        }));
+      },
+      onMealLockToggled: (data: any) => {
+        setMealPlan((prev) => ({
+          ...prev,
+          isLocked: Boolean(data.isLocked),
+          lockedBy: data.lockedBy,
+          lockedByName: data.lockedByName,
+          lockedAt: data.lockedAt,
+        }));
       },
     },
     authUser
@@ -828,6 +985,39 @@ export default function App() {
       };
       setFamilyMembers([initialMember]);
     }
+
+    const cachedMealsRaw = localStorage.getItem(`${key}_meals`);
+    if (cachedMealsRaw) {
+      try {
+        const parsed = JSON.parse(cachedMealsRaw);
+        const cleanMeals = (parsed.meals || [])
+          .filter(
+            (m: any) =>
+              m.title &&
+              m.title.trim() &&
+              !m.id?.startsWith('meal_mon_') &&
+              !m.id?.startsWith('meal_tue_') &&
+              !m.id?.startsWith('meal_wed_') &&
+              !m.id?.startsWith('meal_thu_') &&
+              !m.id?.startsWith('meal_fri_') &&
+              !m.id?.startsWith('meal_sat_') &&
+              !m.id?.startsWith('meal_sun_')
+          )
+          .map((m: any) => {
+            const { chefs, chefId, chefName, chefAvatar, ...rest } = m;
+            return rest as MealItem;
+          });
+        setMealPlan({
+          ...parsed,
+          meals: cleanMeals,
+          schedules: parsed.schedules || DEFAULT_MEAL_SCHEDULES,
+        });
+      } catch {
+        setMealPlan(createDefaultMealPlan(houseData.house.id));
+      }
+    } else {
+      setMealPlan(createDefaultMealPlan(houseData.house.id));
+    }
   };
 
   const handleSwitchHouse = () => {
@@ -882,12 +1072,12 @@ export default function App() {
     setFamilyMembers([]);
     setTasks([]);
     setRotations([]);
-    setExpenses([]);
     setHouseRules([]);
     setActivityLogs([]);
     setReadNotificationIds([]);
     setMuralNotes([]);
     setMemberStatuses([]);
+    setMealPlan({ houseId: '', isLocked: false, meals: [] });
     setCurrentTab('dashboard');
     setSubTab('bulletin');
     showToast('Sessão encerrada.');
@@ -1110,6 +1300,44 @@ export default function App() {
   const handleTaskStatusChange = async (taskId: string, newStatus: HouseTask['status']) => {
     const completedByName = authUser?.name || 'Morador';
     const completedById = authUser?.id;
+
+    // Se for conclusão de tarefa, verificar se pertence a um rodízio e avançar automaticamente a fila
+    let nextMemberName = '';
+    let nextMemberAvatar = '';
+    let nextMemberId: string | undefined = undefined;
+
+    if (newStatus === 'completed') {
+      const targetRotation = rotations.find((r) => r.id === taskId || r.taskId === taskId);
+      if (targetRotation && targetRotation.queue.length > 0) {
+        const queue = [...targetRotation.queue];
+        const first = queue.shift()!;
+        first.isNext = false;
+        queue.push(first);
+        queue[0].isNext = true;
+        nextMemberName = queue[0].name;
+        nextMemberAvatar = queue[0].avatar;
+        nextMemberId = queue[0].id;
+
+        setRotations((prev) =>
+          prev.map((rot) => {
+            if (rot.id === targetRotation.id) {
+              return {
+                ...rot,
+                nextMember: queue[0].name,
+                nextMemberAvatar: queue[0].avatar,
+                queue,
+              };
+            }
+            return rot;
+          })
+        );
+
+        if (currentHouse?.id) {
+          emitRotationAdvanced(currentHouse.id, targetRotation.id);
+        }
+      }
+    }
+
     setTasks((prev) =>
       prev.map((t) => {
         if (t.id === taskId) {
@@ -1120,6 +1348,13 @@ export default function App() {
               completedBy: completedByName,
               completedById: completedById,
               completedAt: new Date().toISOString(),
+              ...(nextMemberName
+                ? {
+                    nextMember: nextMemberName,
+                    nextMemberAvatar: nextMemberAvatar,
+                    nextMemberId: nextMemberId,
+                  }
+                : {}),
             };
           }
           return { ...t, status: newStatus };
@@ -1136,19 +1371,67 @@ export default function App() {
 
     if (newStatus === 'completed') {
       recordHouseActivity(
-        `Tarefa "${taskObj?.title || 'Tarefa'}" foi concluída por ${completedByName}.`,
+        `${completedByName} concluiu a tarefa "${taskObj?.title || 'Tarefa'}".`,
         completedByName,
         'COMPLETED',
         taskId
       );
       if (authUser?.id) {
-        tasksApi.completeTask(taskId, authUser.id).catch((err: any) => {
-          showToast(err.message || 'Erro ao concluir tarefa.');
-          // Reverte o estado visual caso o backend recuse (ex: 403)
-          setTasks((prev) =>
-            prev.map((t) => (t.id === taskId ? { ...t, status: taskObj?.status || 'pending' } : t))
-          );
-        });
+        tasksApi
+          .completeTask(taskId, authUser.id, undefined, currentUser.role)
+          .then((res: any) => {
+            const nextAssignee = res?.data?.nextAssignee || res?.nextAssignee;
+            if (nextAssignee) {
+              const assigneeName = nextAssignee.name;
+              const assigneeAvatar =
+                nextAssignee.avatar_url ||
+                `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(assigneeName)}`;
+              const assigneeId = nextAssignee.id;
+
+              setTasks((prev) =>
+                prev.map((t) =>
+                  t.id === taskId
+                    ? {
+                        ...t,
+                        nextMember: assigneeName,
+                        nextMemberAvatar: assigneeAvatar,
+                        nextMemberId: assigneeId,
+                      }
+                    : t
+                )
+              );
+
+              setRotations((prev) =>
+                prev.map((rot) => {
+                  if (rot.id === taskId || rot.taskId === taskId) {
+                    const updatedQueue = rot.queue.map((q) => ({
+                      ...q,
+                      isNext: q.id === assigneeId || q.name.trim().toLowerCase() === assigneeName.trim().toLowerCase(),
+                    }));
+                    return {
+                      ...rot,
+                      nextMember: assigneeName,
+                      nextMemberAvatar: assigneeAvatar,
+                      queue: updatedQueue,
+                    };
+                  }
+                  return rot;
+                })
+              );
+            }
+          })
+          .catch((err: any) => {
+            showToast(err.message || 'Erro ao concluir tarefa.');
+            // Reverte o estado visual caso o backend recuse (ex: 403)
+            setTasks((prev) =>
+              prev.map((t) => (t.id === taskId ? { ...t, status: taskObj?.status || 'pending' } : t))
+            );
+          });
+      }
+      if (nextMemberName) {
+        showToast(`Tarefa concluída! Rodízio avançado para ${nextMemberName}.`);
+      } else {
+        showToast(`Tarefa "${taskObj?.title || 'Tarefa'}" concluída com sucesso!`);
       }
     } else if (newStatus === 'pending' && wasCompleted) {
       recordHouseActivity(
@@ -1181,15 +1464,37 @@ export default function App() {
   };
 
   const handleRotateNext = (rotationId: string) => {
+    const targetRotation = rotations.find((r) => r.id === rotationId || r.taskId === rotationId);
+    if (!targetRotation) return;
+
+    const currentNext = targetRotation.queue.find((q) => q.isNext);
+    const isMyTurn = Boolean(
+      (authUser?.id && currentNext?.id && currentNext.id === authUser.id) ||
+      (authUser?.name && currentNext?.name && currentNext.name.trim().toLowerCase() === authUser.name.trim().toLowerCase()) ||
+      (authUser?.name && targetRotation.nextMember && targetRotation.nextMember.trim().toLowerCase() === authUser.name.trim().toLowerCase())
+    );
+
+    if (!isMyTurn) {
+      showToast(`Apenas ${targetRotation.nextMember || 'o morador da vez'} pode girar este rodízio.`);
+      return;
+    }
+
+    let nextMemberName = '';
+    let nextMemberAvatar = '';
+    let nextMemberId: string | undefined = undefined;
+
     setRotations((prev) =>
       prev.map((rot) => {
-        if (rot.id === rotationId) {
+        if (rot.id === rotationId || rot.taskId === rotationId) {
           const queue = [...rot.queue];
           if (queue.length > 0) {
             const first = queue.shift()!;
             first.isNext = false;
             queue.push(first);
             queue[0].isNext = true;
+            nextMemberName = queue[0].name;
+            nextMemberAvatar = queue[0].avatar;
+            nextMemberId = queue[0].id;
             return {
               ...rot,
               nextMember: queue[0].name,
@@ -1201,36 +1506,83 @@ export default function App() {
         return rot;
       })
     );
+
+    const taskId = targetRotation.taskId || targetRotation.id;
+    if (nextMemberName) {
+      setTasks((prev) =>
+        prev.map((t) => {
+          if (t.id === taskId) {
+            return {
+              ...t,
+              nextMember: nextMemberName,
+              nextMemberAvatar: nextMemberAvatar,
+              nextMemberId: nextMemberId,
+            };
+          }
+          return t;
+        })
+      );
+    }
+
     if (currentHouse?.id) {
       emitRotationAdvanced(currentHouse.id, rotationId);
     }
+
+    if (authUser?.id && taskId) {
+      tasksApi.rotateTask(taskId, authUser.id).catch((err) => {
+        console.warn('[DOMUS] Erro ao persistir giro de rodízio:', err);
+      });
+    }
+
     showToast('Rodízio avançado.');
   };
 
-  const handleAddExpense = (expense: Omit<ExpenseItem, 'id'>) => {
-    const newExp: ExpenseItem = { ...expense, id: `exp_${Date.now()}` };
-    setExpenses((prev) => [newExp, ...prev]);
-    recordHouseActivity(`Nova despesa registrada: ${expense.title} (R$ ${expense.amount.toFixed(2)})`);
-    showToast(`Despesa adicionada.`);
-  };
-
-  const handleReimbursement = (amount: number, reason: string) => {
-    recordHouseActivity(`Solicitação de reembolso de R$ ${amount.toFixed(2)} por ${authUser?.name}`);
-    showToast(`Solicitação de reembolso de ${amount.toFixed(2)} enviada: "${reason}".`);
-  };
-
-  const handleAddHouseRule = (rule: Omit<HouseRule, 'id' | 'number'>) => {
-    const newRule: HouseRule = {
+  const handleAddHouseRule = async (rule: Omit<HouseRule, 'id' | 'number'>) => {
+    let createdRule: HouseRule = {
       ...rule,
       id: `hr_${Date.now()}`,
       number: houseRules.length + 1,
     };
-    setHouseRules((prev) => [...prev, newRule]);
     if (currentHouse?.id) {
-      emitRuleCreated(currentHouse.id, newRule);
+      const backendRule = await rulesApi.createRule(currentHouse.id, {
+        title: rule.title,
+        description: rule.description,
+        number: houseRules.length + 1,
+      });
+      if (backendRule) {
+        createdRule = backendRule;
+      }
+    }
+    setHouseRules((prev) => [...prev, createdRule]);
+    if (currentHouse?.id) {
+      emitRuleCreated(currentHouse.id, createdRule);
     }
     recordHouseActivity(`Nova regra adicionada: "${rule.title}"`);
     showToast('Regra da casa adicionada!');
+  };
+
+  const handleUpdateHouseRules = (updatedRules: HouseRule[]) => {
+    const deletedRules = houseRules.filter((r) => !updatedRules.some((ur) => ur.id === r.id));
+    setHouseRules(updatedRules);
+    if (houseKey) {
+      localStorage.setItem(`${houseKey}_rules`, JSON.stringify(updatedRules));
+    }
+    if (currentHouse?.id) {
+      for (const dr of deletedRules) {
+        rulesApi.deleteRule(dr.id, currentHouse.id).catch(() => {});
+        emitRuleDeleted(currentHouse.id, dr.id);
+      }
+    }
+  };
+
+  const handleUpdatePreferences = (newPrefs: SystemPreferences) => {
+    setPreferences(newPrefs);
+    if (houseKey) {
+      localStorage.setItem(`${houseKey}_prefs`, JSON.stringify(newPrefs));
+    }
+    if (currentHouse?.id) {
+      preferencesApi.updatePreferences(currentHouse.id, newPrefs).catch(() => {});
+    }
   };
 
   // Estados e Handlers de Governança de Liderança & Membros
@@ -1258,22 +1610,41 @@ export default function App() {
     showToast(`Membro ${member.name} adicionado com sucesso!`);
   };
 
-  const handleRemoveMember = (memberId: string, memberName: string) => {
+  const handleRemoveMember = async (memberId: string, memberName: string) => {
     if (memberId === authUser?.id) {
       showToast('Você não pode se auto-remover pelas configurações. Use a opção Trocar ou Sair da Residência.');
       return;
     }
-    const updated = familyMembers.filter((m) => m.id !== memberId);
-    setFamilyMembers(updated);
-    setMemberStatuses((prev) => prev.filter((s) => s.id !== memberId));
-    if (houseKey) {
-      localStorage.setItem(`${houseKey}_members`, JSON.stringify(updated));
+
+    try {
+      if (currentHouse?.id && authUser?.id) {
+        await authApi.removeMember(
+          currentHouse.id,
+          memberId,
+          authUser.id,
+          currentUser.role,
+          authToken || undefined
+        );
+      }
+
+      const updated = familyMembers.filter((m) => m.id !== memberId);
+      setFamilyMembers(updated);
+      setMemberStatuses((prev) => prev.filter((s) => s.id !== memberId));
+      if (houseKey) {
+        localStorage.setItem(`${houseKey}_members`, JSON.stringify(updated));
+        if (currentHouse?.id) {
+          localStorage.removeItem(`domus_dashboard_${currentHouse.id}`);
+        }
+      }
+      if (currentHouse?.id) {
+        emitMembersUpdated(currentHouse.id, { members: updated });
+      }
+      recordHouseActivity(`${memberName} foi removido da residência por ${authUser?.name || 'Administrador'}`);
+      showToast(`Membro ${memberName} removido da residência.`);
+    } catch (err: any) {
+      console.error('[DOMUS] Erro ao remover membro:', err);
+      showToast(err.message || 'Erro ao remover morador da residência.');
     }
-    if (currentHouse?.id) {
-      emitMembersUpdated(currentHouse.id, { members: updated });
-    }
-    recordHouseActivity(`${memberName} foi removido da residência por ${authUser?.name || 'Administrador'}`);
-    showToast(`Membro ${memberName} removido da residência.`);
   };
 
   const handlePromoteToAdmin = (memberId: string) => {
@@ -1414,6 +1785,7 @@ export default function App() {
 
     if (currentHouse?.id) {
       emitStatusChanged(currentHouse.id, updatedStatusObj);
+      memberStatusesApi.updateStatus(currentHouse.id, memberId, newLocation, iconToUse).catch(() => {});
     }
 
     recordHouseActivity(`${memberName} atualizou seu status para: "${newLocation}"`);
@@ -1448,6 +1820,176 @@ export default function App() {
             ? `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(authUser.name)}`
             : 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80'),
       };
+
+  const handleUpdateMeal = useCallback(
+    (meal: MealItem) => {
+      const isGeneralAdmin = currentUser.role === 'Admin Geral';
+      const isAdmin = currentUser.role === 'Admin';
+      const isLocked = Boolean(mealPlan.isLocked);
+      const canEdit = isGeneralAdmin || (isAdmin && !isLocked);
+
+      if (!canEdit) {
+        showToast('Você não possui permissão para editar o cardápio.');
+        return;
+      }
+
+      setMealPlan((prev) => {
+        const exists = prev.meals.some(
+          (m) => m.id === meal.id || (m.dayOfWeek === meal.dayOfWeek && m.mealType === meal.mealType)
+        );
+        const updatedMeals = exists
+          ? prev.meals.map((m) =>
+              m.id === meal.id || (m.dayOfWeek === meal.dayOfWeek && m.mealType === meal.mealType) ? meal : m
+            )
+          : [...prev.meals, meal];
+        const updatedPlan: HouseMealPlan = { ...prev, meals: updatedMeals };
+        if (houseKey) {
+          localStorage.setItem(`${houseKey}_meals`, JSON.stringify(updatedPlan));
+        }
+        return updatedPlan;
+      });
+
+      if (currentHouse?.id) {
+        emitMealUpdated(currentHouse.id, meal);
+        mealsApi.saveMeal(currentHouse.id, meal, currentUser.role).catch(() => {});
+      }
+      showToast(`Prato "${meal.title}" salvo no cardápio!`);
+    },
+    [currentUser.role, mealPlan.isLocked, houseKey, currentHouse?.id, showToast]
+  );
+
+  const handleDeleteMeal = useCallback(
+    (mealId: string) => {
+      const isGeneralAdmin = currentUser.role === 'Admin Geral';
+      const isAdmin = currentUser.role === 'Admin';
+      const isLocked = Boolean(mealPlan.isLocked);
+      const canEdit = isGeneralAdmin || (isAdmin && !isLocked);
+
+      if (!canEdit) {
+        showToast('Você não possui permissão para remover pratos do cardápio.');
+        return;
+      }
+
+      setMealPlan((prev) => {
+        const updatedPlan: HouseMealPlan = {
+          ...prev,
+          meals: prev.meals.filter((m) => m.id !== mealId),
+        };
+        if (houseKey) {
+          localStorage.setItem(`${houseKey}_meals`, JSON.stringify(updatedPlan));
+        }
+        return updatedPlan;
+      });
+
+      if (currentHouse?.id) {
+        emitMealDeleted(currentHouse.id, mealId);
+        mealsApi.deleteMeal(currentHouse.id, mealId, currentUser.role).catch(() => {});
+      }
+      showToast('Prato removido do cardápio.');
+    },
+    [currentUser.role, mealPlan.isLocked, houseKey, currentHouse?.id, showToast]
+  );
+
+  const handleClearMeals = useCallback(() => {
+    const isGeneralAdmin = currentUser.role === 'Admin Geral';
+    const isAdmin = currentUser.role === 'Admin';
+    const isLocked = Boolean(mealPlan.isLocked);
+    const canEdit = isGeneralAdmin || (isAdmin && !isLocked);
+
+    if (!canEdit) {
+      showToast('Você não possui permissão para esvaziar o cardápio.');
+      return;
+    }
+
+    setMealPlan((prev) => {
+      const updatedPlan: HouseMealPlan = {
+        ...prev,
+        meals: [],
+      };
+      if (houseKey) {
+        localStorage.setItem(`${houseKey}_meals`, JSON.stringify(updatedPlan));
+      }
+      return updatedPlan;
+    });
+
+    if (currentHouse?.id) {
+      mealsApi.clearMeals(currentHouse.id, currentUser.role).catch(() => {});
+    }
+
+    showToast('Cardápio esvaziado com sucesso. Pronto para novos pratos!');
+  }, [currentUser.role, mealPlan.isLocked, houseKey, currentHouse?.id, showToast]);
+
+  const handleToggleMealLock = useCallback(() => {
+    if (currentUser.role !== 'Admin Geral') {
+      showToast('Apenas o Administrador Geral pode trancar ou destrancar o cardápio.');
+      return;
+    }
+
+    setMealPlan((prev) => {
+      const nextLocked = !prev.isLocked;
+      const updatedPlan: HouseMealPlan = {
+        ...prev,
+        isLocked: nextLocked,
+        lockedBy: nextLocked ? authUser?.id : undefined,
+        lockedByName: nextLocked ? authUser?.name : undefined,
+        lockedAt: nextLocked ? new Date().toISOString() : undefined,
+      };
+
+      if (houseKey) {
+        localStorage.setItem(`${houseKey}_meals`, JSON.stringify(updatedPlan));
+      }
+
+      if (currentHouse?.id) {
+        emitMealLockToggled(
+          currentHouse.id,
+          nextLocked,
+          nextLocked ? authUser?.id : undefined,
+          nextLocked ? authUser?.name : undefined
+        );
+        mealsApi.toggleLock(currentHouse.id, authUser?.id, currentUser.role).catch(() => {});
+      }
+
+      showToast(
+        nextLocked
+          ? 'Cardápio trancado com sucesso pelo Administrador Geral.'
+          : 'Cardápio destrancado. Edições liberadas.'
+      );
+
+      return updatedPlan;
+    });
+  }, [currentUser.role, authUser?.id, authUser?.name, houseKey, currentHouse?.id, showToast]);
+
+  const handleUpdateMealSchedules = useCallback(
+    (newSchedules: Record<MealType, MealPeriodSchedule>) => {
+      const isGeneralAdmin = currentUser.role === 'Admin Geral';
+      const isAdmin = currentUser.role === 'Admin';
+      const isLocked = Boolean(mealPlan.isLocked);
+      const canEdit = isGeneralAdmin || (isAdmin && !isLocked);
+
+      if (!canEdit) {
+        showToast('Você não possui permissão para alterar os horários das refeições.');
+        return;
+      }
+
+      setMealPlan((prev) => {
+        const updatedPlan: HouseMealPlan = {
+          ...prev,
+          schedules: newSchedules,
+        };
+        if (houseKey) {
+          localStorage.setItem(`${houseKey}_meals`, JSON.stringify(updatedPlan));
+        }
+        return updatedPlan;
+      });
+
+      if (currentHouse?.id) {
+        mealsApi.updateSchedules(currentHouse.id, newSchedules, currentUser.role).catch(() => {});
+      }
+
+      showToast('Horários das refeições atualizados com sucesso!');
+    },
+    [currentUser.role, mealPlan.isLocked, houseKey, currentHouse?.id, showToast]
+  );
 
   // Nível 1: Não Autenticado ➔ Tela de Login / Cadastro
   if (!authUser) {
@@ -1532,95 +2074,124 @@ export default function App() {
           className="flex-1 min-w-0 max-w-full pb-6 md:pb-12"
           style={{ paddingBottom: 'calc(1.5rem + env(safe-area-inset-bottom, 0px))' }}
         >
-          {currentTab === 'dashboard' && (
-            <DashboardView
-              currentUserId={authUser.id}
-              currentUserName={authUser.name}
-              currentHouseId={currentHouse.id}
-              houseName={currentHouse?.name}
-              houseInviteCode={currentHouse?.invite_code}
-              subTab={subTab}
-              vacationMode={vacationMode}
-              onShowToast={showToast}
-              muralNotes={muralNotes}
-              onAddMuralNote={handleAddMuralNote}
-              onDeleteMuralNote={handleDeleteMuralNote}
-              familyMembers={familyMembers}
-              onSyncMembers={handleSyncMembers}
-              onSyncHouse={(house) => {
-                setCurrentHouse((prev) => ({
-                  ...(prev || {}),
-                  id: house.id,
-                  name: house.name,
-                  invite_code: house.invite_code,
-                }));
-              }}
-            />
-          )}
+          <AnimatePresence mode="wait" initial={false}>
+            <motion.div
+              key={currentTab}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -6 }}
+              transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+              className="w-full min-w-0 max-w-full"
+            >
+              {currentTab === 'dashboard' && (
+                <DashboardView
+                  currentUserId={authUser.id}
+                  currentUserName={authUser.name}
+                  currentHouseId={currentHouse.id}
+                  houseName={currentHouse?.name}
+                  houseInviteCode={currentHouse?.invite_code}
+                  subTab={subTab}
+                  vacationMode={vacationMode}
+                  onShowToast={showToast}
+                  muralNotes={muralNotes}
+                  onAddMuralNote={handleAddMuralNote}
+                  onDeleteMuralNote={handleDeleteMuralNote}
+                  familyMembers={familyMembers}
+                  onSyncMembers={handleSyncMembers}
+                  onSyncHouse={(house) => {
+                    setCurrentHouse((prev) => ({
+                      ...(prev || {}),
+                      id: house.id,
+                      name: house.name,
+                      invite_code: house.invite_code,
+                    }));
+                  }}
+                />
+              )}
 
-          {currentTab === 'tasks' && (
-            <TasksRotationsView
-              tasks={tasks}
-              rotations={rotations}
-              familyMembers={familyMembers}
-              currentUserId={authUser?.id}
-              currentUserRole={currentUser.role}
-              currentUserName={authUser?.name}
-              onAddTask={handleAddTask}
-              onUpdateTask={handleUpdateTask}
-              onTaskStatusChange={handleTaskStatusChange}
-              onDeleteTask={handleDeleteTask}
-              onRotateNext={handleRotateNext}
-              onUpdateRotations={setRotations}
-            />
-          )}
+              {currentTab === 'tasks' && (
+                <TasksRotationsView
+                  tasks={tasks}
+                  rotations={rotations}
+                  familyMembers={familyMembers}
+                  loading={tasksLoading}
+                  currentUserId={authUser?.id}
+                  currentUserRole={currentUser.role}
+                  currentUserName={authUser?.name}
+                  onAddTask={handleAddTask}
+                  onUpdateTask={handleUpdateTask}
+                  onTaskStatusChange={handleTaskStatusChange}
+                  onDeleteTask={handleDeleteTask}
+                  onRotateNext={handleRotateNext}
+                  onUpdateRotations={setRotations}
+                />
+              )}
 
-          {currentTab === 'settings' && (
-            <SettingsView
-              preferences={preferences}
-              onUpdatePreferences={setPreferences}
-              houseRules={houseRules}
-              onUpdateHouseRules={setHouseRules}
-              familyMembers={familyMembers}
-              onOpenAddMemberModal={() => setIsAddMemberOpen(true)}
-              onOpenAddRuleModal={() => setIsAddRuleOpen(true)}
-              onSwitchHouse={handleSwitchHouse}
-              currentUserRole={currentUser.role}
-              currentUserId={authUser.id}
-              onPromoteToAdmin={handlePromoteToAdmin}
-              onDemoteToResident={handleDemoteToResident}
-              onTransferGeneralAdmin={handleInitiateTransferGeneralAdmin}
-              onRemoveMember={handleRemoveMember}
-              onLeaveHouse={() => setIsLeaveHouseOpen(true)}
-              houseInviteCode={currentHouse?.invite_code}
-              houseName={currentHouse?.name}
-              onRegenerateCode={() => setIsRegenerateCodeModalOpen(true)}
-              onShowToast={showToast}
-              installPromptEvent={deferredInstallPrompt}
-              onInstallAccepted={() => setDeferredInstallPrompt(null)}
-            />
-          )}
+              {currentTab === 'meals' && (
+                <MealsView
+                  mealPlan={mealPlan}
+                  familyMembers={familyMembers}
+                  currentUserRole={currentUser.role}
+                  loading={mealsLoading}
+                  currentUserId={authUser?.id}
+                  currentUserName={authUser?.name}
+                  onUpdateMeal={handleUpdateMeal}
+                  onDeleteMeal={handleDeleteMeal}
+                  onToggleLock={handleToggleMealLock}
+                  onClearMeals={handleClearMeals}
+                  onUpdateSchedules={handleUpdateMealSchedules}
+                />
+              )}
 
-          {currentTab === 'reports' && (
-            <ReportsView
-              tasks={tasks}
-              familyMembers={familyMembers}
-              activityLogs={activityLogs}
-              currentUserRole={currentUser.role}
-              onTaskStatusChange={handleTaskStatusChange}
-              onDeleteTask={handleDeleteTask}
-            />
-          )}
+              {currentTab === 'settings' && (
+                <SettingsView
+                  preferences={preferences}
+                  onUpdatePreferences={handleUpdatePreferences}
+                  houseRules={houseRules}
+                  onUpdateHouseRules={handleUpdateHouseRules}
+                  familyMembers={familyMembers}
+                  onOpenAddMemberModal={() => setIsAddMemberOpen(true)}
+                  onOpenAddRuleModal={() => setIsAddRuleOpen(true)}
+                  onSwitchHouse={handleSwitchHouse}
+                  currentUserRole={currentUser.role}
+                  currentUserId={authUser.id}
+                  onPromoteToAdmin={handlePromoteToAdmin}
+                  onDemoteToResident={handleDemoteToResident}
+                  onTransferGeneralAdmin={handleInitiateTransferGeneralAdmin}
+                  onRemoveMember={handleRemoveMember}
+                  onLeaveHouse={() => setIsLeaveHouseOpen(true)}
+                  houseInviteCode={currentHouse?.invite_code}
+                  houseName={currentHouse?.name}
+                  onRegenerateCode={() => setIsRegenerateCodeModalOpen(true)}
+                  onShowToast={showToast}
+                  installPromptEvent={deferredInstallPrompt}
+                  onInstallAccepted={() => setDeferredInstallPrompt(null)}
+                />
+              )}
 
-          {currentTab === 'statistics' && (
-            <StatisticsView
-              currentHouseId={currentHouse.id}
-              currentUserId={authUser.id}
-              familyMembers={familyMembers}
-              tasks={tasks}
-              activityLogs={activityLogs}
-            />
-          )}
+              {currentTab === 'reports' && (
+                <ReportsView
+                  tasks={tasks}
+                  familyMembers={familyMembers}
+                  activityLogs={activityLogs}
+                  loading={reportsLoading}
+                  currentUserRole={currentUser.role}
+                  onTaskStatusChange={handleTaskStatusChange}
+                  onDeleteTask={handleDeleteTask}
+                />
+              )}
+
+              {currentTab === 'statistics' && (
+                <StatisticsView
+                  currentHouseId={currentHouse.id}
+                  currentUserId={authUser.id}
+                  familyMembers={familyMembers}
+                  tasks={tasks}
+                  activityLogs={activityLogs}
+                />
+              )}
+            </motion.div>
+          </AnimatePresence>
         </div>
       </main>
 
@@ -1636,18 +2207,6 @@ export default function App() {
       )}
 
       {/* Modals & Drawers */}
-      <AddExpenseModal
-        isOpen={isAddExpenseOpen}
-        onClose={() => setIsAddExpenseOpen(false)}
-        familyMembers={familyMembers}
-        onAddExpense={handleAddExpense}
-      />
-
-      <RequestReimbursementModal
-        isOpen={isReimbursementOpen}
-        onClose={() => setIsReimbursementOpen(false)}
-        onSubmit={handleReimbursement}
-      />
 
       <AddHouseRuleModal
         isOpen={isAddRuleOpen}
@@ -1684,6 +2243,9 @@ export default function App() {
         onClearReadNotifications={handleClearReadNotifications}
         onMarkAllAsRead={handleMarkAllAsRead}
         onNavigateToReports={handleNavigateToReports}
+        currentUserId={authUser?.id}
+        currentUserName={authUser?.name}
+        currentUserRole={currentUser.role}
       />
 
       <FamilyMembersDrawer
@@ -1695,10 +2257,6 @@ export default function App() {
         onOpenAddMemberModal={() => setIsAddMemberOpen(true)}
         currentUserRole={currentUser.role}
         currentUserId={authUser.id}
-        onPromoteToAdmin={handlePromoteToAdmin}
-        onDemoteToResident={handleDemoteToResident}
-        onTransferGeneralAdmin={handleInitiateTransferGeneralAdmin}
-        onRemoveMember={handleRemoveMember}
       />
 
       <LeaveHouseModal

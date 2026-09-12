@@ -2,7 +2,6 @@ import {
   FamilyMember,
   HouseTask,
   TaskRotation,
-  ExpenseItem,
   HouseRule,
   ActivityLog,
   SystemPreferences,
@@ -19,8 +18,6 @@ export const INITIAL_FAMILY_MEMBERS: FamilyMember[] = [];
 export const INITIAL_TASKS: HouseTask[] = [];
 
 export const INITIAL_ROTATIONS: TaskRotation[] = [];
-
-export const INITIAL_EXPENSES: ExpenseItem[] = [];
 
 export const INITIAL_HOUSE_RULES: HouseRule[] = [];
 

@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { statisticsApi, type HouseStatisticsData, type MemberContribution, type HarmonyScoreDetails } from '../api/statisticsApi.js';
 import { FamilyMember, HouseTask, ActivityLog } from '../../../types';
+import { AnimatedCounter } from './AnimatedCounter.js';
+import { StatisticsSkeleton } from '../../../components/index.js';
 
 interface StatisticsViewProps {
   currentHouseId?: string;
@@ -19,6 +21,9 @@ export const StatisticsView: React.FC<StatisticsViewProps> = ({
 }) => {
   const [stats, setStats] = useState<HouseStatisticsData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isCountComplete, setIsCountComplete] = useState(false);
+  const [animKey, setAnimKey] = useState(0);
 
   // Motor dinâmico de cálculo de estatísticas a partir do estado local
   const computeLocalStatistics = useCallback((): HouseStatisticsData => {
@@ -119,7 +124,8 @@ export const StatisticsView: React.FC<StatisticsViewProps> = ({
   const fetchStats = useCallback(async () => {
     const local = computeLocalStatistics();
     try {
-      setLoading(true);
+      setIsRefreshing(true);
+      setIsCountComplete(false);
       const data = await statisticsApi.getStatistics(currentHouseId, currentUserId);
       if (data) {
         const enrichedContributions = (data.contributions || []).map((c) => {
@@ -152,6 +158,8 @@ export const StatisticsView: React.FC<StatisticsViewProps> = ({
       setStats(local);
     } finally {
       setLoading(false);
+      setIsRefreshing(false);
+      setAnimKey((prev) => prev + 1);
     }
   }, [currentHouseId, currentUserId, familyMembers, computeLocalStatistics]);
 
@@ -175,6 +183,10 @@ export const StatisticsView: React.FC<StatisticsViewProps> = ({
 
   const currentMonthName = stats ? monthNames[stats.period.month - 1] : 'Mês Atual';
 
+  if (loading && !stats) {
+    return <StatisticsSkeleton />;
+  }
+
   return (
     <div className="p-4 sm:p-8 max-w-7xl mx-auto w-full space-y-6 sm:space-y-8 animate-in fade-in duration-300">
       {/* Header */}
@@ -195,20 +207,17 @@ export const StatisticsView: React.FC<StatisticsViewProps> = ({
 
         <button
           onClick={fetchStats}
-          className="self-start sm:self-auto px-4 py-2 bg-[#f0fcfa] hover:bg-[#e0f5f2] text-[#16302e] border border-[#c1c8c6] rounded-xl text-xs font-bold transition-all flex items-center gap-1.5"
+          disabled={isRefreshing}
+          className="self-start sm:self-auto px-4 py-2 bg-[#f0fcfa] hover:bg-[#e0f5f2] active:scale-[0.97] text-[#16302e] border border-[#c1c8c6] rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-60"
         >
-          <span className="material-symbols-outlined text-base">refresh</span>
-          <span>Atualizar</span>
+          <span className={`material-symbols-outlined text-base ${isRefreshing ? 'animate-spin' : ''}`}>
+            refresh
+          </span>
+          <span>{isRefreshing ? 'Atualizando...' : 'Atualizar'}</span>
         </button>
       </div>
 
-      {loading ? (
-        <div className="p-12 text-center text-[#727877] bg-white rounded-3xl border border-[#d9e5e3]">
-          <span className="material-symbols-outlined text-3xl animate-spin mb-2">sync</span>
-          <p className="text-sm font-bold">Calculando métricas de harmonia...</p>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Card 1: Índice de Harmonia */}
           <div className="bg-white p-6 rounded-3xl border border-[#d9e5e3] shadow-xs space-y-6 flex flex-col justify-between">
             <div>
@@ -217,7 +226,9 @@ export const StatisticsView: React.FC<StatisticsViewProps> = ({
                   Saúde da Convivência
                 </span>
                 <span
-                  className={`text-[11px] font-black px-3 py-1 rounded-full uppercase tracking-wider ${
+                  className={`text-[11px] font-black px-3 py-1 rounded-full uppercase tracking-wider transition-all duration-500 ease-out transform ${
+                    isCountComplete ? 'opacity-100 scale-100' : 'opacity-0 scale-95'
+                  } ${
                     (stats?.harmony.score ?? 100) >= 80
                       ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
                       : (stats?.harmony.score ?? 100) >= 60
@@ -230,8 +241,13 @@ export const StatisticsView: React.FC<StatisticsViewProps> = ({
               </div>
 
               <div className="mt-4 flex items-baseline gap-2">
-                <span className="text-5xl font-black text-[#16302e]">
-                  {stats?.harmony.score ?? 100}
+                <span className="text-5xl font-black text-[#16302e] tabular-nums">
+                  <AnimatedCounter
+                    value={stats?.harmony.score ?? 100}
+                    duration={1200}
+                    animKey={animKey}
+                    onComplete={() => setIsCountComplete(true)}
+                  />
                 </span>
                 <span className="text-sm font-bold text-[#727877]">/ 100 pts</span>
               </div>
@@ -244,20 +260,35 @@ export const StatisticsView: React.FC<StatisticsViewProps> = ({
             <div className="grid grid-cols-3 gap-2 pt-4 border-t border-[#f0f4f3] text-center">
               <div className="p-2.5 rounded-2xl bg-emerald-50 border border-emerald-200">
                 <p className="text-[10px] font-bold text-emerald-700 uppercase">Concluídas</p>
-                <p className="text-base font-black text-emerald-900 mt-0.5">
-                  {stats?.harmony.total_completed ?? 0}
+                <p className="text-base font-black text-emerald-900 mt-0.5 tabular-nums">
+                  <AnimatedCounter
+                    value={stats?.harmony.total_completed ?? 0}
+                    duration={1000}
+                    delay={100}
+                    animKey={animKey}
+                  />
                 </p>
               </div>
               <div className="p-2.5 rounded-2xl bg-amber-50 border border-amber-200">
                 <p className="text-[10px] font-bold text-amber-700 uppercase">Bloqueios</p>
-                <p className="text-base font-black text-amber-900 mt-0.5">
-                  {stats?.harmony.total_blocked ?? 0}
+                <p className="text-base font-black text-amber-900 mt-0.5 tabular-nums">
+                  <AnimatedCounter
+                    value={stats?.harmony.total_blocked ?? 0}
+                    duration={1000}
+                    delay={100}
+                    animKey={animKey}
+                  />
                 </p>
               </div>
               <div className="p-2.5 rounded-2xl bg-rose-50 border border-rose-200">
                 <p className="text-[10px] font-bold text-rose-700 uppercase">Falhas</p>
-                <p className="text-base font-black text-rose-900 mt-0.5">
-                  {stats?.harmony.total_failed ?? 0}
+                <p className="text-base font-black text-rose-900 mt-0.5 tabular-nums">
+                  <AnimatedCounter
+                    value={stats?.harmony.total_failed ?? 0}
+                    duration={1000}
+                    delay={100}
+                    animKey={animKey}
+                  />
                 </p>
               </div>
             </div>
@@ -362,7 +393,6 @@ export const StatisticsView: React.FC<StatisticsViewProps> = ({
             </div>
           </div>
         </div>
-      )}
     </div>
   );
 };

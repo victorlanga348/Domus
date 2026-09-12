@@ -30,6 +30,7 @@ export class ActivityLogRepository {
           select: {
             id: true,
             name: true,
+            avatar_url: true,
           },
         },
         task: {

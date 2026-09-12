@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { authApi, type AuthUser, type HouseResponse } from '../api/authApi.js';
+import { HouseSelectionSkeleton } from '../../../components/index.js';
 
 interface HouseSelectionViewProps {
   currentUser: AuthUser;
@@ -158,50 +159,54 @@ export const HouseSelectionView: React.FC<HouseSelectionViewProps> = ({
         </div>
 
         {/* Seção de Minha Residência Salva (Apenas se o usuário estiver ativamente vinculado) */}
-        {Boolean(currentUser.house_id) && myHouses.length > 0 && (
+        {Boolean(currentUser.house_id) && (loadingMyHouses || myHouses.length > 0) && (
           <div className="bg-white rounded-3xl p-6 sm:p-7 border border-[#d9e5e3] shadow-xs space-y-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2.5">
                 <span className="material-symbols-outlined text-xl text-[#7b5800]">apartment</span>
                 <h2 className="text-sm sm:text-base font-black text-[#16302e]">
-                  Minha Residência Atual ({myHouses.length})
+                  Minha Residência Atual {loadingMyHouses ? '' : `(${myHouses.length})`}
                 </h2>
               </div>
               <span className="text-xs text-[#727877]">Acesso seguro</span>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {myHouses.map((houseItem) => {
-                const isSelecting = selectingHouseId === houseItem.id;
-                return (
-                  <div
-                    key={houseItem.id}
-                    className="p-4 rounded-2xl border border-[#d9e5e3] bg-[#f0fcfa] hover:border-[#7b5800] transition-all flex flex-col justify-between space-y-3"
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <div>
-                        <h3 className="text-sm font-black text-[#16302e]">{houseItem.name}</h3>
+            {loadingMyHouses ? (
+              <HouseSelectionSkeleton />
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {myHouses.map((houseItem) => {
+                  const isSelecting = selectingHouseId === houseItem.id;
+                  return (
+                    <div
+                      key={houseItem.id}
+                      className="p-4 rounded-2xl border border-[#d9e5e3] bg-[#f0fcfa] hover:border-[#7b5800] transition-all flex flex-col justify-between space-y-3"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <h3 className="text-sm font-black text-[#16302e]">{houseItem.name}</h3>
+                        </div>
+                        <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-[#16302e] text-white">
+                          {houseItem.my_role === 'ADMIN' ? 'Arquiteto' : 'Morador'}
+                        </span>
                       </div>
-                      <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-[#16302e] text-white">
-                        {houseItem.my_role === 'ADMIN' ? 'Arquiteto' : 'Morador'}
-                      </span>
-                    </div>
 
-                    <div className="flex items-center justify-between pt-2 border-t border-[#d0dddb] text-xs text-[#727877]">
-                      <span>{houseItem.members_count || 1} membro(s)</span>
-                      <button
-                        onClick={() => handleSelectExistingHouse(houseItem)}
-                        disabled={isSelecting}
-                        className="px-3.5 py-1.5 bg-[#7b5800] hover:bg-[#5d4200] text-white rounded-xl font-bold transition-all shadow-xs flex items-center gap-1.5 disabled:opacity-50"
-                      >
-                        <span className="material-symbols-outlined text-sm">login</span>
-                        <span>{isSelecting ? 'Acessando...' : 'Acessar'}</span>
-                      </button>
+                      <div className="flex items-center justify-between pt-2 border-t border-[#d0dddb] text-xs text-[#727877]">
+                        <span>{houseItem.members_count || 1} membro(s)</span>
+                        <button
+                          onClick={() => handleSelectExistingHouse(houseItem)}
+                          disabled={isSelecting}
+                          className="px-3.5 py-1.5 bg-[#7b5800] hover:bg-[#5d4200] text-white rounded-xl font-bold transition-all shadow-xs flex items-center gap-1.5 disabled:opacity-50"
+                        >
+                          <span className="material-symbols-outlined text-sm">login</span>
+                          <span>{isSelecting ? 'Acessando...' : 'Acessar'}</span>
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                );
-              })}
-            </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         )}
 

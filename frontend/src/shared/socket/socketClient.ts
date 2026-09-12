@@ -136,3 +136,18 @@ export function emitMembersUpdated(houseId: string, payload?: any): void {
   const s = getSocket();
   if (houseId) s.emit('house:members_updated', { houseId, ...payload });
 }
+
+export function emitMealUpdated(houseId: string, meal: any): void {
+  const s = getSocket();
+  if (houseId && meal) s.emit('house:meal_updated', { houseId, meal });
+}
+
+export function emitMealDeleted(houseId: string, mealId: string): void {
+  const s = getSocket();
+  if (houseId && mealId) s.emit('house:meal_deleted', { houseId, mealId });
+}
+
+export function emitMealLockToggled(houseId: string, isLocked: boolean, lockedBy?: string, lockedByName?: string): void {
+  const s = getSocket();
+  if (houseId) s.emit('house:meal_lock_toggled', { houseId, isLocked, lockedBy, lockedByName, lockedAt: new Date().toISOString() });
+}
