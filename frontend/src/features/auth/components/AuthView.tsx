@@ -26,6 +26,7 @@ export const AuthView: React.FC<AuthViewProps> = ({ onAuthSuccess, onShowToast }
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleGoogleCredentialResponse = async (response: any) => {
     if (!response || !response.credential) {
@@ -275,15 +276,28 @@ export const AuthView: React.FC<AuthViewProps> = ({ onAuthSuccess, onShowToast }
 
           <div>
             <label className="block text-xs font-bold text-[#16302e] mb-1">Senha</label>
-            <input
-              type="password"
-              required
-              minLength={6}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Sua senha secreta (6+ caracteres)"
-              className="w-full p-3 bg-[#f0fcfa] border border-[#c1c8c6] rounded-xl text-xs font-medium focus:outline-none focus:border-[#7b5800]"
-            />
+            <div className="relative flex items-center">
+              <input
+                type={showPassword ? 'text' : 'password'}
+                required
+                minLength={6}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••"
+                className="w-full p-3 pr-11 bg-[#f0fcfa] border border-[#c1c8c6] rounded-xl text-xs font-medium focus:outline-none focus:border-[#7b5800] placeholder:text-[10px] placeholder:tracking-widest"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 text-[#727877] hover:text-[#16302e] transition-colors p-1 flex items-center justify-center cursor-pointer"
+                title={showPassword ? 'Ocultar senha' : 'Exibir senha'}
+                aria-label={showPassword ? 'Ocultar senha' : 'Exibir senha'}
+              >
+                <span className="material-symbols-outlined text-lg">
+                  {showPassword ? 'visibility_off' : 'visibility'}
+                </span>
+              </button>
+            </div>
           </div>
 
 

@@ -253,6 +253,17 @@ export default function App() {
   });
 
   const [currentHouse, setCurrentHouse] = useState<{ id: string; name: string; invite_code: string } | null>(() => {
+    const savedUser = localStorage.getItem('domus_auth_user');
+    if (!savedUser) return null;
+    try {
+      const parsedUser = JSON.parse(savedUser);
+      if (!parsedUser?.house_id) {
+        localStorage.removeItem('domus_auth_house');
+        return null;
+      }
+    } catch {
+      return null;
+    }
     const saved = localStorage.getItem('domus_auth_house');
     return saved ? JSON.parse(saved) : null;
   });
@@ -987,12 +998,27 @@ export default function App() {
     setAuthToken(token);
     setVacationMode(user.vacation_mode);
 
-    if (user.house_id && !currentHouse) {
-      setCurrentHouse({
-        id: user.house_id,
-        name: 'Minha Residência',
-        invite_code: '',
-      });
+    if (user.house_id) {
+      if (!currentHouse || currentHouse.id !== user.house_id) {
+        setCurrentHouse({
+          id: user.house_id,
+          name: (user as any).house?.name || 'Minha Residência',
+          invite_code: (user as any).house?.invite_code || '',
+        });
+      }
+    } else {
+      // Usuário novo/sem casa: limpa qualquer residência residual para exigir seleção/criação
+      setCurrentHouse(null);
+      localStorage.removeItem('domus_auth_house');
+      setFamilyMembers([]);
+      setTasks([]);
+      setRotations([]);
+      setHouseRules([]);
+      setActivityLogs([]);
+      setReadNotificationIds([]);
+      setMuralNotes([]);
+      setMemberStatuses([]);
+      setMealPlan({ houseId: '', isLocked: false, meals: [] });
     }
   };
 
