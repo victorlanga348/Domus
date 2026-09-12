@@ -17,6 +17,14 @@ export class TaskController {
   createTask = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const task = await this.taskService.createTask(req.body);
+      const houseId = req.houseId || (req.headers['x-house-id'] as string) || task.house_id;
+      if (houseId) {
+        try {
+          const { emitToHouse } = await import('../../shared/socket/socketServer.js');
+          emitToHouse(houseId, 'house:task_created', task);
+          emitToHouse(houseId, 'task:updated', { task });
+        } catch {}
+      }
       res.status(201).json({ status: 'success', data: task });
     } catch (error) {
       next(error);
@@ -28,6 +36,17 @@ export class TaskController {
       const id = String(req.params.id);
       const { user_id } = req.body;
       const task = await this.taskService.lockTask(id, user_id);
+      const houseId = req.houseId || (req.headers['x-house-id'] as string) || task.house_id;
+      if (houseId) {
+        try {
+          const { emitToHouse } = await import('../../shared/socket/socketServer.js');
+          emitToHouse(houseId, 'task:locked', {
+            taskId: id,
+            userId: user_id,
+            lockedAt: task.locked_at ? new Date(task.locked_at).toISOString() : new Date().toISOString(),
+          });
+        } catch {}
+      }
       res.status(200).json({ status: 'success', data: task });
     } catch (error) {
       next(error);
@@ -54,6 +73,7 @@ export class TaskController {
               nextAssignee: result.nextAssignee,
             });
           }
+          emitToHouse(houseId, 'task:updated', result);
         } catch {}
       }
 
@@ -90,6 +110,16 @@ export class TaskController {
       const userId = req.userId || (req.headers['x-user-id'] as string) || req.body.user_id;
       const userRole = req.user?.role || (req.headers['x-user-role'] as string) || req.body.user_role;
       const result = await this.taskService.revertTask(id, userId, userRole);
+      const houseId = req.houseId || (req.headers['x-house-id'] as string) || result?.house_id;
+
+      if (houseId) {
+        try {
+          const { emitToHouse } = await import('../../shared/socket/socketServer.js');
+          emitToHouse(houseId, 'house:task_status_changed', { taskId: id, status: 'OPEN' });
+          emitToHouse(houseId, 'task:updated', { task: result });
+        } catch {}
+      }
+
       res.status(200).json({ status: 'success', data: result });
     } catch (error) {
       next(error);
@@ -111,6 +141,16 @@ export class TaskController {
       const id = String(req.params.id);
       const { user_id, reason } = req.body;
       const task = await this.taskService.blockTask(id, user_id, reason);
+      const houseId = req.houseId || (req.headers['x-house-id'] as string) || task.house_id;
+
+      if (houseId) {
+        try {
+          const { emitToHouse } = await import('../../shared/socket/socketServer.js');
+          emitToHouse(houseId, 'house:task_status_changed', { taskId: id, status: 'BLOCKED' });
+          emitToHouse(houseId, 'task:updated', { task });
+        } catch {}
+      }
+
       res.status(200).json({ status: 'success', data: task });
     } catch (error) {
       next(error);
@@ -122,6 +162,15 @@ export class TaskController {
       const id = String(req.params.id);
       const { user_id, comment } = req.body;
       const task = await this.taskService.failTask(id, user_id, comment);
+      const houseId = req.houseId || (req.headers['x-house-id'] as string) || task.house_id;
+
+      if (houseId) {
+        try {
+          const { emitToHouse } = await import('../../shared/socket/socketServer.js');
+          emitToHouse(houseId, 'task:updated', { task });
+        } catch {}
+      }
+
       res.status(200).json({ status: 'success', data: task });
     } catch (error) {
       next(error);
@@ -133,8 +182,17 @@ export class TaskController {
       const id = String(req.params.id);
       const userId = req.userId || (req.headers['x-user-id'] as string) || req.body.user_id;
       const userRole = req.user?.role || (req.headers['x-user-role'] as string);
+      const houseId = req.houseId || (req.headers['x-house-id'] as string) || (req.query.houseId as string);
 
       await this.taskService.deleteTask(id, userId, userRole);
+
+      if (houseId) {
+        try {
+          const { emitToHouse } = await import('../../shared/socket/socketServer.js');
+          emitToHouse(houseId, 'house:task_deleted', { taskId: id });
+        } catch {}
+      }
+
       res.status(200).json({ status: 'success', message: 'Tarefa excluída com sucesso.' });
     } catch (error) {
       next(error);

@@ -19,6 +19,14 @@ export class PreferencesController {
       const houseId = req.body.house_id || (req.headers['x-house-id'] as string);
       const { night_mode, start_time, end_time } = req.body;
       const pref = await this.service.updatePreferences(houseId, { night_mode, start_time, end_time });
+
+      if (houseId) {
+        try {
+          const { emitToHouse } = await import('../../shared/socket/socketServer.js');
+          emitToHouse(houseId, 'house:preferences_updated', pref);
+        } catch {}
+      }
+
       res.status(200).json({ status: 'success', data: pref });
     } catch (err) {
       next(err);

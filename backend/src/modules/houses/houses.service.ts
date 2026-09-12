@@ -137,6 +137,11 @@ export class HouseService {
       },
     });
 
+    try {
+      const { emitToHouse } = await import('../../shared/socket/socketServer.js');
+      emitToHouse(house.id, 'house:members_updated', { houseId: house.id });
+    } catch {}
+
     return {
       house,
       user: updatedUser,

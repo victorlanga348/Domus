@@ -9,8 +9,9 @@ export function getSocket(): Socket {
     socket = io(APP_CONFIG.SOCKET_URL, {
       autoConnect: true,
       reconnection: true,
-      reconnectionAttempts: 10,
-      reconnectionDelay: 1500,
+      reconnectionAttempts: Infinity,
+      reconnectionDelay: 1000,
+      reconnectionDelayMax: 5000,
       transports: ['websocket', 'polling'],
     });
 
@@ -23,6 +24,10 @@ export function getSocket(): Socket {
 
     socket.on('disconnect', (reason) => {
       console.log('[Socket] Desconectado do servidor:', reason);
+      // Se desconectado pelo servidor ou por rede, tenta reconectar imediatamente
+      if (reason === 'io server disconnect' || reason === 'transport close') {
+        socket?.connect();
+      }
     });
 
     socket.on('connect_error', (error) => {
@@ -31,6 +36,16 @@ export function getSocket(): Socket {
   }
 
   return socket;
+}
+
+export function ensureSocketConnected(): void {
+  const s = getSocket();
+  if (!s.connected) {
+    s.connect();
+  }
+  if (lastJoinedHouse?.houseId) {
+    s.emit('house:join', lastJoinedHouse);
+  }
 }
 
 export function joinHouseRoom(houseId: string, user?: { id: string; name?: string; avatar?: string }): void {
