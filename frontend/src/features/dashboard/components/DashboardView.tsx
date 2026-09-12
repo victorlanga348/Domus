@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion } from 'motion/react';
 import { dashboardApi, type DashboardData } from '../api/dashboardApi.js';
-import { useHouseSocket } from '../../../shared/socket/useHouseSocket.js';
 import { MuralNote, FamilyMember } from '../../../types';
 import { DashboardSkeleton } from '../../../components/index.js';
 import { useBodyScrollLock } from '../../../shared/hooks/index.js';
@@ -70,9 +69,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
   const fetchDashboard = useCallback(async () => {
     try {
-      if (!dashboardData) {
-        setLoading(true);
-      }
       const data = await dashboardApi.getDashboardData(currentHouseId, currentUserId);
       if (data) {
         setDashboardData(data);
@@ -91,24 +87,11 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     } finally {
       setLoading(false);
     }
-  }, [currentHouseId, currentUserId, cacheKey, dashboardData, onSyncHouse, onSyncMembers]);
+  }, [currentHouseId, currentUserId, cacheKey, onSyncHouse, onSyncMembers]);
 
   useEffect(() => {
     fetchDashboard();
   }, [fetchDashboard]);
-
-  // Sincronização em Tempo Real via WebSocket
-  useHouseSocket(currentHouseId, {
-    onVacationChanged: (data) => {
-      onShowToast?.(`${data.name} alterou o modo férias.`);
-    },
-    onMembersUpdated: () => {
-      fetchDashboard();
-    },
-    onCodeRegenerated: () => {
-      fetchDashboard();
-    },
-  });
 
   const handleCreateNoteSubmit = (e: React.FormEvent) => {
     e.preventDefault();
