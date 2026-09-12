@@ -21,7 +21,11 @@ export const tasksApi = {
     });
 
     if (!response.ok) {
-      throw new Error('Erro ao listar tarefas');
+      const json = await response.json().catch(() => ({}));
+      const err: any = new Error(json.message || (response.status === 404 ? 'HOUSE_NOT_FOUND' : 'Erro ao listar tarefas'));
+      err.status = response.status;
+      err.code = json.code;
+      throw err;
     }
 
     const json = await response.json();
@@ -39,9 +43,12 @@ export const tasksApi = {
       body: JSON.stringify(data),
     });
 
-    const json = await response.json();
+    const json = await response.json().catch(() => ({}));
     if (!response.ok) {
-      throw new Error(json.message || 'Erro ao criar tarefa');
+      const err: any = new Error(json.message || 'Erro ao criar tarefa');
+      err.status = response.status;
+      err.code = json.code;
+      throw err;
     }
 
     return json.data;

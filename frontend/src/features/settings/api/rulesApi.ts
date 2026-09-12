@@ -32,38 +32,36 @@ export const rulesApi = {
     houseId: string,
     rule: { title: string; description?: string; number?: number }
   ): Promise<HouseRule | null> {
-    try {
-      const response = await fetch(`${APP_CONFIG.API_BASE_URL}/rules`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-house-id': houseId,
-        },
-        body: JSON.stringify({
-          house_id: houseId,
-          title: rule.title,
-          description: rule.description,
-          number: rule.number,
-        }),
-      });
+    const response = await fetch(`${APP_CONFIG.API_BASE_URL}/rules`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-house-id': houseId,
+      },
+      body: JSON.stringify({
+        house_id: houseId,
+        title: rule.title,
+        description: rule.description,
+        number: rule.number,
+      }),
+    });
 
-      if (!response.ok) {
-        throw new Error('Falha ao criar regra da residência');
-      }
-
-      const json = await response.json();
-      const r = json.data;
-      if (!r) return null;
-      return {
-        id: r.id,
-        number: r.number,
-        title: r.title,
-        description: r.description || '',
-      };
-    } catch (error) {
-      console.warn('[RulesApi] Erro ao criar regra:', error);
-      return null;
+    const json = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      const err: any = new Error(json.message || 'Falha ao criar regra da residência');
+      err.status = response.status;
+      err.code = json.code;
+      throw err;
     }
+
+    const r = json.data;
+    if (!r) return null;
+    return {
+      id: r.id,
+      number: r.number,
+      title: r.title,
+      description: r.description || '',
+    };
   },
 
   async deleteRule(ruleId: string, houseId?: string): Promise<boolean> {

@@ -60,24 +60,21 @@ export interface DashboardData {
 
 export const dashboardApi = {
   async getDashboardData(houseId: string, userId?: string): Promise<DashboardData | null> {
-    try {
-      const response = await fetch(`${APP_CONFIG.API_BASE_URL}/v1/dashboard`, {
-        headers: {
-          'x-house-id': houseId,
-          ...(userId ? { 'x-user-id': userId } : {}),
-        },
-      });
+    const response = await fetch(`${APP_CONFIG.API_BASE_URL}/v1/dashboard`, {
+      headers: {
+        'x-house-id': houseId,
+        ...(userId ? { 'x-user-id': userId } : {}),
+      },
+    });
 
-      if (!response.ok) {
-        throw new Error('Falha ao carregar dashboard agregador');
-      }
-
-      const json = await response.json();
-      return json.data;
-    } catch (error) {
-      console.warn('[DashboardApi] Erro na requisição BFF, usando fallback:', error);
-      return null;
+    if (!response.ok) {
+      const json = await response.json().catch(() => ({}));
+      const errorMsg = json.message || json.code || (response.status === 404 ? 'HOUSE_NOT_FOUND' : response.status === 401 ? 'AUTH_TOKEN_INVALID' : 'DASHBOARD_ERROR');
+      throw new Error(errorMsg);
     }
+
+    const json = await response.json();
+    return json.data || null;
   },
 
   async createBulletinPost(houseId: string, authorId: string, content: string) {

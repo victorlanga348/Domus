@@ -507,6 +507,49 @@ export default function App() {
     setTimeout(() => setToastMessage(null), 3500);
   }, []);
 
+  const handleLogout = useCallback(() => {
+    setAuthUser(null);
+    setAuthToken(null);
+    setCurrentHouse(null);
+    localStorage.clear();
+    setFamilyMembers([]);
+    setTasks([]);
+    setRotations([]);
+    setHouseRules([]);
+    setActivityLogs([]);
+    setReadNotificationIds([]);
+    setMuralNotes([]);
+    setMemberStatuses([]);
+    setMealPlan({ houseId: '', isLocked: false, meals: [] });
+    setCurrentTab('dashboard');
+    setSubTab('bulletin');
+    showToast('Sessão encerrada.');
+  }, [showToast]);
+
+  const checkSessionValidity = useCallback(
+    (err: any) => {
+      if (!err) return;
+      const msg = String(err?.message || err?.code || err || '');
+      const status = Number(err?.status) || 0;
+      const isInvalid =
+        status === 401 ||
+        status === 404 ||
+        msg.includes('HOUSE_NOT_FOUND') ||
+        msg.includes('AUTH_TOKEN_INVALID') ||
+        msg.includes('USER_NOT_FOUND') ||
+        msg.includes('não encontrada') ||
+        msg.includes('Unauthorized') ||
+        msg.includes('Forbidden');
+
+      if (isInvalid) {
+        console.warn('[DOMUS] Sessão ou residência não encontrada no servidor. Resetando estado local...');
+        handleLogout();
+        showToast('Sua sessão foi redefinida ou expirou. Por favor, acesse novamente.');
+      }
+    },
+    [handleLogout, showToast]
+  );
+
   // Helper de registro e sincronização de notificações em tempo real centralizada
   const recordHouseActivity = useCallback(
     (
@@ -606,6 +649,7 @@ export default function App() {
           })
           .catch((err) => {
             console.warn('[DOMUS] Erro ao sincronizar membros da casa:', err);
+            checkSessionValidity(err);
           });
 
         // 2. Tarefas Centrais da Residência (PostgreSQL - Visibilidade Universal)
@@ -620,6 +664,7 @@ export default function App() {
           })
           .catch((err) => {
             console.warn('[DOMUS] Erro ao sincronizar tarefas centralizadas:', err);
+            checkSessionValidity(err);
           })
           .finally(() => {
             if (!options?.silent) {
@@ -674,6 +719,7 @@ export default function App() {
           })
           .catch((err) => {
             console.warn('[DOMUS] Erro ao sincronizar cardápio da residência:', err);
+            checkSessionValidity(err);
           })
           .finally(() => {
             if (!options?.silent) {
@@ -694,9 +740,10 @@ export default function App() {
           });
       } catch (err) {
         console.warn('[DOMUS] Erro na sincronização central:', err);
+        checkSessionValidity(err);
       }
     },
-    [currentHouse?.id, authUser?.id, familyMembers, handleSyncMembers]
+    [currentHouse?.id, authUser?.id, familyMembers, handleSyncMembers, checkSessionValidity]
   );
 
   // Sincronização inicial automática dos dados centrais da residência ao carregar
@@ -1152,25 +1199,6 @@ export default function App() {
     }
   };
 
-  const handleLogout = () => {
-    setAuthUser(null);
-    setAuthToken(null);
-    setCurrentHouse(null);
-    localStorage.clear();
-    setFamilyMembers([]);
-    setTasks([]);
-    setRotations([]);
-    setHouseRules([]);
-    setActivityLogs([]);
-    setReadNotificationIds([]);
-    setMuralNotes([]);
-    setMemberStatuses([]);
-    setMealPlan({ houseId: '', isLocked: false, meals: [] });
-    setCurrentTab('dashboard');
-    setSubTab('bulletin');
-    showToast('Sessão encerrada.');
-  };
-
   const handleToggleVacationMode = () => {
     const next = !vacationMode;
     setVacationMode(next);
@@ -1187,37 +1215,31 @@ export default function App() {
   };
 
   const handleAddMuralNote = async (newNote: Omit<MuralNote, 'id' | 'dateStr'>) => {
-    let noteObj: MuralNote;
-    if (currentHouse?.id && authUser?.id) {
-      try {
-        const created = await dashboardApi.createBulletinPost(currentHouse.id, authUser.id, newNote.content);
-        noteObj = {
-          ...newNote,
-          id: created.id,
-          dateStr: 'Hoje, ' + new Date(created.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          author: created.author?.name || newNote.author,
-        };
-      } catch {
-        noteObj = {
-          ...newNote,
-          id: 'n_' + Date.now(),
-          dateStr: 'Hoje, ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        };
-      }
-    } else {
-      noteObj = {
-        ...newNote,
-        id: 'n_' + Date.now(),
-        dateStr: 'Hoje, ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      };
+    if (!currentHouse?.id || !authUser?.id) {
+      showToast('Nenhuma residência selecionada.');
+      return;
     }
 
-    setMuralNotes((prev) => [noteObj, ...prev]);
-    if (currentHouse?.id) {
-      emitNoteCreated(currentHouse.id, noteObj);
+    try {
+      const created = await dashboardApi.createBulletinPost(currentHouse.id, authUser.id, newNote.content);
+      const noteObj: MuralNote = {
+        ...newNote,
+        id: created.id,
+        dateStr: 'Hoje, ' + new Date(created.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        author: created.author?.name || newNote.author,
+      };
+
+      setMuralNotes((prev) => [noteObj, ...prev]);
+      if (currentHouse?.id) {
+        emitNoteCreated(currentHouse.id, noteObj);
+      }
+      recordHouseActivity(`Novo recado no mural fixado por ${noteObj.author}`);
+      showToast('Recado fixado no mural!');
+    } catch (err: any) {
+      console.error('[Mural] Erro ao criar recado:', err);
+      checkSessionValidity(err);
+      showToast(err.message || 'Erro ao fixar recado no mural.');
     }
-    recordHouseActivity(`Novo recado no mural fixado por ${noteObj.author}`);
-    showToast('Recado fixado no mural!');
   };
 
   const handleDeleteMuralNote = async (id: string) => {
@@ -1232,6 +1254,11 @@ export default function App() {
   };
 
   const handleAddTask = async (newTask: Omit<HouseTask, 'id' | 'status'>) => {
+    if (!currentHouse?.id || !authUser?.id) {
+      showToast('Nenhuma residência selecionada.');
+      return;
+    }
+
     const shiftMap: Record<string, 'MORNING' | 'AFTERNOON' | 'NIGHT'> = {
       morning: 'MORNING',
       afternoon: 'AFTERNOON',
@@ -1251,53 +1278,40 @@ export default function App() {
         ? newTask.participantIds
         : matchedMember
         ? [matchedMember.id]
-        : authUser?.id
-        ? [authUser.id]
-        : [];
+        : [authUser.id];
 
-    let taskObj: HouseTask;
-    if (currentHouse?.id && authUser?.id) {
-      try {
-        const backendCreated = await tasksApi.createTask({
-          title: newTask.title,
-          description: newTask.title,
-          shift: shiftMap[newTask.period] || 'MORNING',
-          frequency: frequencyMap[newTask.frequency || ''] || 'DAILY',
-          creator_id: authUser.id,
-          house_id: currentHouse.id,
-          participant_ids: participantIds,
-        });
-        taskObj = mapBackendTaskToHouseTask(backendCreated, familyMembers);
-      } catch (err) {
-        console.warn('[Tasks] Fallback local para criação de tarefa:', err);
-        taskObj = {
-          ...newTask,
-          id: `t_${Date.now()}`,
-          status: 'pending',
-        };
-      }
-    } else {
-      taskObj = {
-        ...newTask,
-        id: `t_${Date.now()}`,
-        status: 'pending',
-      };
-    }
-
-    setTasks((prev) => [taskObj, ...prev]);
-    if (taskObj.isRotation) {
-      setRotations((prev) => {
-        if (prev.some((r) => r.id === taskObj.id || r.taskId === taskObj.id)) return prev;
-        const newRot = mapBackendTasksToRotations([taskObj], familyMembers);
-        return [...newRot, ...prev];
+    try {
+      const backendCreated = await tasksApi.createTask({
+        title: newTask.title,
+        description: newTask.title,
+        shift: shiftMap[newTask.period] || 'MORNING',
+        frequency: frequencyMap[newTask.frequency || ''] || 'DAILY',
+        creator_id: authUser.id,
+        house_id: currentHouse.id,
+        participant_ids: participantIds,
       });
-    }
 
-    if (currentHouse?.id) {
-      emitTaskCreated(currentHouse.id, taskObj);
+      const taskObj = mapBackendTaskToHouseTask(backendCreated, familyMembers);
+      setTasks((prev) => [taskObj, ...prev]);
+
+      if (taskObj.isRotation) {
+        setRotations((prev) => {
+          if (prev.some((r) => r.id === taskObj.id || r.taskId === taskObj.id)) return prev;
+          const newRot = mapBackendTasksToRotations([taskObj], familyMembers);
+          return [...newRot, ...prev];
+        });
+      }
+
+      if (currentHouse?.id) {
+        emitTaskCreated(currentHouse.id, taskObj);
+      }
+      recordHouseActivity(`Nova tarefa "${taskObj.title}" criada.`, authUser?.name, 'ROTATED', taskObj.id);
+      showToast(`Tarefa "${taskObj.title}" criada com sucesso!`);
+    } catch (err: any) {
+      console.error('[Tasks] Erro ao criar tarefa:', err);
+      checkSessionValidity(err);
+      showToast(err.message || 'Erro ao criar tarefa.');
     }
-    recordHouseActivity(`Nova tarefa "${taskObj.title}" criada.`, authUser?.name, 'ROTATED', taskObj.id);
-    showToast(`Tarefa "${taskObj.title}" criada com sucesso!`);
   };
 
   const handleUpdateTask = async (
@@ -1626,27 +1640,35 @@ export default function App() {
   };
 
   const handleAddHouseRule = async (rule: Omit<HouseRule, 'id' | 'number'>) => {
-    let createdRule: HouseRule = {
-      ...rule,
-      id: `hr_${Date.now()}`,
-      number: houseRules.length + 1,
-    };
-    if (currentHouse?.id) {
+    if (!currentHouse?.id) {
+      showToast('Nenhuma residência selecionada.');
+      return;
+    }
+
+    try {
       const backendRule = await rulesApi.createRule(currentHouse.id, {
         title: rule.title,
         description: rule.description,
         number: houseRules.length + 1,
       });
-      if (backendRule) {
-        createdRule = backendRule;
+
+      const createdRule: HouseRule = backendRule || {
+        ...rule,
+        id: `hr_${Date.now()}`,
+        number: houseRules.length + 1,
+      };
+
+      setHouseRules((prev) => [...prev, createdRule]);
+      if (currentHouse?.id) {
+        emitRuleCreated(currentHouse.id, createdRule);
       }
+      recordHouseActivity(`Nova regra adicionada: "${rule.title}"`);
+      showToast('Regra da casa adicionada!');
+    } catch (err: any) {
+      console.error('[Rules] Erro ao adicionar regra:', err);
+      checkSessionValidity(err);
+      showToast(err.message || 'Erro ao adicionar regra da casa.');
     }
-    setHouseRules((prev) => [...prev, createdRule]);
-    if (currentHouse?.id) {
-      emitRuleCreated(currentHouse.id, createdRule);
-    }
-    recordHouseActivity(`Nova regra adicionada: "${rule.title}"`);
-    showToast('Regra da casa adicionada!');
   };
 
   const handleUpdateHouseRules = (updatedRules: HouseRule[]) => {
@@ -1910,7 +1932,7 @@ export default function App() {
       };
 
   const handleUpdateMeal = useCallback(
-    (meal: MealItem) => {
+    async (meal: MealItem) => {
       const isGeneralAdmin = currentUser.role === 'Admin Geral';
       const isAdmin = currentUser.role === 'Admin';
       const isLocked = Boolean(mealPlan.isLocked);
@@ -1921,29 +1943,39 @@ export default function App() {
         return;
       }
 
-      setMealPlan((prev) => {
-        const exists = prev.meals.some(
-          (m) => m.id === meal.id || (m.dayOfWeek === meal.dayOfWeek && m.mealType === meal.mealType)
-        );
-        const updatedMeals = exists
-          ? prev.meals.map((m) =>
-              m.id === meal.id || (m.dayOfWeek === meal.dayOfWeek && m.mealType === meal.mealType) ? meal : m
-            )
-          : [...prev.meals, meal];
-        const updatedPlan: HouseMealPlan = { ...prev, meals: updatedMeals };
-        if (houseKey) {
-          localStorage.setItem(`${houseKey}_meals`, JSON.stringify(updatedPlan));
-        }
-        return updatedPlan;
-      });
-
-      if (currentHouse?.id) {
-        emitMealUpdated(currentHouse.id, meal);
-        mealsApi.saveMeal(currentHouse.id, meal, currentUser.role).catch(() => {});
+      if (!currentHouse?.id) {
+        showToast('Nenhuma residência selecionada.');
+        return;
       }
-      showToast(`Prato "${meal.title}" salvo no cardápio!`);
+
+      try {
+        await mealsApi.saveMeal(currentHouse.id, meal, currentUser.role);
+
+        setMealPlan((prev) => {
+          const exists = prev.meals.some(
+            (m) => m.id === meal.id || (m.dayOfWeek === meal.dayOfWeek && m.mealType === meal.mealType)
+          );
+          const updatedMeals = exists
+            ? prev.meals.map((m) =>
+                m.id === meal.id || (m.dayOfWeek === meal.dayOfWeek && m.mealType === meal.mealType) ? meal : m
+              )
+            : [...prev.meals, meal];
+          const updatedPlan: HouseMealPlan = { ...prev, meals: updatedMeals };
+          if (houseKey) {
+            localStorage.setItem(`${houseKey}_meals`, JSON.stringify(updatedPlan));
+          }
+          return updatedPlan;
+        });
+
+        emitMealUpdated(currentHouse.id, meal);
+        showToast(`Prato "${meal.title}" salvo no cardápio!`);
+      } catch (err: any) {
+        console.error('[Meals] Erro ao salvar prato:', err);
+        checkSessionValidity(err);
+        showToast(err.message || 'Erro ao salvar prato no cardápio.');
+      }
     },
-    [currentUser.role, mealPlan.isLocked, houseKey, currentHouse?.id, showToast]
+    [currentUser.role, mealPlan.isLocked, houseKey, currentHouse?.id, showToast, checkSessionValidity]
   );
 
   const handleDeleteMeal = useCallback(

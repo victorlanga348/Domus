@@ -333,14 +333,21 @@ export const TasksRotationsView: React.FC<TasksRotationsViewProps> = ({
     let taskParticipantIds: string[] = [];
     if (taskAssignmentType === 'member') {
       const found = familyMembers.find((m) => m.name === selectedMember);
-      if (found?.id) taskParticipantIds = [found.id];
+      if (found?.id) {
+        taskParticipantIds = [found.id];
+      } else if (currentUserId) {
+        taskParticipantIds = [currentUserId];
+      } else if (familyMembers[0]?.id) {
+        taskParticipantIds = [familyMembers[0].id];
+      }
     } else {
       const participants = familyMembers.filter((m) =>
         selectedRotationMembers.includes(m.name)
       );
       taskParticipantIds = participants.map((p) => p.id).filter(Boolean);
-      if (taskParticipantIds.length === 0 && familyMembers[0]?.id) {
-        taskParticipantIds = [familyMembers[0].id];
+      if (taskParticipantIds.length === 0) {
+        if (currentUserId) taskParticipantIds = [currentUserId];
+        else if (familyMembers[0]?.id) taskParticipantIds = [familyMembers[0].id];
       }
     }
 
