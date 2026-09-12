@@ -23,3 +23,14 @@
   - `rounded-2xl` (`16px`): Cartões de visualização e painéis de turno.
   - `rounded-3xl` (`24px`): Modais e painéis flutuantes.
 - **Glassmorphism:** `backdrop-blur-md bg-slate-800/60 border border-white/10 shadow-xl`.
+
+---
+
+## 3. Tipografia de Formulários e Máscara de Senha
+- **Fonte Padrão da Interface:** `Inter`, `-apple-system`, `BlinkMacSystemFont`, `sans-serif`.
+- **Máscara de Senha (`input[type="password"]`):**
+  - **Fonte:** `caption, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif` (elimina o glifo excessivo do Inter e utiliza o pontilhado nativo e discreto do sistema operacional).
+  - **Espaçamento:** `letter-spacing: 0.12em` para legibilidade equilibrada dos pontos.
+  - **Placeholder:** Retém a fonte `Inter` com `letter-spacing: normal`.
+  - **Toggle de Visibilidade (`type="text"`):** Retorna imediatamente à tipografia `Inter`.
+

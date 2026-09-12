@@ -35,6 +35,17 @@
     }
   }
 
+  /* Tipografia de Máscara para Senhas: substitui o glifo gigante do Inter por pontilhados discretos e elegantes do sistema */
+  input[type="password"] {
+    font-family: caption, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif !important;
+    letter-spacing: 0.12em;
+  }
+
+  input[type="password"]::placeholder {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+    letter-spacing: normal;
+  }
+
   :root {
     --color-domus-primary: #16302e;
     --color-domus-primary-container: #2d4644;

@@ -73,3 +73,5 @@ Permitir que novos e recorrentes moradores criem suas contas, acessem o sistema 
 - **Botões Primários:** `bg-[#16302e]` com hover `bg-[#20423f]`, texto branco e ícone de seta.
 - **Inputs:** Bordas sutis em `#cfe0dc` ou `#d0dddb`, fundo branco ou `#f9fdfc`, foco com anel `#16302e`.
 - **Tipografia:** `Inter`, com títulos em pesos 600-700 e `tracking-tight` / `tracking-widest` no logo DOMUS.
+- **Campos de Senha (`input[type="password"]`):** Tipografia `caption, -apple-system, ...` com `letter-spacing: 0.12em` para exibir pontilhados discretos e proporcionais do SO nativo, alternando para `Inter` quando a visibilidade é ativada.
+
