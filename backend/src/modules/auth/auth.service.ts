@@ -49,8 +49,10 @@ export class AuthService {
     }
 
     const saltRounds = 10;
-    const password_hash = await bcrypt.hash(data.password, saltRounds);
-    const pin_hash = await bcrypt.hash(data.pin || '0000', saltRounds);
+    const [password_hash, pin_hash] = await Promise.all([
+      bcrypt.hash(data.password, saltRounds),
+      bcrypt.hash(data.pin || '0000', saltRounds),
+    ]);
 
     const user = await prisma.user.create({
       data: {
@@ -188,8 +190,10 @@ export class AuthService {
 
     // Gerar hashes seguros para contas criadas via Google
     const randomPassword = crypto.randomBytes(24).toString('hex');
-    const passwordHash = await bcrypt.hash(randomPassword, 10);
-    const pinHash = await bcrypt.hash('0000', 10);
+    const [passwordHash, pinHash] = await Promise.all([
+      bcrypt.hash(randomPassword, 10),
+      bcrypt.hash('0000', 10),
+    ]);
 
     const user = await prisma.user.upsert({
       where: { email: normalizedEmail },

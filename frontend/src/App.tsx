@@ -372,6 +372,7 @@ export default function App() {
   });
   const familyMembersRef = useRef<FamilyMember[]>(familyMembers);
   familyMembersRef.current = familyMembers;
+  const lastSyncTimestampRef = useRef<number>(0);
 
   const [onlineUserIds, setOnlineUserIds] = useState<string[]>([]);
 
@@ -700,6 +701,7 @@ export default function App() {
       if (!currentHouse?.id || !authUser?.id) return;
       const houseId = currentHouse.id;
       const userId = authUser.id;
+      lastSyncTimestampRef.current = Date.now();
 
       try {
         // 1. Membros e Mural de Recados via BFF Dashboard
@@ -870,7 +872,10 @@ export default function App() {
     currentHouse?.id || '',
     {
       onConnect: () => {
-        syncAllHouseData({ silent: true });
+        const timeSinceLastSync = Date.now() - lastSyncTimestampRef.current;
+        if (timeSinceLastSync > 10000) {
+          syncAllHouseData({ silent: true });
+        }
       },
       onPresence: (presenceData) => {
         if (presenceData?.onlineUserIds) {

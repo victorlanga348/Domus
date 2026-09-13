@@ -52,6 +52,7 @@ Para atender a dispositivos compartilhados (ex: tablet fixo na cozinha) e celula
 - **Produção:** Origem estritamente validada via variável de ambiente `CORS_ORIGIN` com `credentials: true`.
 - **Ambiente de Desenvolvimento & Testes Mobile na LAN:**
   - O backend permite requisições originadas de `localhost`, `127.0.0.1` e faixas de IP privadas locais (`192.168.0.0/16`, `10.0.0.0/8`, `172.16.0.0/12`) em qualquer porta, refletindo o cabeçalho `Origin` na resposta com `Access-Control-Allow-Credentials: true`.
+  - **Cache de Preflight (`maxAge: 86400`):** Respostas de requisições `OPTIONS` enviam `Access-Control-Max-Age: 86400` (24h), eliminando latência repetida de negociação CORS em dispositivos móveis.
   - O servidor HTTP e Socket.io realizam bind em `0.0.0.0` para responder a conexões de smartphones e tablets conectados ao mesmo Wi-Fi.
   - O frontend resolve `API_BASE_URL` e `SOCKET_URL` dinamicamente baseado no `window.location.hostname`, mantendo sincronização de dados transparente entre desktop e mobile.
 

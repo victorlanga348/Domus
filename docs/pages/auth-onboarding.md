@@ -75,3 +75,12 @@ Permitir que novos e recorrentes moradores criem suas contas, acessem o sistema 
 - **Tipografia:** `Inter`, com títulos em pesos 600-700 e `tracking-tight` / `tracking-widest` no logo DOMUS.
 - **Campos de Senha (`input[type="password"]`):** Tipografia `caption, -apple-system, ...` com `letter-spacing: 0.12em` para exibir pontilhados discretos e proporcionais do SO nativo, alternando para `Inter` quando a visibilidade é ativada.
 
+---
+
+## 4. Performance, Latência e Acesso Móvel
+- **Paralelização de Hashes Criptográficos:** O cadastro e login Google computam hashes Blowfish em paralelo via `Promise.all()`, reduzindo pela metade a ocupação da thread de execução do Node.js.
+- **Cache de Preflight CORS (24h):** O middleware Express responde com `Access-Control-Max-Age: 86400`, eliminando requisições `OPTIONS` repetidas em redes Wi-Fi locais durante o acesso mobile.
+- **Isolamento de API no Service Worker:** O listener de Service Worker ignora rotas `/api/` e `socket.io`, assegurando que chamadas de autenticação não sofram overhead de comunicação interprocessos (IPC).
+- **Desduplicação de Carga Pós-Autenticação:** A transição para a residência restringe re-sincronizações do WebSocket a intervalos superiores a 10s, prevenindo fila de conexões (*connection pooling*) em smartphones.
+- **Histórico:** `[[docs/tasks/2026-09-13-otimizacao-latencia-auth-login-cadastro-mobile.md]]`.
+

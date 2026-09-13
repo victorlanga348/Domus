@@ -10,6 +10,18 @@ self.addEventListener('activate', (e) => {
 });
 
 self.addEventListener('fetch', (e) => {
-  // Pass-through fetch padrão com fallback resiliente para cache
+  const url = e.request.url;
+
+  // Ignora chamadas à API, WebSocket e métodos mutantes para evitar overhead de IPC no mobile
+  if (
+    url.includes('/api/') ||
+    url.includes('socket.io') ||
+    url.includes(':3333') ||
+    e.request.method !== 'GET'
+  ) {
+    return;
+  }
+
+  // Pass-through fetch padrão com fallback resiliente para cache em assets estáticos
   e.respondWith(fetch(e.request).catch(() => caches.match(e.request)));
 });
