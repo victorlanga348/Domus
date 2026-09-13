@@ -215,7 +215,7 @@ export const MealCard: React.FC<MealCardProps> = ({
                 }`}
               >
                 <span className="material-symbols-outlined text-[9px]">{meta.icon}</span>
-                <span className="truncate max-w-[80px]">{tag}</span>
+                <span className="truncate max-w-[160px]">{tag}</span>
               </span>
             );
           })}

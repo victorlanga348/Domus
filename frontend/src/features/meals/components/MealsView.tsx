@@ -488,7 +488,7 @@ export const MealsView: React.FC<MealsViewProps> = ({
                                         className={`text-[9px] font-extrabold px-1.5 py-0.5 rounded-md border flex items-center gap-1 shrink-0 ${meta.color}`}
                                       >
                                         <span className="material-symbols-outlined text-[10px]">{meta.icon}</span>
-                                        <span className="truncate max-w-[100px]">{tag}</span>
+                                        <span className="truncate max-w-[160px]">{tag}</span>
                                       </span>
                                     );
                                   })}
