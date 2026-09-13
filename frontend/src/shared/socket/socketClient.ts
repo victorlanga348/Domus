@@ -122,6 +122,11 @@ export function emitNoteCreated(houseId: string, note: any): void {
   if (houseId && note) s.emit('house:note_created', { houseId, note });
 }
 
+export function emitNoteUpdated(houseId: string, note: any): void {
+  const s = getSocket();
+  if (houseId && note) s.emit('house:note_updated', { houseId, note });
+}
+
 export function emitNoteDeleted(houseId: string, noteId: string): void {
   const s = getSocket();
   if (houseId && noteId) s.emit('house:note_deleted', { houseId, noteId });

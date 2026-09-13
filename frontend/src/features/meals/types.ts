@@ -54,18 +54,19 @@ export const MEAL_PERIODS: MealPeriodMeta[] = getMealPeriods();
 export interface DayMeta {
   key: DayOfWeek;
   shortLabel: string;
+  mediumLabel: string;
   fullLabel: string;
   dayNumber: number; // 1 = Seg, 7 = Dom
 }
 
 export const DAYS_OF_WEEK: DayMeta[] = [
-  { key: 'monday', shortLabel: 'Seg', fullLabel: 'Segunda-feira', dayNumber: 1 },
-  { key: 'tuesday', shortLabel: 'Ter', fullLabel: 'Terça-feira', dayNumber: 2 },
-  { key: 'wednesday', shortLabel: 'Qua', fullLabel: 'Quarta-feira', dayNumber: 3 },
-  { key: 'thursday', shortLabel: 'Qui', fullLabel: 'Quinta-feira', dayNumber: 4 },
-  { key: 'friday', shortLabel: 'Sex', fullLabel: 'Sexta-feira', dayNumber: 5 },
-  { key: 'saturday', shortLabel: 'Sáb', fullLabel: 'Sábado', dayNumber: 6 },
-  { key: 'sunday', shortLabel: 'Dom', fullLabel: 'Domingo', dayNumber: 7 },
+  { key: 'monday', shortLabel: 'Seg', mediumLabel: 'Segunda', fullLabel: 'Segunda-feira', dayNumber: 1 },
+  { key: 'tuesday', shortLabel: 'Ter', mediumLabel: 'Terça', fullLabel: 'Terça-feira', dayNumber: 2 },
+  { key: 'wednesday', shortLabel: 'Qua', mediumLabel: 'Quarta', fullLabel: 'Quarta-feira', dayNumber: 3 },
+  { key: 'thursday', shortLabel: 'Qui', mediumLabel: 'Quinta', fullLabel: 'Quinta-feira', dayNumber: 4 },
+  { key: 'friday', shortLabel: 'Sex', mediumLabel: 'Sexta', fullLabel: 'Sexta-feira', dayNumber: 5 },
+  { key: 'saturday', shortLabel: 'Sáb', mediumLabel: 'Sábado', fullLabel: 'Sábado', dayNumber: 6 },
+  { key: 'sunday', shortLabel: 'Dom', mediumLabel: 'Domingo', fullLabel: 'Domingo', dayNumber: 7 },
 ];
 
 export const AVAILABLE_DIET_TAGS = [

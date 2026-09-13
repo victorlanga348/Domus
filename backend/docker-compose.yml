@@ -41,6 +41,7 @@ services:
       - .:/app
       - /app/node_modules
       - /app/dist
+      - /app/.prisma
 
 volumes:
   postgres_data:

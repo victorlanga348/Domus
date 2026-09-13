@@ -3,6 +3,44 @@ import { RotationService } from '../tasks/tasks.rotation.service.js';
 import { AppError } from '../../shared/errors/AppError.js';
 import type { Shift } from '@prisma/client';
 
+export interface BulletinContentPayload {
+  title?: string;
+  content: string;
+  color?: string;
+  type?: 'text' | 'checklist';
+  items?: Array<{ id: string; text: string; done: boolean }>;
+}
+
+export function parseBulletinContent(rawContent: string): BulletinContentPayload {
+  if (typeof rawContent === 'string' && rawContent.startsWith('{') && rawContent.endsWith('}')) {
+    try {
+      const parsed = JSON.parse(rawContent);
+      if (typeof parsed.text === 'string' || Array.isArray(parsed.items)) {
+        return {
+          title: parsed.title || undefined,
+          content: typeof parsed.text === 'string' ? parsed.text : '',
+          color: parsed.color || undefined,
+          type: parsed.type || (Array.isArray(parsed.items) && parsed.items.length > 0 ? 'checklist' : 'text'),
+          items: Array.isArray(parsed.items)
+            ? parsed.items.map((it: any) => ({
+                id: String(it.id || `it_${Math.random().toString(36).substring(2, 8)}`),
+                text: String(it.text || ''),
+                done: Boolean(it.done),
+              }))
+            : undefined,
+        };
+      }
+    } catch {}
+  }
+  return {
+    title: undefined,
+    content: rawContent,
+    color: undefined,
+    type: 'text',
+    items: undefined,
+  };
+}
+
 export class DashboardService {
   constructor(private rotationService = new RotationService()) {}
 
@@ -165,34 +203,66 @@ export class DashboardService {
       },
       current_shift_tasks: tasksWithAssignee,
       members: house.users,
-      bulletin_posts: bulletinPosts.map((post) => ({
-        id: post.id,
-        content: post.content,
-        created_at: post.created_at,
-        author: post.author,
-      })),
+      bulletin_posts: bulletinPosts.map((post) => {
+        const parsed = parseBulletinContent(post.content);
+        return {
+          id: post.id,
+          title: parsed.title,
+          content: parsed.content,
+          color: parsed.color,
+          type: parsed.type,
+          items: parsed.items,
+          created_at: post.created_at,
+          author: post.author,
+        };
+      }),
     };
   }
 
   /**
    * Cria uma nova publicação no mural de recados da residência.
    */
-  async createBulletinPost(houseId: string, authorId: string, content: string) {
+  async createBulletinPost(
+    houseId: string,
+    authorId: string,
+    content: string,
+    meta?: {
+      title?: string;
+      color?: string;
+      type?: 'text' | 'checklist';
+      items?: Array<{ id: string; text: string; done: boolean }>;
+    }
+  ) {
     if (!houseId) {
       throw new AppError('Identificação da residência (houseId) é obrigatória.', 400, 'HOUSE_ID_REQUIRED');
     }
     if (!authorId) {
       throw new AppError('Identificação do autor (authorId) é obrigatória.', 400, 'AUTHOR_ID_REQUIRED');
     }
-    if (!content || !content.trim()) {
-      throw new AppError('Conteúdo do recado não pode estar vazio.', 400, 'CONTENT_REQUIRED');
+
+    const trimmedContent = (content || '').trim();
+    const hasItems = Array.isArray(meta?.items) && meta.items.length > 0;
+    if (!trimmedContent && !hasItems && !meta?.title) {
+      throw new AppError('Conteúdo ou itens do recado não podem estar vazios.', 400, 'CONTENT_REQUIRED');
     }
+
+    const isChecklist = meta?.type === 'checklist' || hasItems;
+    const storedContent =
+      meta?.title || meta?.color || isChecklist
+        ? JSON.stringify({
+            title: meta.title?.trim() || undefined,
+            text: trimmedContent,
+            color: meta.color || undefined,
+            type: isChecklist ? 'checklist' : 'text',
+            items: hasItems ? meta.items : undefined,
+          })
+        : trimmedContent;
 
     const post = await prisma.bulletinBoard.create({
       data: {
         house_id: houseId,
         author_id: authorId,
-        content: content.trim(),
+        content: storedContent,
       },
       include: {
         author: {
@@ -204,11 +274,99 @@ export class DashboardService {
       },
     });
 
+    const parsed = parseBulletinContent(post.content);
+
     return {
       id: post.id,
-      content: post.content,
+      title: parsed.title,
+      content: parsed.content,
+      color: parsed.color,
+      type: parsed.type,
+      items: parsed.items,
       created_at: post.created_at,
       author: post.author,
+    };
+  }
+
+  /**
+   * Atualiza uma publicação no mural de recados (ex: marcar/desmarcar itens do checklist).
+   */
+  async updateBulletinPost(
+    postId: string,
+    _userId: string,
+    data: {
+      content?: string;
+      title?: string;
+      color?: string;
+      type?: 'text' | 'checklist';
+      items?: Array<{ id: string; text: string; done: boolean }>;
+    }
+  ) {
+    if (!postId) {
+      throw new AppError('Identificação do recado (postId) é obrigatória.', 400, 'POST_ID_REQUIRED');
+    }
+
+    const post = await prisma.bulletinBoard.findUnique({
+      where: { id: postId },
+      include: {
+        author: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+      },
+    });
+
+    if (!post) {
+      throw new AppError('Recado não encontrado.', 404, 'POST_NOT_FOUND');
+    }
+
+    const existing = parseBulletinContent(post.content);
+    const newTitle = data.title !== undefined ? data.title?.trim() : existing.title;
+    const newText = data.content !== undefined ? data.content?.trim() : existing.content;
+    const newColor = data.color !== undefined ? data.color : existing.color;
+    const newItems = data.items !== undefined ? data.items : existing.items;
+    const hasItems = Array.isArray(newItems) && newItems.length > 0;
+    const newType = data.type !== undefined ? data.type : (hasItems ? 'checklist' : existing.type);
+
+    const storedContent =
+      newTitle || newColor || hasItems || newType === 'checklist'
+        ? JSON.stringify({
+            title: newTitle || undefined,
+            text: newText || '',
+            color: newColor || undefined,
+            type: newType,
+            items: newItems,
+          })
+        : (newText || '');
+
+    const updated = await prisma.bulletinBoard.update({
+      where: { id: postId },
+      data: {
+        content: storedContent,
+      },
+      include: {
+        author: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+      },
+    });
+
+    const parsed = parseBulletinContent(updated.content);
+
+    return {
+      id: updated.id,
+      title: parsed.title,
+      content: parsed.content,
+      color: parsed.color,
+      type: parsed.type,
+      items: parsed.items,
+      created_at: updated.created_at,
+      author: updated.author,
     };
   }
 
@@ -225,7 +383,8 @@ export class DashboardService {
     });
 
     if (!post) {
-      throw new AppError('Recado não encontrado no mural.', 404, 'POST_NOT_FOUND');
+      // Idempotência (RFC 7231): se o recado já não existe no banco, considera como removido com sucesso
+      return { success: true, message: 'Recado já removido do mural.' };
     }
 
     const user = await prisma.user.findUnique({

@@ -2,12 +2,16 @@
  * Constantes globais e de configuração do frontend DOMUS.
  */
 
-// Resolução dinâmica de host para suportar localhost e acesso móvel na rede local (Wi-Fi / LAN)
+// Resolução dinâmica de host: normaliza localhost/::1 para 127.0.0.1 (evita timeout IPv6 no Windows/Docker) e suporta acesso móvel na LAN
 const getHost = (): string => {
   if (typeof window !== 'undefined' && window.location.hostname) {
-    return window.location.hostname;
+    const hostname = window.location.hostname;
+    if (hostname === 'localhost' || hostname === '::1') {
+      return '127.0.0.1';
+    }
+    return hostname;
   }
-  return 'localhost';
+  return '127.0.0.1';
 };
 
 export const APP_CONFIG = {

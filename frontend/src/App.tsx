@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   TabType,
@@ -14,6 +14,7 @@ import {
   ActivityLog,
   SystemPreferences,
   MuralNote,
+  MuralNoteItem,
   MemberStatus,
   MealItem,
   HouseMealPlan,
@@ -44,15 +45,9 @@ import {
   useHouseSocket,
   ensureSocketConnected,
   emitHouseLog,
-  emitTaskCreated,
   emitTaskUpdated,
-  emitTaskDeleted,
   emitTaskStatusChanged,
-  emitNoteCreated,
-  emitNoteDeleted,
   emitStatusChanged,
-  emitRuleCreated,
-  emitRuleDeleted,
   emitRotationAdvanced,
   emitMembersUpdated,
   emitMealUpdated,
@@ -214,16 +209,73 @@ function mapBackendLogToActivityLog(log: any): ActivityLog {
   };
 }
 
+function parseBulletinContent(rawContent: string): {
+  title?: string;
+  content: string;
+  color?: MuralNote['color'];
+  type?: 'text' | 'checklist';
+  items?: MuralNote['items'];
+} {
+  if (typeof rawContent === 'string' && rawContent.startsWith('{') && rawContent.endsWith('}')) {
+    try {
+      const parsed = JSON.parse(rawContent);
+      if (typeof parsed.text === 'string' || Array.isArray(parsed.items)) {
+        return {
+          title: parsed.title || undefined,
+          content: typeof parsed.text === 'string' ? parsed.text : '',
+          color: parsed.color || undefined,
+          type: parsed.type || (Array.isArray(parsed.items) && parsed.items.length > 0 ? 'checklist' : 'text'),
+          items: Array.isArray(parsed.items)
+            ? parsed.items.map((it: any) => ({
+                id: String(it.id || `it_${Math.random().toString(36).substring(2, 8)}`),
+                text: String(it.text || ''),
+                done: Boolean(it.done),
+              }))
+            : undefined,
+        };
+      }
+    } catch {}
+  }
+  return {
+    title: undefined,
+    content: rawContent || '',
+    color: undefined,
+    type: 'text',
+    items: undefined,
+  };
+}
+
 function mapBulletinToMuralNote(post: any, index = 0): MuralNote {
   const colors: MuralNote['color'][] = ['teal', 'amber', 'lavender', 'rose', 'gray'];
-  const postDate = new Date(post.created_at);
+  const postDate = new Date(post.created_at || Date.now());
+  const parsed = parseBulletinContent(post.content);
   return {
     id: post.id,
-    content: post.content,
-    author: post.author?.name || 'Morador',
-    dateStr: `Hoje, ${postDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`,
-    color: colors[index % colors.length],
+    title: post.title || parsed.title,
+    content: parsed.content || (typeof post.content === 'string' ? post.content : ''),
+    type: post.type || parsed.type || (post.items?.length > 0 ? 'checklist' : 'text'),
+    items: post.items || parsed.items,
+    author: post.author?.name || post.author || 'Morador',
+    dateStr: post.dateStr || `Hoje, ${postDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`,
+    color: post.color || parsed.color || colors[index % colors.length],
   };
+}
+
+function deduplicateNotes(notes: MuralNote[]): MuralNote[] {
+  const seenIds = new Set<string>();
+  const seenContent = new Set<string>();
+  return notes.filter((note) => {
+    if (!note || !note.id) return false;
+    if (seenIds.has(note.id)) return false;
+    seenIds.add(note.id);
+
+    const contentKey = `${note.author}_${note.content?.trim()}`;
+    if (note.id.startsWith('temp_n_') && seenContent.has(contentKey)) {
+      return false;
+    }
+    seenContent.add(contentKey);
+    return true;
+  });
 }
 
 export default function App() {
@@ -318,6 +370,8 @@ export default function App() {
       },
     ];
   });
+  const familyMembersRef = useRef<FamilyMember[]>(familyMembers);
+  familyMembersRef.current = familyMembers;
 
   const [onlineUserIds, setOnlineUserIds] = useState<string[]>([]);
 
@@ -386,7 +440,7 @@ export default function App() {
   const [muralNotes, setMuralNotes] = useState<MuralNote[]>(() => {
     if (!houseKey) return [];
     const saved = localStorage.getItem(`${houseKey}_notes`);
-    return saved ? JSON.parse(saved) : [];
+    return saved ? deduplicateNotes(JSON.parse(saved)) : [];
   });
 
   const [memberStatuses, setMemberStatuses] = useState<MemberStatus[]>(() => {
@@ -611,6 +665,26 @@ export default function App() {
           };
         });
 
+        // Verificação de igualdade superficial para evitar re-renderizações cíclicas
+        const isIdentical =
+          prev.length === merged.length &&
+          prev.every((p, i) => {
+            const m = merged[i];
+            return (
+              p.id === m.id &&
+              p.name === m.name &&
+              p.email === m.email &&
+              p.role === m.role &&
+              p.vacation_mode === m.vacation_mode &&
+              p.statusTag === m.statusTag &&
+              p.avatar === m.avatar
+            );
+          });
+
+        if (isIdentical) {
+          return prev;
+        }
+
         if (houseKey) {
           localStorage.setItem(`${houseKey}_members`, JSON.stringify(merged));
         }
@@ -630,7 +704,7 @@ export default function App() {
       try {
         // 1. Membros e Mural de Recados via BFF Dashboard
         dashboardApi
-          .getDashboardData(houseId, userId)
+          .getDashboardData(houseId, userId, authToken || undefined)
           .then((data) => {
             if (data?.house) {
               setCurrentHouse((prev) => ({
@@ -644,7 +718,7 @@ export default function App() {
               handleSyncMembers(data.members);
             }
             if (data?.bulletin_posts && Array.isArray(data.bulletin_posts)) {
-              setMuralNotes(data.bulletin_posts.map((p, idx) => mapBulletinToMuralNote(p, idx)));
+              setMuralNotes(deduplicateNotes(data.bulletin_posts.map((p, idx) => mapBulletinToMuralNote(p, idx))));
             }
           })
           .catch((err) => {
@@ -657,8 +731,8 @@ export default function App() {
           .getTasks(houseId, userId)
           .then((backendTasks) => {
             if (Array.isArray(backendTasks)) {
-              setTasks(backendTasks.map((t) => mapBackendTaskToHouseTask(t, familyMembers)));
-              const generatedRotations = mapBackendTasksToRotations(backendTasks, familyMembers);
+              setTasks(backendTasks.map((t) => mapBackendTaskToHouseTask(t, familyMembersRef.current)));
+              const generatedRotations = mapBackendTasksToRotations(backendTasks, familyMembersRef.current);
               setRotations(generatedRotations);
             }
           })
@@ -743,7 +817,7 @@ export default function App() {
         checkSessionValidity(err);
       }
     },
-    [currentHouse?.id, authUser?.id, familyMembers, handleSyncMembers, checkSessionValidity]
+    [currentHouse?.id, authUser?.id, authToken, handleSyncMembers, checkSessionValidity]
   );
 
   // Sincronização inicial automática dos dados centrais da residência ao carregar
@@ -826,11 +900,37 @@ export default function App() {
           return [incomingLog, ...prev];
         });
       },
-      onTaskCreated: (incomingTask: HouseTask) => {
+      onTaskCreated: (incomingTask: any) => {
+        const taskPayload = incomingTask?.task || incomingTask;
+        if (!taskPayload?.id) return;
+        const mapped = mapBackendTaskToHouseTask(taskPayload, familyMembers);
         setTasks((prev) => {
-          if (prev.some((t) => t.id === incomingTask.id)) return prev;
-          return [incomingTask, ...prev];
+          if (prev.some((t) => t.id === mapped.id)) return prev;
+          const hasTemp = prev.some((t) => t.id.startsWith('temp_t_') && t.title === mapped.title);
+          if (hasTemp) {
+            return prev.map((t) => (t.id.startsWith('temp_t_') && t.title === mapped.title ? mapped : t));
+          }
+          return [mapped, ...prev];
         });
+        if (mapped.isRotation) {
+          setRotations((prev) => {
+            const generated = mapBackendTasksToRotations([taskPayload], familyMembers);
+            if (generated.length === 0) return prev;
+            const exists = prev.some((r) => r.id === mapped.id || r.taskId === mapped.id);
+            if (exists) return prev.map((r) => (r.id === mapped.id || r.taskId === mapped.id ? generated[0] : r));
+            const hasTempRot = prev.some(
+              (r) => (r.id.startsWith('temp_t_') || r.taskId?.startsWith('temp_t_')) && r.taskTitle === mapped.title
+            );
+            if (hasTempRot) {
+              return prev.map((r) =>
+                (r.id.startsWith('temp_t_') || r.taskId?.startsWith('temp_t_')) && r.taskTitle === mapped.title
+                  ? generated[0]
+                  : r
+              );
+            }
+            return [...generated, ...prev];
+          });
+        }
       },
       onTaskUpdated: (incomingData: any) => {
         const taskPayload = incomingData?.task || incomingData;
@@ -867,10 +967,58 @@ export default function App() {
           prev.map((t) => (t.id === taskId ? { ...t, status } : t))
         );
       },
-      onNoteCreated: (incomingNote: MuralNote) => {
+      onNoteCreated: (incomingNote: any) => {
         setMuralNotes((prev) => {
           if (prev.some((n) => n.id === incomingNote.id)) return prev;
-          return [incomingNote, ...prev];
+
+          const formattedNote: MuralNote = {
+            id: incomingNote.id,
+            title: incomingNote.title,
+            content: incomingNote.content,
+            type: incomingNote.type,
+            items: incomingNote.items,
+            color: incomingNote.color || 'amber',
+            author: incomingNote.author || 'Morador',
+            dateStr:
+              incomingNote.dateStr ||
+              'Hoje, ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          };
+
+          // Reconcilia se houver nota temporária com o mesmo conteúdo ou título
+          const tempIndex = prev.findIndex(
+            (n) => n.id.startsWith('temp_n_') && (n.content === formattedNote.content || (n.title && n.title === formattedNote.title))
+          );
+          if (tempIndex !== -1) {
+            const next = [...prev];
+            next[tempIndex] = {
+              ...next[tempIndex],
+              id: formattedNote.id,
+              type: formattedNote.type || next[tempIndex].type,
+              items: formattedNote.items || next[tempIndex].items,
+              dateStr: next[tempIndex].dateStr || formattedNote.dateStr,
+              color: next[tempIndex].color || formattedNote.color,
+            };
+            return next;
+          }
+
+          return [formattedNote, ...prev];
+        });
+      },
+      onNoteUpdated: (incomingNote: any) => {
+        setMuralNotes((prev) => {
+          return prev.map((n) => {
+            if (n.id === incomingNote.id) {
+              return {
+                ...n,
+                title: incomingNote.title !== undefined ? incomingNote.title : n.title,
+                content: incomingNote.content !== undefined ? incomingNote.content : n.content,
+                color: incomingNote.color !== undefined ? incomingNote.color : n.color,
+                type: incomingNote.type !== undefined ? incomingNote.type : n.type,
+                items: incomingNote.items !== undefined ? incomingNote.items : n.items,
+              };
+            }
+            return n;
+          });
         });
       },
       onNoteDeleted: ({ noteId }: { noteId: string }) => {
@@ -890,6 +1038,10 @@ export default function App() {
       onRuleCreated: (incomingRule: HouseRule) => {
         setHouseRules((prev) => {
           if (prev.some((r) => r.id === incomingRule.id)) return prev;
+          const hasTemp = prev.some((r) => r.id.startsWith('temp_hr_') && r.title === incomingRule.title);
+          if (hasTemp) {
+            return prev.map((r) => (r.id.startsWith('temp_hr_') && r.title === incomingRule.title ? incomingRule : r));
+          }
           return [...prev, incomingRule];
         });
       },
@@ -1230,36 +1382,102 @@ export default function App() {
 
     // 1. Atualização Otimista Imediata (0ms de latência percebida)
     setMuralNotes((prev) => [noteObj, ...prev]);
-    if (currentHouse?.id) {
-      emitNoteCreated(currentHouse.id, noteObj);
-    }
     recordHouseActivity(`Novo recado no mural fixado por ${noteObj.author}`);
     showToast('Recado fixado no mural!');
 
-    // 2. Persistência assíncrona no backend
+    // 2. Persistência assíncrona no backend (o backend emite para o socket de forma autoritativa)
     try {
-      const created = await dashboardApi.createBulletinPost(currentHouse.id, authUser.id, newNote.content);
+      const created = await dashboardApi.createBulletinPost(
+        currentHouse.id,
+        authUser.id,
+        newNote.content,
+        authToken || undefined,
+        { color: newNote.color, title: newNote.title, type: newNote.type, items: newNote.items }
+      );
       if (created?.id) {
-        setMuralNotes((prev) =>
-          prev.map((n) =>
+        setMuralNotes((prev) => {
+          // Se o evento WebSocket já tiver reconciliado ou adicionado a nota real:
+          const alreadyHasReal = prev.some((n) => n.id === created.id);
+          if (alreadyHasReal) {
+            return prev.filter((n) => n.id !== tempId);
+          }
+          return prev.map((n) =>
             n.id === tempId
               ? {
                   ...n,
                   id: created.id,
+                  type: created.type || n.type,
+                  items: created.items || n.items,
                   dateStr:
                     'Hoje, ' +
                     new Date(created.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
                 }
               : n
-          )
-        );
+          );
+        });
       }
     } catch (err: any) {
       console.error('[Mural] Erro ao criar recado:', err);
       // Rollback
       setMuralNotes((prev) => prev.filter((n) => n.id !== tempId));
       checkSessionValidity(err);
-      showToast(err.message || 'Erro ao fixar recado no mural.');
+      const isNetworkError = err.message === 'Failed to fetch' || err.name === 'TypeError';
+      const userMessage = isNetworkError
+        ? 'Falha de conexão com o servidor. Verifique se o backend está ativo.'
+        : err.message || 'Erro ao fixar recado no mural.';
+      showToast(userMessage);
+    }
+  };
+
+  const handleToggleNoteItem = async (noteId: string, itemId: string) => {
+    if (!currentHouse?.id || !authUser?.id) return;
+
+    let targetNote: MuralNote | undefined;
+    let updatedItems: MuralNoteItem[] = [];
+
+    // 1. Atualização Otimista Imediata (0ms)
+    setMuralNotes((prev) => {
+      return prev.map((note) => {
+        if (note.id === noteId && note.items) {
+          targetNote = note;
+          updatedItems = note.items.map((item) =>
+            item.id === itemId ? { ...item, done: !item.done } : item
+          );
+          return {
+            ...note,
+            items: updatedItems,
+          };
+        }
+        return note;
+      });
+    });
+
+    if (!targetNote) return;
+
+    // Se for nota temporária (ainda não sincronizada), não chama o backend
+    if (noteId.startsWith('temp_n_')) return;
+
+    // 2. Persistência assíncrona no backend
+    try {
+      await dashboardApi.updateBulletinPost(
+        noteId,
+        currentHouse.id,
+        authUser.id,
+        {
+          items: updatedItems,
+          type: 'checklist',
+        },
+        authToken || undefined
+      );
+    } catch (err: any) {
+      console.warn('[Mural] Falha ao atualizar status do item no backend:', err);
+      // Rollback otimista em caso de falha
+      setMuralNotes((prev) =>
+        prev.map((note) =>
+          note.id === noteId && targetNote?.items ? { ...note, items: targetNote.items } : note
+        )
+      );
+      showToast('Erro ao atualizar item da lista.');
     }
   };
 
@@ -1267,19 +1485,34 @@ export default function App() {
     const previousNotes = muralNotes;
     // 1. Atualização Otimista Imediata (0ms)
     setMuralNotes((prev) => prev.filter((n) => n.id !== id));
-    if (currentHouse?.id) {
-      emitNoteDeleted(currentHouse.id, id);
-    }
     showToast('Recado removido!');
+
+    // Se for uma nota temporária local, não precisa chamar o servidor
+    if (id.startsWith('temp_n_')) {
+      return;
+    }
 
     // 2. Persistência assíncrona
     if (currentHouse?.id && authUser?.id) {
       try {
-        await dashboardApi.deleteBulletinPost(id, authUser.id, currentHouse.id);
+        await dashboardApi.deleteBulletinPost(id, authUser.id, currentHouse.id, authToken || undefined);
       } catch (err: any) {
         console.error('[Mural] Erro ao remover recado no servidor:', err);
-        setMuralNotes(previousNotes);
-        showToast('Erro ao remover recado do servidor.');
+        const isNotFound =
+          err.message?.includes('não encontrado') ||
+          err.message?.includes('POST_NOT_FOUND') ||
+          err.message?.includes('404');
+        // Se o erro for 404/não encontrado, NÃO restaura a nota (ela já não existe no banco de dados)
+        if (!isNotFound) {
+          setMuralNotes((prev) =>
+            prev.some((n) => n.id === id) ? prev : [previousNotes.find((n) => n.id === id)!, ...prev].filter(Boolean)
+          );
+          const isNetworkError = err.message === 'Failed to fetch' || err.name === 'TypeError';
+          const userMessage = isNetworkError
+            ? 'Falha de conexão ao remover recado do servidor.'
+            : err.message || 'Erro ao remover recado do servidor.';
+          showToast(userMessage);
+        }
       }
     }
   };
@@ -1330,9 +1563,6 @@ export default function App() {
       });
     }
 
-    if (currentHouse?.id) {
-      emitTaskCreated(currentHouse.id, optimisticTask);
-    }
     recordHouseActivity(`Nova tarefa "${optimisticTask.title}" criada.`, authUser?.name, 'ROTATED', tempId);
     showToast(`Tarefa "${optimisticTask.title}" criada com sucesso!`);
 
@@ -1349,12 +1579,22 @@ export default function App() {
       });
 
       const realTask = mapBackendTaskToHouseTask(backendCreated, familyMembers);
-      setTasks((prev) => prev.map((t) => (t.id === tempId ? realTask : t)));
+      setTasks((prev) => {
+        const alreadyHasReal = prev.some((t) => t.id === realTask.id);
+        if (alreadyHasReal) {
+          return prev.filter((t) => t.id !== tempId);
+        }
+        return prev.map((t) => (t.id === tempId ? realTask : t));
+      });
 
       if (realTask.isRotation) {
         setRotations((prev) => {
           const generated = mapBackendTasksToRotations([realTask], familyMembers);
           if (generated.length === 0) return prev.filter((r) => r.id !== tempId && r.taskId !== tempId);
+          const alreadyHasRealRot = prev.some((r) => r.id === realTask.id || r.taskId === realTask.id);
+          if (alreadyHasRealRot) {
+            return prev.filter((r) => r.id !== tempId && r.taskId !== tempId);
+          }
           return prev.map((r) => (r.id === tempId || r.taskId === tempId ? generated[0] : r));
         });
       }
@@ -1446,12 +1686,13 @@ export default function App() {
     // 1. Atualização Otimista Imediata (0ms)
     setTasks((prev) => prev.filter((t) => t.id !== taskId));
     setRotations((prev) => prev.filter((r) => r.id !== taskId && r.taskId !== taskId));
-    if (currentHouse?.id) {
-      emitTaskDeleted(currentHouse.id, taskId);
-    }
     if (taskObj) {
       recordHouseActivity(`Tarefa "${taskObj.title}" foi excluída.`, authUser?.name, 'FAILED', taskId);
       showToast(`Tarefa "${taskObj.title}" excluída.`);
+    }
+
+    if (taskId.startsWith('temp_t_')) {
+      return;
     }
 
     // 2. Persistência assíncrona
@@ -1722,9 +1963,6 @@ export default function App() {
 
     // 1. Atualização Otimista Imediata (0ms)
     setHouseRules((prev) => [...prev, createdRule]);
-    if (currentHouse?.id) {
-      emitRuleCreated(currentHouse.id, createdRule);
-    }
     recordHouseActivity(`Nova regra adicionada: "${rule.title}"`);
     showToast('Regra da casa adicionada!');
 
@@ -1737,7 +1975,13 @@ export default function App() {
       });
 
       if (backendRule?.id) {
-        setHouseRules((prev) => prev.map((r) => (r.id === tempId ? backendRule : r)));
+        setHouseRules((prev) => {
+          const alreadyHasReal = prev.some((r) => r.id === backendRule.id);
+          if (alreadyHasReal) {
+            return prev.filter((r) => r.id !== tempId);
+          }
+          return prev.map((r) => (r.id === tempId ? backendRule : r));
+        });
       }
     } catch (err: any) {
       console.error('[Rules] Erro ao adicionar regra:', err);
@@ -1756,8 +2000,9 @@ export default function App() {
     }
     if (currentHouse?.id) {
       for (const dr of deletedRules) {
-        rulesApi.deleteRule(dr.id, currentHouse.id).catch(() => {});
-        emitRuleDeleted(currentHouse.id, dr.id);
+        if (!dr.id.startsWith('temp_hr_')) {
+          rulesApi.deleteRule(dr.id, currentHouse.id).catch(() => {});
+        }
       }
     }
   };
@@ -2303,6 +2548,7 @@ export default function App() {
                   currentUserId={authUser.id}
                   currentUserName={authUser.name}
                   currentHouseId={currentHouse.id}
+                  authToken={authToken || undefined}
                   houseName={currentHouse?.name}
                   houseInviteCode={currentHouse?.invite_code}
                   subTab={subTab}
@@ -2311,6 +2557,7 @@ export default function App() {
                   muralNotes={muralNotes}
                   onAddMuralNote={handleAddMuralNote}
                   onDeleteMuralNote={handleDeleteMuralNote}
+                  onToggleNoteItem={handleToggleNoteItem}
                   familyMembers={familyMembers}
                   onSyncMembers={handleSyncMembers}
                   onSyncHouse={(house) => {

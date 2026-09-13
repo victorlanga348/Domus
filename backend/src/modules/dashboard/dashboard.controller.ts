@@ -24,22 +24,64 @@ export class DashboardController {
       const authorId = String(req.userId || req.body.author_id || (Array.isArray(rawHeaderUser) ? rawHeaderUser[0] : rawHeaderUser) || '');
       const content = String(req.body.content || '');
 
-      const post = await this.dashboardService.createBulletinPost(houseId, authorId, content);
+      const title = req.body.title ? String(req.body.title) : undefined;
+      const color = req.body.color ? String(req.body.color) : undefined;
+      const type = req.body.type as 'text' | 'checklist' | undefined;
+      const items = Array.isArray(req.body.items) ? req.body.items : undefined;
+
+      const post = await this.dashboardService.createBulletinPost(houseId, authorId, content, { title, color, type, items });
 
       if (houseId) {
         try {
           const { emitToHouse } = await import('../../shared/socket/socketServer.js');
+          const postDate = new Date(post.created_at);
           emitToHouse(houseId, 'house:note_created', {
             id: post.id,
+            title: post.title,
             content: post.content,
             author: post.author?.name || 'Morador',
+            dateStr: `Hoje, ${postDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`,
             timestamp: 'Agora',
-            color: 'gray',
+            color: post.color || 'amber',
+            type: post.type,
+            items: post.items,
           });
         } catch {}
       }
 
       res.status(201).json({ status: 'success', data: post });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  updateBulletinPost = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const rawParamId = req.params.id;
+      const postId = String(Array.isArray(rawParamId) ? rawParamId[0] : rawParamId || '');
+      const rawHeaderUser = req.headers['x-user-id'];
+      const rawHeaderHouse = req.headers['x-house-id'];
+      const userId = String(req.userId || (Array.isArray(rawHeaderUser) ? rawHeaderUser[0] : rawHeaderUser) || req.query.userId || '');
+      const houseId = String(req.houseId || (Array.isArray(rawHeaderHouse) ? rawHeaderHouse[0] : rawHeaderHouse) || req.query.houseId || '');
+
+      const post = await this.dashboardService.updateBulletinPost(postId, userId, req.body);
+
+      if (houseId) {
+        try {
+          const { emitToHouse } = await import('../../shared/socket/socketServer.js');
+          emitToHouse(houseId, 'house:note_updated', {
+            id: post.id,
+            title: post.title,
+            content: post.content,
+            author: post.author?.name || 'Morador',
+            color: post.color || 'amber',
+            type: post.type,
+            items: post.items,
+          });
+        } catch {}
+      }
+
+      res.status(200).json({ status: 'success', data: post });
     } catch (error) {
       next(error);
     }

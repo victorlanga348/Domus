@@ -64,4 +64,47 @@ describe('DashboardService (Mural de Recados / BulletinBoard)', () => {
       (err: any) => err.code === 'POST_ID_REQUIRED'
     );
   });
+
+  it('deve validar obrigatoriedade do postId ao atualizar recado', async () => {
+    const { DashboardService } = await import('../../src/modules/dashboard/dashboard.service.js');
+    const service = new DashboardService();
+
+    await assert.rejects(
+      async () => service.updateBulletinPost('', 'user-1', { content: 'Novo' }),
+      (err: any) => err.code === 'POST_ID_REQUIRED'
+    );
+  });
+
+  it('deve decodificar corretamente recados em texto simples e recados em formato checklist', async () => {
+    const { parseBulletinContent } = await import('../../src/modules/dashboard/dashboard.service.js');
+
+    // Texto simples
+    const plain = parseBulletinContent('Lembrar de comprar pão');
+    assert.equal(plain.content, 'Lembrar de comprar pão');
+    assert.equal(plain.type, 'text');
+    assert.equal(plain.title, undefined);
+    assert.equal(plain.items, undefined);
+
+    // Checklist estruturado
+    const jsonChecklist = JSON.stringify({
+      title: 'Lista de Compras',
+      text: 'Para o almoço de domingo',
+      type: 'checklist',
+      color: 'teal',
+      items: [
+        { id: 'it_1', text: 'Arroz', done: false },
+        { id: 'it_2', text: 'Feijão', done: true }
+      ]
+    });
+
+    const parsed = parseBulletinContent(jsonChecklist);
+    assert.equal(parsed.title, 'Lista de Compras');
+    assert.equal(parsed.content, 'Para o almoço de domingo');
+    assert.equal(parsed.type, 'checklist');
+    assert.equal(parsed.color, 'teal');
+    assert.equal(parsed.items?.length, 2);
+    assert.equal(parsed.items?.[0].text, 'Arroz');
+    assert.equal(parsed.items?.[0].done, false);
+    assert.equal(parsed.items?.[1].done, true);
+  });
 });
