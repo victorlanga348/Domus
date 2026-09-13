@@ -55,12 +55,12 @@ O cardápio opera em ciclo semanal contínuo de 7 dias (Segunda a Domingo) divid
 ### 4.3 Desktop (>= 1024px)
 - **Alternador de Visualização (View Switcher):**
   - **Modo Diário:** Foco nos 4 turnos do dia selecionado, com detalhes de ingredientes e tags.
-  - **Modo Semanal (Kanban 7 Dias):** Visão panorâmica dos 7 dias e 4 refeições lado a lado com largura mínima garantida (`min-w-[1190px]`) e rolagem horizontal suave, garantindo ~165px por coluna e eliminando truncamento de turnos. Cabeçalho dos dias utiliza nomenclatura limpa (`Segunda`, `Terça`, etc.) sem quebra de hífens.
+  - **Modo Semanal (Kanban 7 Dias):** Visão panorâmica dos 7 dias e 4 refeições lado a lado em grade 100% fluida (`w-full grid-cols-7`), sem barra de rolagem horizontal em desktops e laptops. Todos os 7 dias (Segunda a Domingo) permanecem simultaneamente visíveis na tela com cabeçalhos limpos (`Segunda`, `Terça`, etc.).
 
 ### 4.4 Ergonomia do Card de Refeição (`MealCard`)
 - **Modo Compacto (Visão Semanal):** Header estruturado em duas camadas verticais:
-  - *Linha 1:* Ícone compacto (24px) + Título do Turno completo (`text-xs font-black`) + Botão de edição / trava alinhado à direita.
-  - *Linha 2:* Horário do turno (`text-[10px] font-semibold text-[#727877]`) com clique para ajuste para usuários autorizados.
+  - *Linha 1:* Ícone compacto (20px) + Título do Turno completo (`text-[11px] xl:text-xs font-black`) + Botão de edição / trava alinhado à direita.
+  - *Linha 2:* Horário do turno (`text-[9px] xl:text-[10px] font-semibold text-[#727877]`) com clique para ajuste para usuários autorizados.
 - **Modo Padrão (Visão Diária):** Layout expandido com ícone de 32px e maior respiro horizontal.
 - **Estado Vazio (Sem Prato Cadastrado):** Exibe exclusivamente uma ação central clara (`+ Adicionar`), eliminando botões `+` duplicados no cabeçalho do card.
 - **Estado Preenchido:** Exibe o botão de edição (`edit`) no canto superior direito do card.

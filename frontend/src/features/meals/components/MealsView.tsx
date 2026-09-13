@@ -116,7 +116,7 @@ export const MealsView: React.FC<MealsViewProps> = ({
   };
 
   return (
-    <div className="w-full max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6 space-y-4 sm:space-y-6">
+    <div className="w-full max-w-[1600px] mx-auto px-2 sm:px-4 lg:px-6 py-4 sm:py-6 space-y-4 sm:space-y-6">
       {/* Top Banner: Global Lock Warning */}
       {isLocked && (
         <div className="bg-[#fff8e6] border border-[#ffca5e] text-[#7b5800] rounded-2xl p-3.5 sm:p-4 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 animate-in fade-in duration-200">
@@ -347,63 +347,61 @@ export const MealsView: React.FC<MealsViewProps> = ({
 
       {/* WEEKLY KANBAN VIEW (Desktop / Tablet Panorâmico) */}
       {viewMode === 'weekly' && (
-        <div className="hidden sm:block space-y-4">
-          <div className="overflow-x-auto pb-4">
-            <div className="grid grid-cols-7 gap-3 min-w-[1190px]">
-              {DAYS_OF_WEEK.map((day) => {
-                const isToday = day.key === initialDayKey;
-                return (
-                  <div
-                    key={day.key}
-                    className={`rounded-2xl border p-3 flex flex-col gap-3 ${
-                      isToday
-                        ? 'bg-[#F4F9F7] border-[#16302e] shadow-xs ring-1 ring-[#16302e]/10'
-                        : 'bg-white border-[#d9e5e3]'
-                    }`}
-                  >
-                    {/* Day Column Header */}
-                    <div className="flex items-center justify-between border-b border-[#e4f0ee] pb-2">
-                      <div className="min-w-0">
-                        <span className="text-xs font-black text-[#16302e] truncate block">
-                          {day.mediumLabel}
-                        </span>
-                        {isToday && (
-                          <span className="block text-[10px] font-bold text-[#7b5800]">
-                            Hoje
-                          </span>
-                        )}
-                      </div>
-                      <span className="text-[10px] font-extrabold px-1.5 py-0.5 rounded-full bg-[#f0fcfa] text-[#16302e] border border-[#d0dddb] shrink-0">
-                        {mealCountPerDay[day.key] || 0}
+        <div className="hidden sm:block space-y-4 w-full">
+          <div className="grid grid-cols-7 gap-1.5 lg:gap-2 xl:gap-2.5 w-full">
+            {DAYS_OF_WEEK.map((day) => {
+              const isToday = day.key === initialDayKey;
+              return (
+                <div
+                  key={day.key}
+                  className={`rounded-2xl border p-2 xl:p-2.5 flex flex-col gap-2 min-w-0 ${
+                    isToday
+                      ? 'bg-[#F4F9F7] border-[#16302e] shadow-xs ring-1 ring-[#16302e]/10'
+                      : 'bg-white border-[#d9e5e3]'
+                  }`}
+                >
+                  {/* Day Column Header */}
+                  <div className="flex items-center justify-between border-b border-[#e4f0ee] pb-1.5 min-w-0">
+                    <div className="min-w-0 flex-1 mr-1">
+                      <span className="text-[11px] xl:text-xs font-black text-[#16302e] truncate block">
+                        {day.mediumLabel}
                       </span>
+                      {isToday && (
+                        <span className="block text-[9px] font-bold text-[#7b5800]">
+                          Hoje
+                        </span>
+                      )}
                     </div>
-
-                    {/* Meal Cards for this Day */}
-                    <div className="space-y-2.5 flex-1">
-                      {mealPeriods.map((period) => {
-                        const meal = mealsByDayAndPeriod.get(`${day.key}_${period.type}`);
-                        return (
-                          <MealCard
-                            key={period.type}
-                            periodMeta={period}
-                            meal={meal}
-                            canEdit={canEdit}
-                            isLocked={isLocked}
-                            isSubAdmin={isAdmin}
-                            compact
-                            onEdit={() => {
-                              if (meal) handleOpenEditMeal(meal);
-                              else handleOpenAddMeal(day.key, period.type);
-                            }}
-                            onEditSchedule={() => setIsSchedulesModalOpen(true)}
-                          />
-                        );
-                      })}
-                    </div>
+                    <span className="text-[9px] xl:text-[10px] font-extrabold px-1.5 py-0.2 rounded-full bg-[#f0fcfa] text-[#16302e] border border-[#d0dddb] shrink-0">
+                      {mealCountPerDay[day.key] || 0}
+                    </span>
                   </div>
-                );
-              })}
-            </div>
+
+                  {/* Meal Cards for this Day */}
+                  <div className="space-y-2 flex-1 min-w-0">
+                    {mealPeriods.map((period) => {
+                      const meal = mealsByDayAndPeriod.get(`${day.key}_${period.type}`);
+                      return (
+                        <MealCard
+                          key={period.type}
+                          periodMeta={period}
+                          meal={meal}
+                          canEdit={canEdit}
+                          isLocked={isLocked}
+                          isSubAdmin={isAdmin}
+                          compact
+                          onEdit={() => {
+                            if (meal) handleOpenEditMeal(meal);
+                            else handleOpenAddMeal(day.key, period.type);
+                          }}
+                          onEditSchedule={() => setIsSchedulesModalOpen(true)}
+                        />
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
       )}
