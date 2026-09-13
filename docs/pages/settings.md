@@ -18,7 +18,11 @@ Gerenciamento de membros da casa, governança de cargos administrativos, remoç�
   - **Instalação com 1 Toque (Android / Chrome / Edge / Desktop):** Intercepta o evento `beforeinstallprompt` e aciona a instalação nativa do sistema operacional com confirmação automática.
   - **Guia Passo a Passo para iOS (Safari) e Navegadores Manuais:** Em navegadores sem suporte ao evento nativo ou quando o prompt do navegador falha, aciona um modal modal ilustrado e acessível em 3 passos (*1. Compartilhar; 2. Adicionar à Tela de Início; 3. Adicionar*).
 - **Modo Noturno & Preferências Globais:** Agendamento automático de dimmer de iluminação, sensores e economia de energia com horários de início e término, persistidos centralizadamente no PostgreSQL (`HousePreference`).
-- **Regras de Convivência:** Cadastro, listagem numerada e exclusão de regras comunitárias, sincronizadas em tempo real e gravadas no PostgreSQL (`HouseRule`).
+- **Regras de Convivência da Casa:**
+  - **Criação e Gestão:** Apenas moradores com cargo de administrador (`Admin Geral` ou `Admin`) visualizam botões e formulários para criar novas regras.
+  - **Exclusão com Confirmação e Acessibilidade Mobile:** O botão de exclusão de regras (lixeira) é visível no mobile com alvo de toque ergonômico (`min-h-[38px] min-w-[38px]`) e hover elegante no desktop. Ao ser acionado, abre o modal `Excluir Regra da Casa?` para confirmação explícita antes da remoção definitiva.
+  - **Sincronização e Auditoria:** A exclusão propaga em tempo real via WebSocket (`house:rule_deleted`), atualiza o PostgreSQL (`DELETE /api/rules/:id`), emite notificação Toast e registra auditoria imutável em `ActivityLog`.
+  - **Histórico:** `[[docs/tasks/2026-09-13-exclusao-regras-residencia-admin.md]]`.
 
 ### 2.2 Gestão de Membros & Governança de Cargos
 - **Hierarquia de Cargos:**

@@ -17,8 +17,9 @@ export class RulesController {
   createRule = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const houseId = req.body.house_id || (req.headers['x-house-id'] as string);
+      const userRole = (req as any).user?.role || (req.headers['x-user-role'] as string);
       const { title, description, number } = req.body;
-      const rule = await this.service.createRule(houseId, title, description, number);
+      const rule = await this.service.createRule(houseId, title, description, number, userRole);
 
       if (houseId) {
         try {
@@ -37,7 +38,8 @@ export class RulesController {
     try {
       const id = String(req.params.id);
       const houseId = req.body?.house_id || (req.headers['x-house-id'] as string) || (req.query.houseId as string);
-      await this.service.deleteRule(id);
+      const userRole = (req as any).user?.role || (req.headers['x-user-role'] as string);
+      await this.service.deleteRule(id, userRole);
 
       if (houseId) {
         try {

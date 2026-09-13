@@ -30,13 +30,15 @@ export const rulesApi = {
 
   async createRule(
     houseId: string,
-    rule: { title: string; description?: string; number?: number }
+    rule: { title: string; description?: string; number?: number },
+    userRole?: string
   ): Promise<HouseRule | null> {
     const response = await fetch(`${APP_CONFIG.API_BASE_URL}/rules`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'x-house-id': houseId,
+        ...(userRole ? { 'x-user-role': userRole } : {}),
       },
       body: JSON.stringify({
         house_id: houseId,
@@ -64,12 +66,13 @@ export const rulesApi = {
     };
   },
 
-  async deleteRule(ruleId: string, houseId?: string): Promise<boolean> {
+  async deleteRule(ruleId: string, houseId?: string, userRole?: string): Promise<boolean> {
     try {
       const response = await fetch(`${APP_CONFIG.API_BASE_URL}/rules/${encodeURIComponent(ruleId)}`, {
         method: 'DELETE',
         headers: {
           ...(houseId ? { 'x-house-id': houseId } : {}),
+          ...(userRole ? { 'x-user-role': userRole } : {}),
         },
       });
 

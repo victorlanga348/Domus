@@ -52,6 +52,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const [nightMode, setNightMode] = useState(preferences.nightMode);
   const [isCopied, setIsCopied] = useState(false);
   const [isIosInstallModalOpen, setIsIosInstallModalOpen] = useState(false);
+  const [ruleToDelete, setRuleToDelete] = useState<HouseRule | null>(null);
   const [isInstalled, setIsInstalled] = useState<boolean>(() => {
     if (typeof window === 'undefined') return false;
     return (
@@ -184,9 +185,13 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     onUpdatePreferences({ ...preferences, nightMode: updated });
   };
 
-  const handleDeleteRule = (id: string) => {
-    const updated = houseRules.filter((r) => r.id !== id);
+  const handleConfirmDeleteRule = () => {
+    if (!ruleToDelete) return;
+    const ruleTitle = ruleToDelete.title;
+    const updated = houseRules.filter((r) => r.id !== ruleToDelete.id);
     onUpdateHouseRules(updated);
+    setRuleToDelete(null);
+    onShowToast?.(`Regra "${ruleTitle}" removida com sucesso.`);
   };
 
   const isGeneralAdmin = currentUserRole === 'Admin Geral';
@@ -428,11 +433,13 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   </div>
                   {canAddMember && (
                     <button
-                      onClick={() => handleDeleteRule(rule.id)}
-                      className="opacity-0 group-hover:opacity-100 text-[#727877] hover:text-rose-500 transition-opacity p-1"
-                      title="Excluir regra"
+                      type="button"
+                      onClick={() => setRuleToDelete(rule)}
+                      className="opacity-100 sm:opacity-0 sm:group-hover:opacity-100 p-2 text-[#727877] hover:text-rose-600 hover:bg-rose-50 active:bg-rose-100 rounded-xl transition-all cursor-pointer shrink-0 min-h-[38px] min-w-[38px] flex items-center justify-center"
+                      title={`Excluir regra: ${rule.title}`}
+                      aria-label={`Excluir regra: ${rule.title}`}
                     >
-                      <span className="material-symbols-outlined text-sm">delete</span>
+                      <span className="material-symbols-outlined text-lg">delete</span>
                     </button>
                   )}
                 </div>
@@ -636,6 +643,60 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             >
               Entendido!
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Confirmação para Exclusão de Regra da Residência */}
+      {ruleToDelete && (
+        <div
+          onClick={() => setRuleToDelete(null)}
+          className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-[#d9e5e3] space-y-4 animate-in zoom-in-95 duration-150"
+          >
+            <div className="flex items-center gap-3 text-rose-700">
+              <div className="w-10 h-10 rounded-2xl bg-rose-50 flex items-center justify-center shrink-0">
+                <span className="material-symbols-outlined text-2xl text-rose-600">delete_forever</span>
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-[#16302e]">Excluir Regra da Casa?</h3>
+                <p className="text-xs text-[#727877]">Esta ação removerá a regra para todos os moradores.</p>
+              </div>
+            </div>
+
+            <div className="p-3.5 bg-[#f0fcfa] rounded-2xl border border-[#d0dddb]">
+              <p className="text-xs font-bold text-[#16302e] mb-1">{ruleToDelete.title}</p>
+              {ruleToDelete.description && (
+                <p className="text-xs text-[#414847] leading-relaxed line-clamp-3">
+                  {ruleToDelete.description}
+                </p>
+              )}
+            </div>
+
+            <p className="text-xs text-[#5e7e7a]">
+              A regra será excluída em definitivo e o rodízio e normas da casa serão atualizados.
+            </p>
+
+            <div className="flex items-center justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setRuleToDelete(null)}
+                className="px-4 py-2.5 rounded-xl text-xs font-bold text-[#414847] hover:bg-[#e4f0ee] transition-colors cursor-pointer min-h-[42px]"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmDeleteRule}
+                className="px-4 py-2.5 rounded-xl text-xs font-bold bg-rose-600 hover:bg-rose-700 text-white transition-colors cursor-pointer shadow-xs min-h-[42px] flex items-center gap-1.5"
+              >
+                <span className="material-symbols-outlined text-sm">delete</span>
+                <span>Sim, Excluir</span>
+              </button>
+            </div>
           </div>
         </div>
       )}

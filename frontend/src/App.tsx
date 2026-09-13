@@ -1973,11 +1973,15 @@ export default function App() {
 
     // 2. Persistência assíncrona no backend
     try {
-      const backendRule = await rulesApi.createRule(currentHouse.id, {
-        title: rule.title,
-        description: rule.description,
-        number: createdRule.number,
-      });
+      const backendRule = await rulesApi.createRule(
+        currentHouse.id,
+        {
+          title: rule.title,
+          description: rule.description,
+          number: createdRule.number,
+        },
+        currentUser.role
+      );
 
       if (backendRule?.id) {
         setHouseRules((prev) => {
@@ -2005,8 +2009,11 @@ export default function App() {
     }
     if (currentHouse?.id) {
       for (const dr of deletedRules) {
+        recordHouseActivity(`Regra "${dr.title}" foi removida.`);
         if (!dr.id.startsWith('temp_hr_')) {
-          rulesApi.deleteRule(dr.id, currentHouse.id).catch(() => {});
+          rulesApi.deleteRule(dr.id, currentHouse.id, currentUser.role).catch((err) => {
+            console.warn('[Rules] Erro ao excluir regra no backend:', err);
+          });
         }
       }
     }

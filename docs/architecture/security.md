@@ -94,3 +94,8 @@ Para atender a dispositivos compartilhados (ex: tablet fixo na cozinha) e celula
 ### 7.3 Restrição de Adição de Novos Moradores
 - **Proibição a Moradores Comuns:** Membros regulares (`Resident`, `Guest`) não têm acesso a botões, formulários ou rotas de inclusão de novos usuários na residência.
 - **Permissão Exclusiva:** Apenas **Admin Geral** e **Sub-Admins** podem convidar ou cadastrar novos integrantes.
+
+### 7.4 Governança de Criação e Exclusão de Regras da Residência
+- **Permissão Exclusiva de Administradores:** Apenas o **Admin Geral** e **Admins** (`ADMIN` e `SUB_ADMIN`) têm autorização para criar (`POST /api/rules`) ou excluir (`DELETE /api/rules/:id`) regras comunitárias.
+- **Bloqueio de Moradores Regulares:** Moradores comuns (`MEMBER`/`Resident`) são bloqueados pelo backend com `403 Forbidden` (`FORBIDDEN_RULE_CREATE` ou `FORBIDDEN_RULE_DELETE`).
+- **Prevenção de Exclusão Acidental:** No frontend, qualquer exclusão exige confirmação via modal de diálogo, com propagação em tempo real via WebSocket (`house:rule_deleted`).
