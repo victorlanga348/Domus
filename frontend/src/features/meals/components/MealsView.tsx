@@ -349,7 +349,7 @@ export const MealsView: React.FC<MealsViewProps> = ({
       {viewMode === 'weekly' && (
         <div className="hidden sm:block space-y-4">
           <div className="overflow-x-auto pb-4">
-            <div className="grid grid-cols-7 gap-3 min-w-[980px]">
+            <div className="grid grid-cols-7 gap-3 min-w-[1190px]">
               {DAYS_OF_WEEK.map((day) => {
                 const isToday = day.key === initialDayKey;
                 return (
@@ -357,15 +357,15 @@ export const MealsView: React.FC<MealsViewProps> = ({
                     key={day.key}
                     className={`rounded-2xl border p-3 flex flex-col gap-3 ${
                       isToday
-                        ? 'bg-[#F4F9F7] border-[#16302e] shadow-xs'
+                        ? 'bg-[#F4F9F7] border-[#16302e] shadow-xs ring-1 ring-[#16302e]/10'
                         : 'bg-white border-[#d9e5e3]'
                     }`}
                   >
                     {/* Day Column Header */}
                     <div className="flex items-center justify-between border-b border-[#e4f0ee] pb-2">
-                      <div>
-                        <span className="text-xs font-black text-[#16302e]">
-                          {day.fullLabel}
+                      <div className="min-w-0">
+                        <span className="text-xs font-black text-[#16302e] truncate block">
+                          {day.mediumLabel}
                         </span>
                         {isToday && (
                           <span className="block text-[10px] font-bold text-[#7b5800]">
@@ -373,7 +373,7 @@ export const MealsView: React.FC<MealsViewProps> = ({
                           </span>
                         )}
                       </div>
-                      <span className="text-[10px] font-extrabold px-1.5 py-0.5 rounded-full bg-[#f0fcfa] text-[#16302e] border border-[#d0dddb]">
+                      <span className="text-[10px] font-extrabold px-1.5 py-0.5 rounded-full bg-[#f0fcfa] text-[#16302e] border border-[#d0dddb] shrink-0">
                         {mealCountPerDay[day.key] || 0}
                       </span>
                     </div>

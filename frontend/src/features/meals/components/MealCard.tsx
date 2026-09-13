@@ -42,24 +42,54 @@ export const MealCard: React.FC<MealCardProps> = ({
       } ${compact ? 'p-3 gap-2 min-h-[140px]' : 'p-4 sm:p-5 gap-3.5 min-h-[160px]'}`}
     >
       {/* Top Header: Period Badge & Action */}
-      <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2 min-w-0">
-          <span
-            className={`w-7 h-7 sm:w-8 sm:h-8 rounded-xl flex items-center justify-center border shrink-0 ${periodMeta.badgeColor}`}
-          >
-            <span className="material-symbols-outlined text-base sm:text-lg">
-              {periodMeta.icon}
-            </span>
-          </span>
-          <div className="min-w-0">
-            <h4 className="text-xs sm:text-sm font-black text-[#16302e] truncate leading-tight">
-              {periodMeta.label}
-            </h4>
+      {compact ? (
+        <div className="space-y-1">
+          <div className="flex items-center justify-between gap-1.5">
+            <div className="flex items-center gap-1.5 min-w-0 flex-1">
+              <span
+                className={`w-6 h-6 rounded-lg flex items-center justify-center border shrink-0 ${periodMeta.badgeColor}`}
+              >
+                <span className="material-symbols-outlined text-sm">
+                  {periodMeta.icon}
+                </span>
+              </span>
+              <h4 className="text-xs font-black text-[#16302e] truncate leading-tight">
+                {periodMeta.label}
+              </h4>
+            </div>
+
+            {/* Edit / Lock Action (Compact) */}
+            <div>
+              {canEdit && hasMeal ? (
+                <button
+                  onClick={onEdit}
+                  className="p-1 text-[#16302e] hover:text-[#7b5800] hover:bg-[#fff8e6] active:scale-[0.96] rounded-lg transition-all min-h-[28px] min-w-[28px] flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-[#7b5800]/40 cursor-pointer"
+                  title="Editar refeição"
+                  aria-label={`Editar ${periodMeta.label}`}
+                >
+                  <span className="material-symbols-outlined text-base">
+                    edit
+                  </span>
+                </button>
+              ) : isLocked && isSubAdmin ? (
+                <span
+                  className="p-1 rounded-lg text-[#727877] bg-[#f0f4f3] flex items-center justify-center cursor-not-allowed"
+                  title="Cardápio trancado pelo Administrador Geral"
+                  aria-label="Bloqueado por trava global"
+                >
+                  <span className="material-symbols-outlined text-sm">lock</span>
+                </span>
+              ) : null}
+            </div>
+          </div>
+
+          {/* Schedule Row */}
+          <div>
             {canEdit && onEditSchedule ? (
               <button
                 type="button"
                 onClick={onEditSchedule}
-                className="text-[10px] text-[#727877] hover:text-[#7b5800] font-semibold flex items-center gap-1 mt-0.5 rounded px-1 -mx-1 py-0.5 hover:bg-[#fff8e6] transition-colors cursor-pointer group"
+                className="text-[10px] text-[#727877] hover:text-[#7b5800] font-semibold inline-flex items-center gap-1 rounded px-1 -mx-1 py-0.5 hover:bg-[#fff8e6] transition-colors cursor-pointer group"
                 title="Clique para ajustar horário desta refeição"
                 aria-label={`Ajustar horário de ${periodMeta.label}`}
               >
@@ -68,38 +98,73 @@ export const MealCard: React.FC<MealCardProps> = ({
                 <span className="material-symbols-outlined text-[9px] opacity-0 group-hover:opacity-100 transition-opacity text-[#7b5800]">edit</span>
               </button>
             ) : (
-              <p className="text-[10px] text-[#727877] font-semibold flex items-center gap-1 mt-0.5">
+              <p className="text-[10px] text-[#727877] font-semibold flex items-center gap-1">
                 <span className="material-symbols-outlined text-[11px]">schedule</span>
                 <span>{periodMeta.timeRange}</span>
               </p>
             )}
           </div>
         </div>
-
-        {/* Edit / Lock Action (Only displayed when meal exists or locked) */}
-        <div>
-          {canEdit && hasMeal ? (
-            <button
-              onClick={onEdit}
-              className="p-1.5 sm:p-2 text-[#16302e] hover:text-[#7b5800] hover:bg-[#fff8e6] active:scale-[0.96] rounded-xl transition-all min-h-[36px] min-w-[36px] sm:min-h-[40px] sm:min-w-[40px] flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-[#7b5800]/40 cursor-pointer"
-              title="Editar refeição"
-              aria-label={`Editar ${periodMeta.label}`}
+      ) : (
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 min-w-0">
+            <span
+              className={`w-7 h-7 sm:w-8 sm:h-8 rounded-xl flex items-center justify-center border shrink-0 ${periodMeta.badgeColor}`}
             >
               <span className="material-symbols-outlined text-base sm:text-lg">
-                edit
+                {periodMeta.icon}
               </span>
-            </button>
-          ) : isLocked && isSubAdmin ? (
-            <span
-              className="p-1.5 rounded-xl text-[#727877] bg-[#f0f4f3] flex items-center justify-center cursor-not-allowed"
-              title="Cardápio trancado pelo Administrador Geral"
-              aria-label="Bloqueado por trava global"
-            >
-              <span className="material-symbols-outlined text-base">lock</span>
             </span>
-          ) : null}
+            <div className="min-w-0">
+              <h4 className="text-xs sm:text-sm font-black text-[#16302e] truncate leading-tight">
+                {periodMeta.label}
+              </h4>
+              {canEdit && onEditSchedule ? (
+                <button
+                  type="button"
+                  onClick={onEditSchedule}
+                  className="text-[10px] text-[#727877] hover:text-[#7b5800] font-semibold flex items-center gap-1 mt-0.5 rounded px-1 -mx-1 py-0.5 hover:bg-[#fff8e6] transition-colors cursor-pointer group"
+                  title="Clique para ajustar horário desta refeição"
+                  aria-label={`Ajustar horário de ${periodMeta.label}`}
+                >
+                  <span className="material-symbols-outlined text-[11px] group-hover:text-[#7b5800]">schedule</span>
+                  <span className="underline decoration-dotted decoration-[#98b3b0] group-hover:decoration-[#7b5800]">{periodMeta.timeRange}</span>
+                  <span className="material-symbols-outlined text-[9px] opacity-0 group-hover:opacity-100 transition-opacity text-[#7b5800]">edit</span>
+                </button>
+              ) : (
+                <p className="text-[10px] text-[#727877] font-semibold flex items-center gap-1 mt-0.5">
+                  <span className="material-symbols-outlined text-[11px]">schedule</span>
+                  <span>{periodMeta.timeRange}</span>
+                </p>
+              )}
+            </div>
+          </div>
+
+          {/* Edit / Lock Action (Daily) */}
+          <div>
+            {canEdit && hasMeal ? (
+              <button
+                onClick={onEdit}
+                className="p-1.5 sm:p-2 text-[#16302e] hover:text-[#7b5800] hover:bg-[#fff8e6] active:scale-[0.96] rounded-xl transition-all min-h-[36px] min-w-[36px] sm:min-h-[40px] sm:min-w-[40px] flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-[#7b5800]/40 cursor-pointer"
+                title="Editar refeição"
+                aria-label={`Editar ${periodMeta.label}`}
+              >
+                <span className="material-symbols-outlined text-base sm:text-lg">
+                  edit
+                </span>
+              </button>
+            ) : isLocked && isSubAdmin ? (
+              <span
+                className="p-1.5 rounded-xl text-[#727877] bg-[#f0f4f3] flex items-center justify-center cursor-not-allowed"
+                title="Cardápio trancado pelo Administrador Geral"
+                aria-label="Bloqueado por trava global"
+              >
+                <span className="material-symbols-outlined text-base">lock</span>
+              </span>
+            ) : null}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Main Content: Dish Name & Description */}
       <div className="flex-1 flex flex-col justify-center">
