@@ -5,6 +5,7 @@ import {
   MealsViewProps,
   DAYS_OF_WEEK,
   getMealPeriods,
+  AVAILABLE_DIET_TAGS,
 } from '../types.js';
 import { MealCard } from './MealCard.js';
 import { EditMealModal } from './EditMealModal.js';
@@ -113,6 +114,14 @@ export const MealsView: React.FC<MealsViewProps> = ({
     setModalDay(meal.dayOfWeek);
     setModalPeriod(meal.mealType);
     setIsModalOpen(true);
+  };
+
+  // Resolves dietary tag visual style
+  const getTagStyle = (tagLabel: string) => {
+    const found = AVAILABLE_DIET_TAGS.find(
+      (t) => t.label.toLowerCase() === tagLabel.toLowerCase()
+    );
+    return found || { label: tagLabel, icon: 'restaurant_menu', color: 'bg-[#f0fcfa] text-[#16302e] border-[#d0dddb]' };
   };
 
   return (
@@ -345,57 +354,167 @@ export const MealsView: React.FC<MealsViewProps> = ({
         </div>
       )}
 
-      {/* WEEKLY KANBAN VIEW (Desktop / Tablet Panorâmico) */}
+      {/* WEEKLY MATRIX VIEW (Desktop / Tablet Panorâmico) */}
       {viewMode === 'weekly' && (
-        <div className="hidden sm:block space-y-4 w-full">
-          <div className="grid grid-cols-7 gap-1.5 lg:gap-2 xl:gap-2.5 w-full">
+        <div className="hidden sm:block space-y-3 w-full animate-in fade-in duration-200">
+          {/* Matrix Header Row: 4 Periods */}
+          <div className="bg-[#16302e] text-white rounded-2xl p-3 shadow-xs">
+            <div className="grid grid-cols-[160px_1fr_1fr_1fr_1fr] gap-3 items-center">
+              {/* Day column title */}
+              <div className="flex items-center gap-2 pl-2">
+                <span className="material-symbols-outlined text-lg text-[#ffca5e]">calendar_month</span>
+                <span className="text-xs font-black uppercase tracking-wider text-[#ffca5e]">
+                  Dias
+                </span>
+              </div>
+
+              {/* 4 Periods Headers */}
+              {mealPeriods.map((period) => (
+                <div
+                  key={period.type}
+                  className="flex items-center justify-between px-3 py-2 rounded-xl bg-white/10 border border-white/10"
+                >
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="material-symbols-outlined text-base text-[#ffca5e] shrink-0">
+                      {period.icon}
+                    </span>
+                    <div className="min-w-0">
+                      <span className="text-xs font-black text-white block truncate leading-tight">
+                        {period.label}
+                      </span>
+                      <span className="text-[10px] font-semibold text-white/70 block leading-tight">
+                        {period.timeRange}
+                      </span>
+                    </div>
+                  </div>
+
+                  {canEdit && onUpdateSchedules && (
+                    <button
+                      type="button"
+                      onClick={() => setIsSchedulesModalOpen(true)}
+                      className="p-1 hover:bg-white/20 rounded-lg text-white/70 hover:text-white transition-colors cursor-pointer shrink-0"
+                      title={`Ajustar horário de ${period.label}`}
+                      aria-label={`Ajustar horário de ${period.label}`}
+                    >
+                      <span className="material-symbols-outlined text-xs">edit</span>
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Matrix Rows: 7 Days */}
+          <div className="space-y-2.5">
             {DAYS_OF_WEEK.map((day) => {
               const isToday = day.key === initialDayKey;
+              const count = mealCountPerDay[day.key] || 0;
+
               return (
                 <div
                   key={day.key}
-                  className={`rounded-2xl border p-2 xl:p-2.5 flex flex-col gap-2 min-w-0 ${
+                  className={`rounded-2xl border p-2.5 transition-all ${
                     isToday
-                      ? 'bg-[#F4F9F7] border-[#16302e] shadow-xs ring-1 ring-[#16302e]/10'
-                      : 'bg-white border-[#d9e5e3]'
+                      ? 'bg-[#F4F9F7] border-[#16302e] shadow-xs ring-1 ring-[#16302e]/15'
+                      : 'bg-white border-[#d9e5e3] hover:border-[#98b3b0]'
                   }`}
                 >
-                  {/* Day Column Header */}
-                  <div className="flex items-center justify-between border-b border-[#e4f0ee] pb-1.5 min-w-0">
-                    <div className="min-w-0 flex-1 mr-1">
-                      <span className="text-[11px] xl:text-xs font-black text-[#16302e] truncate block">
-                        {day.mediumLabel}
-                      </span>
-                      {isToday && (
-                        <span className="block text-[9px] font-bold text-[#7b5800]">
-                          Hoje
+                  <div className="grid grid-cols-[160px_1fr_1fr_1fr_1fr] gap-3 items-stretch">
+                    {/* Day Column Info */}
+                    <div className="flex flex-col justify-center px-2.5 py-1 border-r border-[#e4f0ee]">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="text-sm font-black text-[#16302e]">
+                          {day.fullLabel.replace('-feira', '')}
                         </span>
-                      )}
+                        {isToday && (
+                          <span className="text-[9px] font-black uppercase bg-[#fff8e6] text-[#7b5800] px-1.5 py-0.5 rounded border border-[#ffca5e]">
+                            Hoje
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-[11px] font-semibold text-[#727877] mt-0.5">
+                        {count} {count === 1 ? 'prato' : 'pratos'}
+                      </p>
                     </div>
-                    <span className="text-[9px] xl:text-[10px] font-extrabold px-1.5 py-0.2 rounded-full bg-[#f0fcfa] text-[#16302e] border border-[#d0dddb] shrink-0">
-                      {mealCountPerDay[day.key] || 0}
-                    </span>
-                  </div>
 
-                  {/* Meal Cards for this Day */}
-                  <div className="space-y-2 flex-1 min-w-0">
+                    {/* 4 Periods for this day */}
                     {mealPeriods.map((period) => {
                       const meal = mealsByDayAndPeriod.get(`${day.key}_${period.type}`);
+                      const hasMeal = Boolean(meal && meal.title?.trim());
+
                       return (
-                        <MealCard
+                        <div
                           key={period.type}
-                          periodMeta={period}
-                          meal={meal}
-                          canEdit={canEdit}
-                          isLocked={isLocked}
-                          isSubAdmin={isAdmin}
-                          compact
-                          onEdit={() => {
-                            if (meal) handleOpenEditMeal(meal);
-                            else handleOpenAddMeal(day.key, period.type);
-                          }}
-                          onEditSchedule={() => setIsSchedulesModalOpen(true)}
-                        />
+                          className={`rounded-xl border p-3 flex flex-col justify-between transition-all min-h-[105px] ${
+                            hasMeal
+                              ? 'bg-white border-[#d9e5e3] shadow-2xs hover:border-[#98b3b0]'
+                              : 'border-dashed border-[#d9e5e3] bg-[#fafcfb]'
+                          }`}
+                        >
+                          {hasMeal ? (
+                            <div className="space-y-1.5 flex-1 flex flex-col justify-between">
+                              <div className="flex items-start justify-between gap-1.5">
+                                <div className="min-w-0 flex-1">
+                                  <h5 className="font-black text-xs sm:text-sm text-[#16302e] leading-snug line-clamp-2">
+                                    {meal!.title}
+                                  </h5>
+                                  {meal!.description && (
+                                    <p className="text-[11px] font-medium text-[#727877] leading-relaxed line-clamp-2 mt-0.5">
+                                      {meal!.description}
+                                    </p>
+                                  )}
+                                </div>
+
+                                {canEdit && (
+                                  <button
+                                    onClick={() => handleOpenEditMeal(meal!)}
+                                    className="p-1 text-[#16302e] hover:text-[#7b5800] hover:bg-[#fff8e6] active:scale-[0.96] rounded-lg transition-all min-h-[26px] min-w-[26px] flex items-center justify-center cursor-pointer shrink-0"
+                                    title="Editar refeição"
+                                    aria-label={`Editar ${period.label}`}
+                                  >
+                                    <span className="material-symbols-outlined text-base">edit</span>
+                                  </button>
+                                )}
+                              </div>
+
+                              {/* Tags */}
+                              {meal!.tags && meal!.tags.length > 0 && (
+                                <div className="flex flex-wrap gap-1 items-center pt-1 border-t border-[#f0f4f3]">
+                                  {meal!.tags.slice(0, 3).map((tag, idx) => {
+                                    const meta = getTagStyle(tag);
+                                    return (
+                                      <span
+                                        key={idx}
+                                        className={`text-[9px] font-extrabold px-1.5 py-0.5 rounded-md border flex items-center gap-1 shrink-0 ${meta.color}`}
+                                      >
+                                        <span className="material-symbols-outlined text-[10px]">{meta.icon}</span>
+                                        <span className="truncate max-w-[100px]">{tag}</span>
+                                      </span>
+                                    );
+                                  })}
+                                  {meal!.tags.length > 3 && (
+                                    <span className="text-[9px] font-bold text-[#727877] px-0.5">
+                                      +{meal!.tags.length - 3}
+                                    </span>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          ) : (
+                            <div className="h-full flex flex-col items-center justify-center py-2 text-center">
+                              <span className="text-[11px] font-semibold text-[#98b3b0]">Nenhum prato</span>
+                              {canEdit && (
+                                <button
+                                  onClick={() => handleOpenAddMeal(day.key, period.type)}
+                                  className="mt-1 text-[11px] font-bold text-[#7b5800] hover:underline active:scale-[0.96] transition-transform inline-flex items-center gap-0.5 cursor-pointer"
+                                >
+                                  <span className="material-symbols-outlined text-xs">add</span>
+                                  <span>Adicionar</span>
+                                </button>
+                              )}
+                            </div>
+                          )}
+                        </div>
                       );
                     })}
                   </div>

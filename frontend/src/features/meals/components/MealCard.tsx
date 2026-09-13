@@ -35,7 +35,7 @@ export const MealCard: React.FC<MealCardProps> = ({
 
   return (
     <div
-      className={`bg-white rounded-2xl border transition-all duration-200 flex flex-col justify-between ${
+      className={`h-full w-full bg-white rounded-2xl border transition-all duration-200 flex flex-col justify-between ${
         hasMeal
           ? 'border-[#d9e5e3] shadow-xs hover:border-[#98b3b0]'
           : 'border-dashed border-[#d9e5e3] bg-white/70'

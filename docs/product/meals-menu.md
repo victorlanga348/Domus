@@ -55,16 +55,17 @@ O cardápio opera em ciclo semanal contínuo de 7 dias (Segunda a Domingo) divid
 ### 4.3 Desktop (>= 1024px)
 - **Alternador de Visualização (View Switcher):**
   - **Modo Diário:** Foco nos 4 turnos do dia selecionado, com detalhes de ingredientes e tags.
-  - **Modo Semanal (Kanban 7 Dias):** Visão panorâmica dos 7 dias e 4 refeições lado a lado em grade 100% fluida (`w-full grid-cols-7`), sem barra de rolagem horizontal em desktops e laptops. Todos os 7 dias (Segunda a Domingo) permanecem simultaneamente visíveis na tela com cabeçalhos limpos (`Segunda`, `Terça`, etc.).
+  - **Modo Semanal (Matriz Horizontal):** Visão panorâmica dos 7 dias em matriz bidimensional onde as linhas representam os dias da semana (Segunda a Domingo) e as 4 colunas representam as refeições (Café da Manhã, Almoço, Lanche, Jantar). Cada célula de refeição possui largura ampla (~250px a 320px), eliminando compressão visual e garantindo espaço generoso para nomes de pratos, descrições e tags dietéticas. O dia de hoje recebe destaque visual imediato (`Hoje`).
 
-### 4.4 Ergonomia do Card de Refeição (`MealCard`)
-- **Modo Compacto (Visão Semanal):** Header estruturado em duas camadas verticais:
-  - *Linha 1:* Ícone compacto (20px) + Título do Turno completo (`text-[11px] xl:text-xs font-black`) + Botão de edição / trava alinhado à direita.
-  - *Linha 2:* Horário do turno (`text-[9px] xl:text-[10px] font-semibold text-[#727877]`) com clique para ajuste para usuários autorizados.
-- **Modo Padrão (Visão Diária):** Layout expandido com ícone de 32px e maior respiro horizontal.
+### 4.4 Ergonomia da Matriz e Cards de Refeição
+- **Células da Matriz Semanal:**
+  - Exibição de título em destaque com suporte a pratos longos, descrição / ingredientes, tags dietéticas com badges coloridos e botão rápido de edição.
+  - Células vazias com gatilho claro de `+ Adicionar`.
+  - Cabeçalho global dos turnos com indicação clara dos horários e gatilho de edição de horários para administradores.
+- **Modo Padrão (Visão Diária):** Layout expandido de 4 cards em grid com altura 100% uniforme (`h-full w-full`), ícone de 32px e alinhamento vertical harmônico (cabeçalho no topo, conteúdo centralizado e rodapé de tags/ações na base inferior).
 - **Estado Vazio (Sem Prato Cadastrado):** Exibe exclusivamente uma ação central clara (`+ Adicionar`), eliminando botões `+` duplicados no cabeçalho do card.
-- **Estado Preenchido:** Exibe o botão de edição (`edit`) no canto superior direito do card.
-- **Ação de Horário no Card:** O horário do turno possui feedback hover e dispara diretamente o modal de ajuste de turnos para usuários com permissão de edição.
+- **Estado Preenchido:** Exibe o botão de edição (`edit`) no canto superior direito do card/célula.
+- **Ação de Horário no Card/Cabeçalho:** O horário do turno possui feedback hover e dispara diretamente o modal de ajuste de turnos para usuários com permissão de edição.
 
 ### 4.5 Bloqueio Contextual de Turno no Cadastro/Edição (`EditMealModal`)
 - Ao acionar `+ Adicionar` ou `Editar` a partir de um card de refeição específico, o campo de turno no modal permanece rigidamente travado em modo somente leitura (`lockPeriod: true`), exibindo um badge visual com o ícone, nome do turno e faixa de horário correspondente (ex: *Café da Manhã (06:00 - 10:00)*).
