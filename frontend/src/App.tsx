@@ -48,8 +48,6 @@ import {
   emitTaskUpdated,
   emitTaskDeleted,
   emitTaskStatusChanged,
-  emitNoteCreated,
-  emitNoteDeleted,
   emitStatusChanged,
   emitRuleCreated,
   emitRuleDeleted,
@@ -889,10 +887,37 @@ export default function App() {
           prev.map((t) => (t.id === taskId ? { ...t, status } : t))
         );
       },
-      onNoteCreated: (incomingNote: MuralNote) => {
+      onNoteCreated: (incomingNote: any) => {
         setMuralNotes((prev) => {
           if (prev.some((n) => n.id === incomingNote.id)) return prev;
-          return [incomingNote, ...prev];
+
+          const formattedNote: MuralNote = {
+            id: incomingNote.id,
+            title: incomingNote.title,
+            content: incomingNote.content,
+            color: incomingNote.color || 'amber',
+            author: incomingNote.author || 'Morador',
+            dateStr:
+              incomingNote.dateStr ||
+              'Hoje, ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          };
+
+          // Reconcilia se houver nota temporária com o mesmo conteúdo
+          const tempIndex = prev.findIndex(
+            (n) => n.id.startsWith('temp_n_') && n.content === formattedNote.content
+          );
+          if (tempIndex !== -1) {
+            const next = [...prev];
+            next[tempIndex] = {
+              ...next[tempIndex],
+              id: formattedNote.id,
+              dateStr: next[tempIndex].dateStr || formattedNote.dateStr,
+              color: next[tempIndex].color || formattedNote.color,
+            };
+            return next;
+          }
+
+          return [formattedNote, ...prev];
         });
       },
       onNoteDeleted: ({ noteId }: { noteId: string }) => {
@@ -1252,23 +1277,26 @@ export default function App() {
 
     // 1. Atualização Otimista Imediata (0ms de latência percebida)
     setMuralNotes((prev) => [noteObj, ...prev]);
-    if (currentHouse?.id) {
-      emitNoteCreated(currentHouse.id, noteObj);
-    }
     recordHouseActivity(`Novo recado no mural fixado por ${noteObj.author}`);
     showToast('Recado fixado no mural!');
 
-    // 2. Persistência assíncrona no backend
+    // 2. Persistência assíncrona no backend (o backend emite para o socket de forma autoritativa)
     try {
       const created = await dashboardApi.createBulletinPost(
         currentHouse.id,
         authUser.id,
         newNote.content,
-        authToken || undefined
+        authToken || undefined,
+        { color: newNote.color, title: newNote.title }
       );
       if (created?.id) {
-        setMuralNotes((prev) =>
-          prev.map((n) =>
+        setMuralNotes((prev) => {
+          // Se o evento WebSocket já tiver reconciliado ou adicionado a nota real:
+          const alreadyHasReal = prev.some((n) => n.id === created.id);
+          if (alreadyHasReal) {
+            return prev.filter((n) => n.id !== tempId);
+          }
+          return prev.map((n) =>
             n.id === tempId
               ? {
                   ...n,
@@ -1278,8 +1306,8 @@ export default function App() {
                     new Date(created.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
                 }
               : n
-          )
-        );
+          );
+        });
       }
     } catch (err: any) {
       console.error('[Mural] Erro ao criar recado:', err);
@@ -1298,9 +1326,6 @@ export default function App() {
     const previousNotes = muralNotes;
     // 1. Atualização Otimista Imediata (0ms)
     setMuralNotes((prev) => prev.filter((n) => n.id !== id));
-    if (currentHouse?.id) {
-      emitNoteDeleted(currentHouse.id, id);
-    }
     showToast('Recado removido!');
 
     // 2. Persistência assíncrona

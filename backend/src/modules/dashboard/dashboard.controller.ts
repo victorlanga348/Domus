@@ -29,12 +29,15 @@ export class DashboardController {
       if (houseId) {
         try {
           const { emitToHouse } = await import('../../shared/socket/socketServer.js');
+          const postDate = new Date(post.created_at);
           emitToHouse(houseId, 'house:note_created', {
             id: post.id,
+            title: req.body.title || undefined,
             content: post.content,
             author: post.author?.name || 'Morador',
+            dateStr: `Hoje, ${postDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`,
             timestamp: 'Agora',
-            color: 'gray',
+            color: req.body.color || 'amber',
           });
         } catch {}
       }

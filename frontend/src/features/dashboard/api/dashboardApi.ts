@@ -77,7 +77,13 @@ export const dashboardApi = {
     return json.data || null;
   },
 
-  async createBulletinPost(houseId: string, authorId: string, content: string, token?: string) {
+  async createBulletinPost(
+    houseId: string,
+    authorId: string,
+    content: string,
+    token?: string,
+    meta?: { color?: string; title?: string }
+  ) {
     const response = await fetch(`${APP_CONFIG.API_BASE_URL}/v1/dashboard/bulletin`, {
       method: 'POST',
       headers: {
@@ -86,7 +92,7 @@ export const dashboardApi = {
         'x-user-id': authorId,
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
-      body: JSON.stringify({ houseId, author_id: authorId, content }),
+      body: JSON.stringify({ houseId, author_id: authorId, content, ...(meta || {}) }),
     });
 
     const json = await response.json().catch(() => ({}));
