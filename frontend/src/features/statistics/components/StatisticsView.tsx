@@ -152,21 +152,19 @@ export const StatisticsView: React.FC<StatisticsViewProps> = ({
             }
           : null;
 
-        setStats((prev) => {
-          if (!prev || prev.harmony.score !== data.harmony.score) {
-            setAnimKey((k) => k + 1);
-          }
-          return {
-            ...data,
-            contributions: enrichedContributions,
-            top_contributor: enrichedTop,
-          };
+        setStats({
+          ...data,
+          contributions: enrichedContributions,
+          top_contributor: enrichedTop,
         });
+        setAnimKey((k) => k + 1);
       } else {
         setStats((prev) => prev || local);
+        setAnimKey((k) => k + 1);
       }
     } catch {
       setStats((prev) => prev || local);
+      setAnimKey((k) => k + 1);
     } finally {
       setLoading(false);
       setIsRefreshing(false);

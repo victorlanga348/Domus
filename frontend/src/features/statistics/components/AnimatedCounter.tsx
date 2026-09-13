@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 
 export interface AnimatedCounterProps {
   value: number;
+  from?: number;
   duration?: number;
   delay?: number;
   className?: string;
@@ -17,6 +18,7 @@ const easeOutExpo = (t: number): number => {
 
 export const AnimatedCounter: React.FC<AnimatedCounterProps> = ({
   value,
+  from = 0,
   duration = 1200,
   delay = 0,
   className = '',
@@ -24,8 +26,15 @@ export const AnimatedCounter: React.FC<AnimatedCounterProps> = ({
   animKey,
   formatter = (v) => Math.round(v),
 }) => {
-  const [displayValue, setDisplayValue] = useState(0);
-  const prevValueRef = useRef(0);
+  const safeValue = Number.isFinite(value) ? value : 0;
+  const safeFrom = Number.isFinite(from) ? from : 0;
+
+  const [displayValue, setDisplayValue] = useState(safeFrom);
+  const prevAnimKeyRef = useRef<number | string | symbol>(Symbol('initial'));
+  const currentDisplayRef = useRef<number>(safeFrom);
+  const onCompleteRef = useRef(onComplete);
+  onCompleteRef.current = onComplete;
+
   const frameRef = useRef<number | null>(null);
   const timeoutRef = useRef<number | null>(null);
 
@@ -37,22 +46,32 @@ export const AnimatedCounter: React.FC<AnimatedCounterProps> = ({
       window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
     if (prefersReducedMotion) {
-      setDisplayValue(value);
-      prevValueRef.current = value;
-      onComplete?.();
+      setDisplayValue(safeValue);
+      currentDisplayRef.current = safeValue;
+      prevAnimKeyRef.current = animKey;
+      onCompleteRef.current?.();
       return;
     }
 
-    const startValue = prevValueRef.current;
-    const targetValue = value;
-    prevValueRef.current = targetValue;
+    const animKeyChanged = prevAnimKeyRef.current !== animKey;
+    prevAnimKeyRef.current = animKey;
+
+    // Se animKey mudou (ex: refresh ou carga inicial), começamos sempre de `safeFrom` (0)
+    // Se animKey for a mesma mas o valor mudou, interpolamos a partir do número atual exibido
+    const startValue = animKeyChanged ? safeFrom : currentDisplayRef.current;
+    const targetValue = safeValue;
     const delta = targetValue - startValue;
 
     if (delta === 0) {
       setDisplayValue(targetValue);
-      onComplete?.();
+      currentDisplayRef.current = targetValue;
+      onCompleteRef.current?.();
       return;
     }
+
+    // Inicializa o valor exibido com startValue imediatamente (garante 0 durante delays)
+    setDisplayValue(startValue);
+    currentDisplayRef.current = startValue;
 
     let startTime: number | null = null;
 
@@ -64,12 +83,14 @@ export const AnimatedCounter: React.FC<AnimatedCounterProps> = ({
       const current = startValue + delta * easedProgress;
 
       setDisplayValue(current);
+      currentDisplayRef.current = current;
 
       if (progress < 1) {
         frameRef.current = requestAnimationFrame(animate);
       } else {
         setDisplayValue(targetValue);
-        onComplete?.();
+        currentDisplayRef.current = targetValue;
+        onCompleteRef.current?.();
       }
     };
 
@@ -81,7 +102,7 @@ export const AnimatedCounter: React.FC<AnimatedCounterProps> = ({
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
       if (frameRef.current) cancelAnimationFrame(frameRef.current);
     };
-  }, [value, duration, delay, animKey]);
+  }, [safeValue, safeFrom, duration, delay, animKey]);
 
   return <span className={className}>{formatter(displayValue)}</span>;
 };
