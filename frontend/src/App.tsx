@@ -224,6 +224,23 @@ function mapBulletinToMuralNote(post: any, index = 0): MuralNote {
   };
 }
 
+function deduplicateNotes(notes: MuralNote[]): MuralNote[] {
+  const seenIds = new Set<string>();
+  const seenContent = new Set<string>();
+  return notes.filter((note) => {
+    if (!note || !note.id) return false;
+    if (seenIds.has(note.id)) return false;
+    seenIds.add(note.id);
+
+    const contentKey = `${note.author}_${note.content?.trim()}`;
+    if (note.id.startsWith('temp_n_') && seenContent.has(contentKey)) {
+      return false;
+    }
+    seenContent.add(contentKey);
+    return true;
+  });
+}
+
 export default function App() {
   // 1. Limpeza proativa de chaves antigas de mock / un-scoped
   useEffect(() => {
@@ -386,7 +403,7 @@ export default function App() {
   const [muralNotes, setMuralNotes] = useState<MuralNote[]>(() => {
     if (!houseKey) return [];
     const saved = localStorage.getItem(`${houseKey}_notes`);
-    return saved ? JSON.parse(saved) : [];
+    return saved ? deduplicateNotes(JSON.parse(saved)) : [];
   });
 
   const [memberStatuses, setMemberStatuses] = useState<MemberStatus[]>(() => {
@@ -650,7 +667,7 @@ export default function App() {
       try {
         // 1. Membros e Mural de Recados via BFF Dashboard
         dashboardApi
-          .getDashboardData(houseId, userId)
+          .getDashboardData(houseId, userId, authToken || undefined)
           .then((data) => {
             if (data?.house) {
               setCurrentHouse((prev) => ({
@@ -664,7 +681,7 @@ export default function App() {
               handleSyncMembers(data.members);
             }
             if (data?.bulletin_posts && Array.isArray(data.bulletin_posts)) {
-              setMuralNotes(data.bulletin_posts.map((p, idx) => mapBulletinToMuralNote(p, idx)));
+              setMuralNotes(deduplicateNotes(data.bulletin_posts.map((p, idx) => mapBulletinToMuralNote(p, idx))));
             }
           })
           .catch((err) => {
@@ -763,7 +780,7 @@ export default function App() {
         checkSessionValidity(err);
       }
     },
-    [currentHouse?.id, authUser?.id, handleSyncMembers, checkSessionValidity]
+    [currentHouse?.id, authUser?.id, authToken, handleSyncMembers, checkSessionValidity]
   );
 
   // Sincronização inicial automática dos dados centrais da residência ao carregar
@@ -1328,18 +1345,32 @@ export default function App() {
     setMuralNotes((prev) => prev.filter((n) => n.id !== id));
     showToast('Recado removido!');
 
+    // Se for uma nota temporária local, não precisa chamar o servidor
+    if (id.startsWith('temp_n_')) {
+      return;
+    }
+
     // 2. Persistência assíncrona
     if (currentHouse?.id && authUser?.id) {
       try {
         await dashboardApi.deleteBulletinPost(id, authUser.id, currentHouse.id, authToken || undefined);
       } catch (err: any) {
         console.error('[Mural] Erro ao remover recado no servidor:', err);
-        setMuralNotes(previousNotes);
-        const isNetworkError = err.message === 'Failed to fetch' || err.name === 'TypeError';
-        const userMessage = isNetworkError
-          ? 'Falha de conexão ao remover recado do servidor.'
-          : err.message || 'Erro ao remover recado do servidor.';
-        showToast(userMessage);
+        const isNotFound =
+          err.message?.includes('não encontrado') ||
+          err.message?.includes('POST_NOT_FOUND') ||
+          err.message?.includes('404');
+        // Se o erro for 404/não encontrado, NÃO restaura a nota (ela já não existe no banco de dados)
+        if (!isNotFound) {
+          setMuralNotes((prev) =>
+            prev.some((n) => n.id === id) ? prev : [previousNotes.find((n) => n.id === id)!, ...prev].filter(Boolean)
+          );
+          const isNetworkError = err.message === 'Failed to fetch' || err.name === 'TypeError';
+          const userMessage = isNetworkError
+            ? 'Falha de conexão ao remover recado do servidor.'
+            : err.message || 'Erro ao remover recado do servidor.';
+          showToast(userMessage);
+        }
       }
     }
   };

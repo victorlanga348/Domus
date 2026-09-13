@@ -225,7 +225,8 @@ export class DashboardService {
     });
 
     if (!post) {
-      throw new AppError('Recado não encontrado no mural.', 404, 'POST_NOT_FOUND');
+      // Idempotência (RFC 7231): se o recado já não existe no banco, considera como removido com sucesso
+      return { success: true, message: 'Recado já removido do mural.' };
     }
 
     const user = await prisma.user.findUnique({
