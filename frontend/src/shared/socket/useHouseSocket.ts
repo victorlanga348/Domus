@@ -14,6 +14,7 @@ interface SocketCallbacks {
   onTaskDeleted?: (data: { taskId: string }) => void;
   onTaskStatusChanged?: (data: { taskId: string; status: string }) => void;
   onNoteCreated?: (note: any) => void;
+  onNoteUpdated?: (note: any) => void;
   onNoteDeleted?: (data: { noteId: string }) => void;
   onStatusChanged?: (status: any) => void;
   onRuleCreated?: (rule: any) => void;
@@ -57,6 +58,7 @@ export function useHouseSocket(
     const handleTaskDeleted = (data: any) => callbacksRef.current?.onTaskDeleted?.(data);
     const handleTaskStatusChanged = (data: any) => callbacksRef.current?.onTaskStatusChanged?.(data);
     const handleNoteCreated = (note: any) => callbacksRef.current?.onNoteCreated?.(note);
+    const handleNoteUpdated = (note: any) => callbacksRef.current?.onNoteUpdated?.(note);
     const handleNoteDeleted = (data: any) => callbacksRef.current?.onNoteDeleted?.(data);
     const handleStatusChanged = (status: any) => callbacksRef.current?.onStatusChanged?.(status);
     const handleRuleCreated = (rule: any) => callbacksRef.current?.onRuleCreated?.(rule);
@@ -82,6 +84,7 @@ export function useHouseSocket(
     socket.on('house:task_deleted', handleTaskDeleted);
     socket.on('house:task_status_changed', handleTaskStatusChanged);
     socket.on('house:note_created', handleNoteCreated);
+    socket.on('house:note_updated', handleNoteUpdated);
     socket.on('house:note_deleted', handleNoteDeleted);
     socket.on('house:status_changed', handleStatusChanged);
     socket.on('house:rule_created', handleRuleCreated);
@@ -108,6 +111,7 @@ export function useHouseSocket(
       socket.off('house:task_deleted', handleTaskDeleted);
       socket.off('house:task_status_changed', handleTaskStatusChanged);
       socket.off('house:note_created', handleNoteCreated);
+      socket.off('house:note_updated', handleNoteUpdated);
       socket.off('house:note_deleted', handleNoteDeleted);
       socket.off('house:status_changed', handleStatusChanged);
       socket.off('house:rule_created', handleRuleCreated);

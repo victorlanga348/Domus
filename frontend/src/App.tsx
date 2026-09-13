@@ -14,6 +14,7 @@ import {
   ActivityLog,
   SystemPreferences,
   MuralNote,
+  MuralNoteItem,
   MemberStatus,
   MealItem,
   HouseMealPlan,
@@ -208,15 +209,29 @@ function mapBackendLogToActivityLog(log: any): ActivityLog {
   };
 }
 
-function parseBulletinContent(rawContent: string): { title?: string; content: string; color?: MuralNote['color'] } {
+function parseBulletinContent(rawContent: string): {
+  title?: string;
+  content: string;
+  color?: MuralNote['color'];
+  type?: 'text' | 'checklist';
+  items?: MuralNote['items'];
+} {
   if (typeof rawContent === 'string' && rawContent.startsWith('{') && rawContent.endsWith('}')) {
     try {
       const parsed = JSON.parse(rawContent);
-      if (typeof parsed.text === 'string') {
+      if (typeof parsed.text === 'string' || Array.isArray(parsed.items)) {
         return {
           title: parsed.title || undefined,
-          content: parsed.text,
+          content: typeof parsed.text === 'string' ? parsed.text : '',
           color: parsed.color || undefined,
+          type: parsed.type || (Array.isArray(parsed.items) && parsed.items.length > 0 ? 'checklist' : 'text'),
+          items: Array.isArray(parsed.items)
+            ? parsed.items.map((it: any) => ({
+                id: String(it.id || `it_${Math.random().toString(36).substring(2, 8)}`),
+                text: String(it.text || ''),
+                done: Boolean(it.done),
+              }))
+            : undefined,
         };
       }
     } catch {}
@@ -225,19 +240,23 @@ function parseBulletinContent(rawContent: string): { title?: string; content: st
     title: undefined,
     content: rawContent || '',
     color: undefined,
+    type: 'text',
+    items: undefined,
   };
 }
 
 function mapBulletinToMuralNote(post: any, index = 0): MuralNote {
   const colors: MuralNote['color'][] = ['teal', 'amber', 'lavender', 'rose', 'gray'];
-  const postDate = new Date(post.created_at);
+  const postDate = new Date(post.created_at || Date.now());
   const parsed = parseBulletinContent(post.content);
   return {
     id: post.id,
     title: post.title || parsed.title,
-    content: parsed.content || post.content,
+    content: parsed.content || (typeof post.content === 'string' ? post.content : ''),
+    type: post.type || parsed.type || (post.items?.length > 0 ? 'checklist' : 'text'),
+    items: post.items || parsed.items,
     author: post.author?.name || post.author || 'Morador',
-    dateStr: `Hoje, ${postDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`,
+    dateStr: post.dateStr || `Hoje, ${postDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`,
     color: post.color || parsed.color || colors[index % colors.length],
   };
 }
@@ -956,6 +975,8 @@ export default function App() {
             id: incomingNote.id,
             title: incomingNote.title,
             content: incomingNote.content,
+            type: incomingNote.type,
+            items: incomingNote.items,
             color: incomingNote.color || 'amber',
             author: incomingNote.author || 'Morador',
             dateStr:
@@ -963,15 +984,17 @@ export default function App() {
               'Hoje, ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
           };
 
-          // Reconcilia se houver nota temporária com o mesmo conteúdo
+          // Reconcilia se houver nota temporária com o mesmo conteúdo ou título
           const tempIndex = prev.findIndex(
-            (n) => n.id.startsWith('temp_n_') && n.content === formattedNote.content
+            (n) => n.id.startsWith('temp_n_') && (n.content === formattedNote.content || (n.title && n.title === formattedNote.title))
           );
           if (tempIndex !== -1) {
             const next = [...prev];
             next[tempIndex] = {
               ...next[tempIndex],
               id: formattedNote.id,
+              type: formattedNote.type || next[tempIndex].type,
+              items: formattedNote.items || next[tempIndex].items,
               dateStr: next[tempIndex].dateStr || formattedNote.dateStr,
               color: next[tempIndex].color || formattedNote.color,
             };
@@ -979,6 +1002,23 @@ export default function App() {
           }
 
           return [formattedNote, ...prev];
+        });
+      },
+      onNoteUpdated: (incomingNote: any) => {
+        setMuralNotes((prev) => {
+          return prev.map((n) => {
+            if (n.id === incomingNote.id) {
+              return {
+                ...n,
+                title: incomingNote.title !== undefined ? incomingNote.title : n.title,
+                content: incomingNote.content !== undefined ? incomingNote.content : n.content,
+                color: incomingNote.color !== undefined ? incomingNote.color : n.color,
+                type: incomingNote.type !== undefined ? incomingNote.type : n.type,
+                items: incomingNote.items !== undefined ? incomingNote.items : n.items,
+              };
+            }
+            return n;
+          });
         });
       },
       onNoteDeleted: ({ noteId }: { noteId: string }) => {
@@ -1352,7 +1392,7 @@ export default function App() {
         authUser.id,
         newNote.content,
         authToken || undefined,
-        { color: newNote.color, title: newNote.title }
+        { color: newNote.color, title: newNote.title, type: newNote.type, items: newNote.items }
       );
       if (created?.id) {
         setMuralNotes((prev) => {
@@ -1366,6 +1406,8 @@ export default function App() {
               ? {
                   ...n,
                   id: created.id,
+                  type: created.type || n.type,
+                  items: created.items || n.items,
                   dateStr:
                     'Hoje, ' +
                     new Date(created.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
@@ -1384,6 +1426,58 @@ export default function App() {
         ? 'Falha de conexão com o servidor. Verifique se o backend está ativo.'
         : err.message || 'Erro ao fixar recado no mural.';
       showToast(userMessage);
+    }
+  };
+
+  const handleToggleNoteItem = async (noteId: string, itemId: string) => {
+    if (!currentHouse?.id || !authUser?.id) return;
+
+    let targetNote: MuralNote | undefined;
+    let updatedItems: MuralNoteItem[] = [];
+
+    // 1. Atualização Otimista Imediata (0ms)
+    setMuralNotes((prev) => {
+      return prev.map((note) => {
+        if (note.id === noteId && note.items) {
+          targetNote = note;
+          updatedItems = note.items.map((item) =>
+            item.id === itemId ? { ...item, done: !item.done } : item
+          );
+          return {
+            ...note,
+            items: updatedItems,
+          };
+        }
+        return note;
+      });
+    });
+
+    if (!targetNote) return;
+
+    // Se for nota temporária (ainda não sincronizada), não chama o backend
+    if (noteId.startsWith('temp_n_')) return;
+
+    // 2. Persistência assíncrona no backend
+    try {
+      await dashboardApi.updateBulletinPost(
+        noteId,
+        currentHouse.id,
+        authUser.id,
+        {
+          items: updatedItems,
+          type: 'checklist',
+        },
+        authToken || undefined
+      );
+    } catch (err: any) {
+      console.warn('[Mural] Falha ao atualizar status do item no backend:', err);
+      // Rollback otimista em caso de falha
+      setMuralNotes((prev) =>
+        prev.map((note) =>
+          note.id === noteId && targetNote?.items ? { ...note, items: targetNote.items } : note
+        )
+      );
+      showToast('Erro ao atualizar item da lista.');
     }
   };
 
@@ -2463,6 +2557,7 @@ export default function App() {
                   muralNotes={muralNotes}
                   onAddMuralNote={handleAddMuralNote}
                   onDeleteMuralNote={handleDeleteMuralNote}
+                  onToggleNoteItem={handleToggleNoteItem}
                   familyMembers={familyMembers}
                   onSyncMembers={handleSyncMembers}
                   onSyncHouse={(house) => {

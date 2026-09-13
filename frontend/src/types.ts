@@ -98,6 +98,7 @@ export interface MuralNote {
   id: string;
   title?: string;
   content: string;
+  type?: 'text' | 'checklist';
   items?: MuralNoteItem[];
   color: 'amber' | 'teal' | 'gray' | 'rose' | 'lavender';
   dateStr: string;

@@ -140,6 +140,12 @@ export function initSocketServer(httpServer: HttpServer): SocketIOServer {
       }
     });
 
+    socket.on('house:note_updated', (data: { houseId: string; note: any }) => {
+      if (data?.houseId && data?.note) {
+        io?.to(`house:${data.houseId}`).emit('house:note_updated', data.note);
+      }
+    });
+
     socket.on('house:note_deleted', (data: { houseId: string; noteId: string }) => {
       if (data?.houseId && data?.noteId) {
         io?.to(`house:${data.houseId}`).emit('house:note_deleted', { noteId: data.noteId });

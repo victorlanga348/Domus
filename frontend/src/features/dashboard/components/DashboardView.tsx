@@ -19,6 +19,7 @@ interface DashboardViewProps {
   muralNotes?: MuralNote[];
   onAddMuralNote?: (note: Omit<MuralNote, 'id' | 'dateStr'>) => void;
   onDeleteMuralNote?: (id: string) => void;
+  onToggleNoteItem?: (noteId: string, itemId: string) => void;
   familyMembers?: FamilyMember[];
   onSyncMembers?: (members: any[]) => void;
 }
@@ -36,6 +37,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   muralNotes = [],
   onAddMuralNote,
   onDeleteMuralNote,
+  onToggleNoteItem,
   familyMembers = [],
   onSyncMembers,
 }) => {
@@ -62,8 +64,11 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   // Modal Novo Recado
   const [isAddNoteModalOpen, setIsAddNoteModalOpen] = useState(false);
   useBodyScrollLock(isAddNoteModalOpen);
+  const [noteType, setNoteType] = useState<'text' | 'checklist'>('text');
   const [noteTitle, setNoteTitle] = useState('');
   const [noteContent, setNoteContent] = useState('');
+  const [checklistItems, setChecklistItems] = useState<Array<{ id: string; text: string; done: boolean }>>([]);
+  const [newItemText, setNewItemText] = useState('');
   const [noteColor, setNoteColor] = useState<MuralNote['color']>('amber');
 
   const loggedMember = familyMembers.find((m) => m.id === currentUserId);
@@ -95,19 +100,39 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     fetchDashboard();
   }, [fetchDashboard]);
 
+  const handleAddChecklistItem = () => {
+    const trimmed = newItemText.trim();
+    if (!trimmed) return;
+    setChecklistItems((prev) => [
+      ...prev,
+      { id: `it_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`, text: trimmed, done: false }
+    ]);
+    setNewItemText('');
+  };
+
+  const handleRemoveChecklistItem = (id: string) => {
+    setChecklistItems((prev) => prev.filter((it) => it.id !== id));
+  };
+
   const handleCreateNoteSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!noteContent.trim()) return;
+    if (noteType === 'text' && !noteContent.trim()) return;
+    if (noteType === 'checklist' && checklistItems.length === 0 && !noteTitle.trim()) return;
 
     onAddMuralNote?.({
-      title: noteTitle.trim() || undefined,
+      title: noteTitle.trim() || (noteType === 'checklist' ? 'Lista de Compras' : undefined),
       content: noteContent.trim(),
+      type: noteType,
+      items: noteType === 'checklist' && checklistItems.length > 0 ? checklistItems : undefined,
       color: noteColor,
       author: authorNameToUse,
     });
 
     setNoteTitle('');
     setNoteContent('');
+    setChecklistItems([]);
+    setNewItemText('');
+    setNoteType('text');
     setIsAddNoteModalOpen(false);
   };
 
@@ -213,6 +238,11 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           ) : (
             muralNotes.map((note, index) => {
               const bgClass = getNoteBgColor(note.color);
+              const hasItems = Array.isArray(note.items) && note.items.length > 0;
+              const doneCount = hasItems ? note.items!.filter((it) => it.done).length : 0;
+              const totalCount = hasItems ? note.items!.length : 0;
+              const isAllDone = hasItems && doneCount === totalCount && totalCount > 0;
+
               return (
                 <motion.div
                   key={note.id}
@@ -223,22 +253,78 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 >
                   <div>
                     <div className="flex items-start justify-between gap-2 mb-2 pb-2 border-b border-black/10">
-                      <h3 className="text-xs font-black tracking-wide truncate flex-1">
-                        {note.title || 'Aviso da Casa'}
-                      </h3>
-                      <button
-                        onClick={() => onDeleteMuralNote?.(note.id)}
-                        className="p-1 text-black/40 hover:text-rose-700 active:scale-[0.96] transition-all rounded-lg hover:bg-black/5 cursor-pointer"
-                        title="Excluir recado"
-                        aria-label="Excluir recado"
-                      >
-                        <span className="material-symbols-outlined text-sm">delete</span>
-                      </button>
+                      <div className="flex items-center gap-1.5 min-w-0 flex-1">
+                        {hasItems && (
+                          <span className="material-symbols-outlined text-sm shrink-0 opacity-75">
+                            {isAllDone ? 'check_circle' : 'checklist'}
+                          </span>
+                        )}
+                        <h3 className="text-xs font-black tracking-wide truncate">
+                          {note.title || (hasItems ? 'Lista de Compras' : 'Aviso da Casa')}
+                        </h3>
+                      </div>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        {hasItems && (
+                          <span
+                            className={`text-[9px] font-black px-1.5 py-0.5 rounded-md border tabular-nums ${
+                              isAllDone
+                                ? 'bg-emerald-500/20 text-emerald-900 border-emerald-500/40'
+                                : 'bg-black/5 text-black/70 border-black/10'
+                            }`}
+                          >
+                            {doneCount}/{totalCount}
+                          </span>
+                        )}
+                        <button
+                          onClick={() => onDeleteMuralNote?.(note.id)}
+                          className="p-1 text-black/40 hover:text-rose-700 active:scale-[0.96] transition-all rounded-lg hover:bg-black/5 cursor-pointer"
+                          title="Excluir recado"
+                          aria-label="Excluir recado"
+                        >
+                          <span className="material-symbols-outlined text-sm">delete</span>
+                        </button>
+                      </div>
                     </div>
 
-                    <p className="text-xs font-medium leading-relaxed whitespace-pre-line break-words">
-                      {note.content}
-                    </p>
+                    {note.content && (
+                      <p
+                        className={`text-xs font-medium leading-relaxed whitespace-pre-line break-words ${
+                          hasItems ? 'opacity-80 mb-2 pb-1.5 border-b border-black/5' : ''
+                        }`}
+                      >
+                        {note.content}
+                      </p>
+                    )}
+
+                    {hasItems && (
+                      <div className="space-y-1.5 my-1 max-h-48 overflow-y-auto pr-1">
+                        {note.items!.map((item) => (
+                          <label
+                            key={item.id}
+                            onClick={(e) => e.stopPropagation()}
+                            className={`flex items-start gap-2 p-1.5 rounded-xl cursor-pointer select-none transition-all ${
+                              item.done
+                                ? 'bg-black/5 opacity-50'
+                                : 'hover:bg-black/5'
+                            }`}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={Boolean(item.done)}
+                              onChange={() => onToggleNoteItem?.(note.id, item.id)}
+                              className="mt-0.5 w-3.5 h-3.5 rounded border-black/30 text-[#7b5800] focus:ring-0 cursor-pointer accent-[#7b5800] shrink-0"
+                            />
+                            <span
+                              className={`text-xs font-medium leading-snug break-words flex-1 ${
+                                item.done ? 'line-through' : ''
+                              }`}
+                            >
+                              {item.text}
+                            </span>
+                          </label>
+                        ))}
+                      </div>
+                    )}
                   </div>
 
                   <div className="flex items-center justify-between mt-4 pt-2 border-t border-black/10 text-[10px] font-bold opacity-80">
@@ -278,32 +364,131 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             </div>
 
             <form onSubmit={handleCreateNoteSubmit} className="space-y-4">
+              {/* Seletor de Tipo: Texto ou Checklist */}
+              <div className="flex bg-[#f0fcfa] p-1 rounded-2xl border border-[#d0dddb] gap-1">
+                <button
+                  type="button"
+                  onClick={() => setNoteType('text')}
+                  className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                    noteType === 'text'
+                      ? 'bg-white text-[#16302e] shadow-xs border border-[#d9e5e3]'
+                      : 'text-[#727877] hover:text-[#16302e]'
+                  }`}
+                >
+                  <span className="material-symbols-outlined text-base">notes</span>
+                  <span>Recado de Texto</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setNoteType('checklist');
+                    if (!noteTitle) setNoteTitle('Lista de Compras');
+                  }}
+                  className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                    noteType === 'checklist'
+                      ? 'bg-white text-[#16302e] shadow-xs border border-[#d9e5e3]'
+                      : 'text-[#727877] hover:text-[#16302e]'
+                  }`}
+                >
+                  <span className="material-symbols-outlined text-base">checklist</span>
+                  <span>Checklist / Compras</span>
+                </button>
+              </div>
+
               <div>
                 <label className="block text-xs font-bold text-[#16302e] mb-1">
-                  Título do Recado (Opcional)
+                  {noteType === 'checklist' ? 'Título da Lista' : 'Título do Recado (Opcional)'}
                 </label>
                 <input
                   type="text"
                   value={noteTitle}
                   onChange={(e) => setNoteTitle(e.target.value)}
-                  placeholder="ex: Comprar café, Chaves na portaria..."
+                  placeholder={noteType === 'checklist' ? 'ex: Lista de Compras, Feira de Domingo...' : 'ex: Comprar café, Chaves na portaria...'}
                   className="w-full p-3 rounded-xl text-xs border border-[#c1c8c6] bg-[#f0fcfa] text-[#131e1d] focus:outline-none focus:border-[#7b5800]"
                 />
               </div>
 
-              <div>
-                <label className="block text-xs font-bold text-[#16302e] mb-1">
-                  Mensagem / Conteúdo
-                </label>
-                <textarea
-                  value={noteContent}
-                  onChange={(e) => setNoteContent(e.target.value)}
-                  rows={4}
-                  placeholder="Escreva seu recado para os outros moradores..."
-                  className="w-full p-3 rounded-xl text-xs border border-[#c1c8c6] bg-[#f0fcfa] text-[#131e1d] focus:outline-none focus:border-[#7b5800]"
-                  required
-                />
-              </div>
+              {noteType === 'checklist' ? (
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-xs font-bold text-[#16302e] mb-1">
+                      Observação / Contexto (Opcional)
+                    </label>
+                    <input
+                      type="text"
+                      value={noteContent}
+                      onChange={(e) => setNoteContent(e.target.value)}
+                      placeholder="ex: Itens para o fim de semana, comprar até sábado..."
+                      className="w-full p-2.5 rounded-xl text-xs border border-[#c1c8c6] bg-[#f0fcfa] text-[#131e1d] focus:outline-none focus:border-[#7b5800]"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-[#16302e] mb-1">
+                      Adicionar Itens à Lista
+                    </label>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={newItemText}
+                        onChange={(e) => setNewItemText(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            handleAddChecklistItem();
+                          }
+                        }}
+                        placeholder="ex: Leite de aveia, Café em grãos..."
+                        className="flex-1 p-2.5 rounded-xl text-xs border border-[#c1c8c6] bg-[#f0fcfa] text-[#131e1d] focus:outline-none focus:border-[#7b5800]"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleAddChecklistItem}
+                        disabled={!newItemText.trim()}
+                        className="px-3 py-2.5 bg-[#16302e] hover:bg-[#2d4644] disabled:opacity-40 text-white rounded-xl text-xs font-bold transition-all cursor-pointer shrink-0 flex items-center gap-1"
+                      >
+                        <span className="material-symbols-outlined text-sm">add</span>
+                        <span>Inserir</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {checklistItems.length > 0 && (
+                    <div className="max-h-36 overflow-y-auto space-y-1.5 p-2 bg-[#f0fcfa] rounded-xl border border-[#d0dddb]">
+                      {checklistItems.map((item, idx) => (
+                        <div key={item.id} className="flex items-center justify-between gap-2 p-1.5 bg-white rounded-lg border border-[#e4f0ee] text-xs">
+                          <span className="font-medium text-[#131e1d] truncate flex-1 flex items-center gap-1.5">
+                            <span className="text-[10px] font-bold text-[#727877] w-4">{idx + 1}.</span>
+                            {item.text}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveChecklistItem(item.id)}
+                            className="p-1 text-black/40 hover:text-rose-600 rounded-md transition-colors cursor-pointer"
+                            title="Remover item"
+                          >
+                            <span className="material-symbols-outlined text-xs">close</span>
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div>
+                  <label className="block text-xs font-bold text-[#16302e] mb-1">
+                    Mensagem / Conteúdo
+                  </label>
+                  <textarea
+                    value={noteContent}
+                    onChange={(e) => setNoteContent(e.target.value)}
+                    rows={4}
+                    placeholder="Escreva seu recado para os outros moradores..."
+                    className="w-full p-3 rounded-xl text-xs border border-[#c1c8c6] bg-[#f0fcfa] text-[#131e1d] focus:outline-none focus:border-[#7b5800]"
+                    required
+                  />
+                </div>
+              )}
 
               <div>
                 <label className="block text-xs font-bold text-[#16302e] mb-1">

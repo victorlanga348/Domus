@@ -82,7 +82,7 @@ export const dashboardApi = {
     authorId: string,
     content: string,
     token?: string,
-    meta?: { color?: string; title?: string }
+    meta?: { color?: string; title?: string; type?: 'text' | 'checklist'; items?: any[] }
   ) {
     const response = await fetch(`${APP_CONFIG.API_BASE_URL}/v1/dashboard/bulletin`, {
       method: 'POST',
@@ -98,6 +98,38 @@ export const dashboardApi = {
     const json = await response.json().catch(() => ({}));
     if (!response.ok) {
       throw new Error(json.message || 'Erro ao publicar recado no mural');
+    }
+
+    return json.data;
+  },
+
+  async updateBulletinPost(
+    postId: string,
+    houseId: string,
+    userId: string,
+    data: {
+      content?: string;
+      title?: string;
+      color?: string;
+      type?: 'text' | 'checklist';
+      items?: any[];
+    },
+    token?: string
+  ) {
+    const response = await fetch(`${APP_CONFIG.API_BASE_URL}/v1/dashboard/bulletin/${postId}`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-house-id': houseId,
+        'x-user-id': userId,
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify(data),
+    });
+
+    const json = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(json.message || 'Erro ao atualizar recado no mural');
     }
 
     return json.data;

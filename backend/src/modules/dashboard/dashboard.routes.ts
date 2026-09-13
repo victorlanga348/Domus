@@ -10,4 +10,5 @@ dashboardRoutes.get('/', authMiddleware, requireHouse, controller.getDashboard);
 
 // Mural de Recados Centralizado
 dashboardRoutes.post('/bulletin', authMiddleware, requireHouse, controller.createBulletinPost);
+dashboardRoutes.patch('/bulletin/:id', authMiddleware, requireHouse, controller.updateBulletinPost);
 dashboardRoutes.delete('/bulletin/:id', authMiddleware, requireHouse, controller.deleteBulletinPost);
