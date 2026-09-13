@@ -59,36 +59,37 @@ export interface DashboardData {
 }
 
 export const dashboardApi = {
-  async getDashboardData(houseId: string, userId?: string): Promise<DashboardData | null> {
+  async getDashboardData(houseId: string, userId?: string, token?: string): Promise<DashboardData | null> {
     const response = await fetch(`${APP_CONFIG.API_BASE_URL}/v1/dashboard`, {
       headers: {
         'x-house-id': houseId,
         ...(userId ? { 'x-user-id': userId } : {}),
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
     });
 
+    const json = await response.json().catch(() => ({}));
     if (!response.ok) {
-      const json = await response.json().catch(() => ({}));
       const errorMsg = json.message || json.code || (response.status === 404 ? 'HOUSE_NOT_FOUND' : response.status === 401 ? 'AUTH_TOKEN_INVALID' : 'DASHBOARD_ERROR');
       throw new Error(errorMsg);
     }
 
-    const json = await response.json();
     return json.data || null;
   },
 
-  async createBulletinPost(houseId: string, authorId: string, content: string) {
+  async createBulletinPost(houseId: string, authorId: string, content: string, token?: string) {
     const response = await fetch(`${APP_CONFIG.API_BASE_URL}/v1/dashboard/bulletin`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'x-house-id': houseId,
         'x-user-id': authorId,
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
       body: JSON.stringify({ houseId, author_id: authorId, content }),
     });
 
-    const json = await response.json();
+    const json = await response.json().catch(() => ({}));
     if (!response.ok) {
       throw new Error(json.message || 'Erro ao publicar recado no mural');
     }
@@ -96,16 +97,17 @@ export const dashboardApi = {
     return json.data;
   },
 
-  async deleteBulletinPost(postId: string, userId: string, houseId?: string) {
+  async deleteBulletinPost(postId: string, userId: string, houseId?: string, token?: string) {
     const response = await fetch(`${APP_CONFIG.API_BASE_URL}/v1/dashboard/bulletin/${postId}`, {
       method: 'DELETE',
       headers: {
         'x-user-id': userId,
         ...(houseId ? { 'x-house-id': houseId } : {}),
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
     });
 
-    const json = await response.json();
+    const json = await response.json().catch(() => ({}));
     if (!response.ok) {
       throw new Error(json.message || 'Erro ao remover recado do mural');
     }

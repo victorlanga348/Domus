@@ -9,6 +9,7 @@ interface DashboardViewProps {
   currentUserId?: string;
   currentUserName?: string;
   currentHouseId?: string;
+  authToken?: string;
   houseName?: string;
   houseInviteCode?: string;
   onSyncHouse?: (house: any) => void;
@@ -26,6 +27,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   currentUserId = 'user-1',
   currentUserName,
   currentHouseId = 'house-1',
+  authToken,
   houseName,
   houseInviteCode,
   onSyncHouse,
@@ -69,7 +71,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
   const fetchDashboard = useCallback(async () => {
     try {
-      const data = await dashboardApi.getDashboardData(currentHouseId, currentUserId);
+      const data = await dashboardApi.getDashboardData(currentHouseId, currentUserId, authToken);
       if (data) {
         setDashboardData(data);
         if (cacheKey) {
@@ -87,7 +89,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     } finally {
       setLoading(false);
     }
-  }, [currentHouseId, currentUserId, cacheKey, onSyncHouse, onSyncMembers]);
+  }, [currentHouseId, currentUserId, authToken, cacheKey, onSyncHouse, onSyncMembers]);
 
   useEffect(() => {
     fetchDashboard();

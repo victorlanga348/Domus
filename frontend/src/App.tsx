@@ -1238,7 +1238,12 @@ export default function App() {
 
     // 2. Persistência assíncrona no backend
     try {
-      const created = await dashboardApi.createBulletinPost(currentHouse.id, authUser.id, newNote.content);
+      const created = await dashboardApi.createBulletinPost(
+        currentHouse.id,
+        authUser.id,
+        newNote.content,
+        authToken || undefined
+      );
       if (created?.id) {
         setMuralNotes((prev) =>
           prev.map((n) =>
@@ -1259,7 +1264,11 @@ export default function App() {
       // Rollback
       setMuralNotes((prev) => prev.filter((n) => n.id !== tempId));
       checkSessionValidity(err);
-      showToast(err.message || 'Erro ao fixar recado no mural.');
+      const isNetworkError = err.message === 'Failed to fetch' || err.name === 'TypeError';
+      const userMessage = isNetworkError
+        ? 'Falha de conexão com o servidor. Verifique se o backend está ativo.'
+        : err.message || 'Erro ao fixar recado no mural.';
+      showToast(userMessage);
     }
   };
 
@@ -1275,11 +1284,15 @@ export default function App() {
     // 2. Persistência assíncrona
     if (currentHouse?.id && authUser?.id) {
       try {
-        await dashboardApi.deleteBulletinPost(id, authUser.id, currentHouse.id);
+        await dashboardApi.deleteBulletinPost(id, authUser.id, currentHouse.id, authToken || undefined);
       } catch (err: any) {
         console.error('[Mural] Erro ao remover recado no servidor:', err);
         setMuralNotes(previousNotes);
-        showToast('Erro ao remover recado do servidor.');
+        const isNetworkError = err.message === 'Failed to fetch' || err.name === 'TypeError';
+        const userMessage = isNetworkError
+          ? 'Falha de conexão ao remover recado do servidor.'
+          : err.message || 'Erro ao remover recado do servidor.';
+        showToast(userMessage);
       }
     }
   };
@@ -2303,6 +2316,7 @@ export default function App() {
                   currentUserId={authUser.id}
                   currentUserName={authUser.name}
                   currentHouseId={currentHouse.id}
+                  authToken={authToken || undefined}
                   houseName={currentHouse?.name}
                   houseInviteCode={currentHouse?.invite_code}
                   subTab={subTab}
