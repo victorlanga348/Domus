@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { motion } from 'motion/react';
 import { dashboardApi, type DashboardData } from '../api/dashboardApi.js';
 import { MuralNote, FamilyMember } from '../../../types';
@@ -69,6 +69,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   const [noteContent, setNoteContent] = useState('');
   const [checklistItems, setChecklistItems] = useState<Array<{ id: string; text: string; done: boolean }>>([]);
   const [newItemText, setNewItemText] = useState('');
+  const newItemInputRef = useRef<HTMLInputElement>(null);
   const [noteColor, setNoteColor] = useState<MuralNote['color']>('amber');
 
   const loggedMember = familyMembers.find((m) => m.id === currentUserId);
@@ -108,6 +109,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       { id: `it_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`, text: trimmed, done: false }
     ]);
     setNewItemText('');
+    setTimeout(() => {
+      newItemInputRef.current?.focus();
+    }, 50);
   };
 
   const handleRemoveChecklistItem = (id: string) => {
@@ -116,17 +120,47 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
   const handleCreateNoteSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (noteType === 'text' && !noteContent.trim()) return;
-    if (noteType === 'checklist' && checklistItems.length === 0 && !noteTitle.trim()) return;
 
-    onAddMuralNote?.({
-      title: noteTitle.trim() || (noteType === 'checklist' ? 'Lista de Compras' : undefined),
-      content: noteContent.trim(),
-      type: noteType,
-      items: noteType === 'checklist' && checklistItems.length > 0 ? checklistItems : undefined,
-      color: noteColor,
-      author: authorNameToUse,
-    });
+    if (noteType === 'text') {
+      if (!noteContent.trim()) {
+        onShowToast?.('Por favor, digite a mensagem do recado.');
+        return;
+      }
+
+      onAddMuralNote?.({
+        title: noteTitle.trim() || undefined,
+        content: noteContent.trim(),
+        type: 'text',
+        color: noteColor,
+        author: authorNameToUse,
+      });
+    } else {
+      // Modo Checklist / Lista de Compras
+      const finalItems = [...checklistItems];
+      const pendingText = newItemText.trim();
+      if (pendingText) {
+        finalItems.push({
+          id: `it_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+          text: pendingText,
+          done: false,
+        });
+      }
+
+      if (finalItems.length === 0) {
+        onShowToast?.('Adicione pelo menos um item à sua lista antes de fixar.');
+        newItemInputRef.current?.focus();
+        return;
+      }
+
+      onAddMuralNote?.({
+        title: noteTitle.trim() || 'Lista de Compras',
+        content: noteContent.trim(),
+        type: 'checklist',
+        items: finalItems,
+        color: noteColor,
+        author: authorNameToUse,
+      });
+    }
 
     setNoteTitle('');
     setNoteContent('');
@@ -347,200 +381,220 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       {isAddNoteModalOpen && (
         <div
           onClick={() => setIsAddNoteModalOpen(false)}
-          className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4"
+          className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-y-auto"
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-[#d9e5e3] space-y-4 animate-in fade-in"
+            className="bg-white rounded-3xl max-w-md w-full max-h-[90dvh] my-auto shadow-2xl border border-[#d9e5e3] flex flex-col animate-in fade-in overflow-hidden"
           >
-            <div className="flex justify-between items-center border-b border-[#e4f0ee] pb-3">
+            <div className="flex justify-between items-center border-b border-[#e4f0ee] p-5 pb-3 shrink-0">
               <div className="flex items-center gap-2 text-[#16302e]">
                 <span className="material-symbols-outlined text-xl text-[#7b5800]">push_pin</span>
                 <h3 className="text-base font-black">Fixar Novo Recado no Mural</h3>
               </div>
-              <button onClick={() => setIsAddNoteModalOpen(false)} className="text-[#727877] hover:text-[#16302e] p-1">
+              <button
+                type="button"
+                onClick={() => setIsAddNoteModalOpen(false)}
+                className="text-[#727877] hover:text-[#16302e] p-1 rounded-lg hover:bg-black/5 transition-colors cursor-pointer"
+                aria-label="Fechar"
+              >
                 <span className="material-symbols-outlined text-lg">close</span>
               </button>
             </div>
 
-            <form onSubmit={handleCreateNoteSubmit} className="space-y-4">
-              {/* Seletor de Tipo: Texto ou Checklist */}
-              <div className="flex bg-[#f0fcfa] p-1 rounded-2xl border border-[#d0dddb] gap-1">
-                <button
-                  type="button"
-                  onClick={() => setNoteType('text')}
-                  className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-                    noteType === 'text'
-                      ? 'bg-white text-[#16302e] shadow-xs border border-[#d9e5e3]'
-                      : 'text-[#727877] hover:text-[#16302e]'
-                  }`}
-                >
-                  <span className="material-symbols-outlined text-base">notes</span>
-                  <span>Recado de Texto</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setNoteType('checklist');
-                    if (!noteTitle) setNoteTitle('Lista de Compras');
-                  }}
-                  className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-                    noteType === 'checklist'
-                      ? 'bg-white text-[#16302e] shadow-xs border border-[#d9e5e3]'
-                      : 'text-[#727877] hover:text-[#16302e]'
-                  }`}
-                >
-                  <span className="material-symbols-outlined text-base">checklist</span>
-                  <span>Checklist / Compras</span>
-                </button>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-[#16302e] mb-1">
-                  {noteType === 'checklist' ? 'Título da Lista' : 'Título do Recado (Opcional)'}
-                </label>
-                <input
-                  type="text"
-                  value={noteTitle}
-                  onChange={(e) => setNoteTitle(e.target.value)}
-                  placeholder={noteType === 'checklist' ? 'ex: Lista de Compras, Feira de Domingo...' : 'ex: Comprar café, Chaves na portaria...'}
-                  className="w-full p-3 rounded-xl text-xs border border-[#c1c8c6] bg-[#f0fcfa] text-[#131e1d] focus:outline-none focus:border-[#7b5800]"
-                />
-              </div>
-
-              {noteType === 'checklist' ? (
-                <div className="space-y-3">
-                  <div>
-                    <label className="block text-xs font-bold text-[#16302e] mb-1">
-                      Observação / Contexto (Opcional)
-                    </label>
-                    <input
-                      type="text"
-                      value={noteContent}
-                      onChange={(e) => setNoteContent(e.target.value)}
-                      placeholder="ex: Itens para o fim de semana, comprar até sábado..."
-                      className="w-full p-2.5 rounded-xl text-xs border border-[#c1c8c6] bg-[#f0fcfa] text-[#131e1d] focus:outline-none focus:border-[#7b5800]"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-bold text-[#16302e] mb-1">
-                      Adicionar Itens à Lista
-                    </label>
-                    <div className="flex gap-2">
-                      <input
-                        type="text"
-                        value={newItemText}
-                        onChange={(e) => setNewItemText(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                            e.preventDefault();
-                            handleAddChecklistItem();
-                          }
-                        }}
-                        placeholder="ex: Leite de aveia, Café em grãos..."
-                        className="flex-1 p-2.5 rounded-xl text-xs border border-[#c1c8c6] bg-[#f0fcfa] text-[#131e1d] focus:outline-none focus:border-[#7b5800]"
-                      />
-                      <button
-                        type="button"
-                        onClick={handleAddChecklistItem}
-                        disabled={!newItemText.trim()}
-                        className="px-3 py-2.5 bg-[#16302e] hover:bg-[#2d4644] disabled:opacity-40 text-white rounded-xl text-xs font-bold transition-all cursor-pointer shrink-0 flex items-center gap-1"
-                      >
-                        <span className="material-symbols-outlined text-sm">add</span>
-                        <span>Inserir</span>
-                      </button>
-                    </div>
-                  </div>
-
-                  {checklistItems.length > 0 && (
-                    <div className="max-h-36 overflow-y-auto space-y-1.5 p-2 bg-[#f0fcfa] rounded-xl border border-[#d0dddb]">
-                      {checklistItems.map((item, idx) => (
-                        <div key={item.id} className="flex items-center justify-between gap-2 p-1.5 bg-white rounded-lg border border-[#e4f0ee] text-xs">
-                          <span className="font-medium text-[#131e1d] truncate flex-1 flex items-center gap-1.5">
-                            <span className="text-[10px] font-bold text-[#727877] w-4">{idx + 1}.</span>
-                            {item.text}
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() => handleRemoveChecklistItem(item.id)}
-                            className="p-1 text-black/40 hover:text-rose-600 rounded-md transition-colors cursor-pointer"
-                            title="Remover item"
-                          >
-                            <span className="material-symbols-outlined text-xs">close</span>
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
+            <form onSubmit={handleCreateNoteSubmit} className="flex flex-col flex-1 min-h-0 overflow-hidden">
+              <div className="flex-1 overflow-y-auto p-5 space-y-4 scrollbar-thin">
+                {/* Seletor de Tipo: Texto ou Checklist */}
+                <div className="flex bg-[#f0fcfa] p-1 rounded-2xl border border-[#d0dddb] gap-1">
+                  <button
+                    type="button"
+                    onClick={() => setNoteType('text')}
+                    className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                      noteType === 'text'
+                        ? 'bg-white text-[#16302e] shadow-xs border border-[#d9e5e3]'
+                        : 'text-[#727877] hover:text-[#16302e]'
+                    }`}
+                  >
+                    <span className="material-symbols-outlined text-base">notes</span>
+                    <span>Recado de Texto</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setNoteType('checklist');
+                      if (!noteTitle) setNoteTitle('Lista de Compras');
+                      setTimeout(() => newItemInputRef.current?.focus(), 50);
+                    }}
+                    className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                      noteType === 'checklist'
+                        ? 'bg-white text-[#16302e] shadow-xs border border-[#d9e5e3]'
+                        : 'text-[#727877] hover:text-[#16302e]'
+                    }`}
+                  >
+                    <span className="material-symbols-outlined text-base">checklist</span>
+                    <span>Checklist / Compras</span>
+                  </button>
                 </div>
-              ) : (
+
                 <div>
                   <label className="block text-xs font-bold text-[#16302e] mb-1">
-                    Mensagem / Conteúdo
+                    {noteType === 'checklist' ? 'Título da Lista' : 'Título do Recado (Opcional)'}
                   </label>
-                  <textarea
-                    value={noteContent}
-                    onChange={(e) => setNoteContent(e.target.value)}
-                    rows={4}
-                    placeholder="Escreva seu recado para os outros moradores..."
+                  <input
+                    type="text"
+                    value={noteTitle}
+                    onChange={(e) => setNoteTitle(e.target.value)}
+                    placeholder={noteType === 'checklist' ? 'ex: Lista de Compras, Feira de Domingo...' : 'ex: Comprar café, Chaves na portaria...'}
                     className="w-full p-3 rounded-xl text-xs border border-[#c1c8c6] bg-[#f0fcfa] text-[#131e1d] focus:outline-none focus:border-[#7b5800]"
-                    required
                   />
                 </div>
-              )}
 
-              <div>
-                <label className="block text-xs font-bold text-[#16302e] mb-1">
-                  Autor da Mensagem
-                </label>
-                <div className="w-full p-2.5 rounded-xl text-xs border border-[#c1c8c6] bg-[#f0fcfa] text-[#131e1d] font-bold flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="material-symbols-outlined text-base text-[#7b5800]">person</span>
-                    <span>{authorNameToUse}</span>
+                {noteType === 'checklist' ? (
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-xs font-bold text-[#16302e] mb-1">
+                        Observação / Contexto (Opcional)
+                      </label>
+                      <input
+                        type="text"
+                        value={noteContent}
+                        onChange={(e) => setNoteContent(e.target.value)}
+                        placeholder="ex: Itens para o fim de semana, comprar até sábado..."
+                        className="w-full p-2.5 rounded-xl text-xs border border-[#c1c8c6] bg-[#f0fcfa] text-[#131e1d] focus:outline-none focus:border-[#7b5800]"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-[#16302e] mb-1">
+                        Adicionar Itens à Lista
+                      </label>
+                      <div className="flex gap-2">
+                        <input
+                          ref={newItemInputRef}
+                          type="text"
+                          value={newItemText}
+                          onChange={(e) => setNewItemText(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              handleAddChecklistItem();
+                            }
+                          }}
+                          placeholder="ex: Leite de aveia, Café em grãos..."
+                          className="flex-1 p-2.5 rounded-xl text-xs border border-[#c1c8c6] bg-[#f0fcfa] text-[#131e1d] focus:outline-none focus:border-[#7b5800]"
+                        />
+                        <button
+                          type="button"
+                          onClick={handleAddChecklistItem}
+                          disabled={!newItemText.trim()}
+                          className="px-3 py-2.5 bg-[#16302e] hover:bg-[#2d4644] disabled:opacity-40 text-white rounded-xl text-xs font-bold transition-all cursor-pointer shrink-0 flex items-center gap-1"
+                        >
+                          <span className="material-symbols-outlined text-sm">add</span>
+                          <span>Inserir</span>
+                        </button>
+                      </div>
+                      <p className="text-[10px] text-[#727877] mt-1">
+                        Dica: Digite o item e aperte <strong>Enter</strong> ou clique em <strong>Inserir</strong>.
+                      </p>
+                    </div>
+
+                    {checklistItems.length > 0 ? (
+                      <div className="max-h-40 overflow-y-auto space-y-1.5 p-2 bg-[#f0fcfa] rounded-xl border border-[#d0dddb] scrollbar-thin">
+                        <div className="text-[10px] font-bold text-[#727877] px-1 mb-1">
+                          {checklistItems.length} {checklistItems.length === 1 ? 'item adicionado' : 'itens adicionados'}:
+                        </div>
+                        {checklistItems.map((item, idx) => (
+                          <div key={item.id} className="flex items-center justify-between gap-2 p-1.5 bg-white rounded-lg border border-[#e4f0ee] text-xs">
+                            <span className="font-medium text-[#131e1d] truncate flex-1 flex items-center gap-1.5">
+                              <span className="text-[10px] font-bold text-[#727877] w-4">{idx + 1}.</span>
+                              {item.text}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveChecklistItem(item.id)}
+                              className="p-1 text-black/40 hover:text-rose-600 rounded-md transition-colors cursor-pointer"
+                              title="Remover item"
+                            >
+                              <span className="material-symbols-outlined text-xs">close</span>
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="p-3 bg-[#f0fcfa] rounded-xl border border-dashed border-[#c1c8c6] text-center text-xs text-[#727877]">
+                        Nenhum item na lista ainda. Digite acima para começar.
+                      </div>
+                    )}
                   </div>
-                  <span className="text-[10px] font-black uppercase text-[#7b5800] bg-[#fff8e6] px-2 py-0.5 rounded-md border border-[#ffca5e]">
-                    Identidade Verificada
-                  </span>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-[#16302e] mb-1.5">
-                  Cor do Post-it
-                </label>
-                <div className="flex gap-3">
-                  {[
-                    { id: 'amber', bg: 'bg-[#fde396]', label: 'Amarelo' },
-                    { id: 'teal', bg: 'bg-[#c3e8e2]', label: 'Menta' },
-                    { id: 'rose', bg: 'bg-[#fcdede]', label: 'Rosa' },
-                    { id: 'lavender', bg: 'bg-[#ddd6fe]', label: 'Lavanda' },
-                    { id: 'gray', bg: 'bg-[#e3eae8]', label: 'Cinza' },
-                  ].map((c) => (
-                    <button
-                      key={c.id}
-                      type="button"
-                      onClick={() => setNoteColor(c.id as any)}
-                      className={`w-7 h-7 rounded-full ${c.bg} border transition-all ${
-                        noteColor === c.id ? 'ring-2 ring-offset-2 ring-[#7b5800] scale-110' : 'hover:scale-105'
-                      }`}
-                      title={c.label}
+                ) : (
+                  <div>
+                    <label className="block text-xs font-bold text-[#16302e] mb-1">
+                      Mensagem / Conteúdo
+                    </label>
+                    <textarea
+                      value={noteContent}
+                      onChange={(e) => setNoteContent(e.target.value)}
+                      rows={4}
+                      placeholder="Escreva seu recado para os outros moradores..."
+                      className="w-full p-3 rounded-xl text-xs border border-[#c1c8c6] bg-[#f0fcfa] text-[#131e1d] focus:outline-none focus:border-[#7b5800]"
+                      required
                     />
-                  ))}
+                  </div>
+                )}
+
+                <div>
+                  <label className="block text-xs font-bold text-[#16302e] mb-1">
+                    Autor da Mensagem
+                  </label>
+                  <div className="w-full p-2.5 rounded-xl text-xs border border-[#c1c8c6] bg-[#f0fcfa] text-[#131e1d] font-bold flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="material-symbols-outlined text-base text-[#7b5800]">person</span>
+                      <span>{authorNameToUse}</span>
+                    </div>
+                    <span className="text-[10px] font-black uppercase text-[#7b5800] bg-[#fff8e6] px-2 py-0.5 rounded-md border border-[#ffca5e]">
+                      Identidade Verificada
+                    </span>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-[#16302e] mb-1.5">
+                    Cor do Post-it
+                  </label>
+                  <div className="flex gap-3">
+                    {[
+                      { id: 'amber', bg: 'bg-[#fde396]', label: 'Amarelo' },
+                      { id: 'teal', bg: 'bg-[#c3e8e2]', label: 'Menta' },
+                      { id: 'rose', bg: 'bg-[#fcdede]', label: 'Rosa' },
+                      { id: 'lavender', bg: 'bg-[#ddd6fe]', label: 'Lavanda' },
+                      { id: 'gray', bg: 'bg-[#e3eae8]', label: 'Cinza' },
+                    ].map((c) => (
+                      <button
+                        key={c.id}
+                        type="button"
+                        onClick={() => setNoteColor(c.id as any)}
+                        className={`w-7 h-7 rounded-full ${c.bg} border transition-all cursor-pointer ${
+                          noteColor === c.id ? 'ring-2 ring-offset-2 ring-[#7b5800] scale-110' : 'hover:scale-105'
+                        }`}
+                        title={c.label}
+                      />
+                    ))}
+                  </div>
                 </div>
               </div>
 
-              <div className="flex justify-end gap-2 pt-3 border-t border-[#e4f0ee]">
+              {/* Rodapé Fixo */}
+              <div className="flex justify-end gap-2 p-4 pt-3 border-t border-[#e4f0ee] bg-white shrink-0">
                 <button
                   type="button"
                   onClick={() => setIsAddNoteModalOpen(false)}
-                  className="px-4 py-2 text-xs font-bold text-[#727877] hover:bg-[#e4f0ee] rounded-xl transition-colors"
+                  className="px-4 py-2 text-xs font-bold text-[#727877] hover:bg-[#e4f0ee] rounded-xl transition-colors cursor-pointer"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 bg-[#7b5800] hover:bg-[#5f4400] text-white text-xs font-bold rounded-xl transition-all shadow-xs"
+                  className="px-5 py-2 bg-[#7b5800] hover:bg-[#5f4400] active:scale-[0.98] text-white text-xs font-bold rounded-xl transition-all shadow-xs cursor-pointer"
                 >
                   Fixar Recado
                 </button>
