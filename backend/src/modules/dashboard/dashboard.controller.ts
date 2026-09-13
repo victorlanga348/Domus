@@ -24,7 +24,10 @@ export class DashboardController {
       const authorId = String(req.userId || req.body.author_id || (Array.isArray(rawHeaderUser) ? rawHeaderUser[0] : rawHeaderUser) || '');
       const content = String(req.body.content || '');
 
-      const post = await this.dashboardService.createBulletinPost(houseId, authorId, content);
+      const title = req.body.title ? String(req.body.title) : undefined;
+      const color = req.body.color ? String(req.body.color) : undefined;
+
+      const post = await this.dashboardService.createBulletinPost(houseId, authorId, content, { title, color });
 
       if (houseId) {
         try {
@@ -32,12 +35,12 @@ export class DashboardController {
           const postDate = new Date(post.created_at);
           emitToHouse(houseId, 'house:note_created', {
             id: post.id,
-            title: req.body.title || undefined,
+            title: post.title,
             content: post.content,
             author: post.author?.name || 'Morador',
             dateStr: `Hoje, ${postDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`,
             timestamp: 'Agora',
-            color: req.body.color || 'amber',
+            color: post.color || 'amber',
           });
         } catch {}
       }

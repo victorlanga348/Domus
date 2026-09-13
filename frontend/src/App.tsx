@@ -44,13 +44,9 @@ import {
   useHouseSocket,
   ensureSocketConnected,
   emitHouseLog,
-  emitTaskCreated,
   emitTaskUpdated,
-  emitTaskDeleted,
   emitTaskStatusChanged,
   emitStatusChanged,
-  emitRuleCreated,
-  emitRuleDeleted,
   emitRotationAdvanced,
   emitMembersUpdated,
   emitMealUpdated,
@@ -212,15 +208,37 @@ function mapBackendLogToActivityLog(log: any): ActivityLog {
   };
 }
 
+function parseBulletinContent(rawContent: string): { title?: string; content: string; color?: MuralNote['color'] } {
+  if (typeof rawContent === 'string' && rawContent.startsWith('{') && rawContent.endsWith('}')) {
+    try {
+      const parsed = JSON.parse(rawContent);
+      if (typeof parsed.text === 'string') {
+        return {
+          title: parsed.title || undefined,
+          content: parsed.text,
+          color: parsed.color || undefined,
+        };
+      }
+    } catch {}
+  }
+  return {
+    title: undefined,
+    content: rawContent || '',
+    color: undefined,
+  };
+}
+
 function mapBulletinToMuralNote(post: any, index = 0): MuralNote {
   const colors: MuralNote['color'][] = ['teal', 'amber', 'lavender', 'rose', 'gray'];
   const postDate = new Date(post.created_at);
+  const parsed = parseBulletinContent(post.content);
   return {
     id: post.id,
-    content: post.content,
-    author: post.author?.name || 'Morador',
+    title: post.title || parsed.title,
+    content: parsed.content || post.content,
+    author: post.author?.name || post.author || 'Morador',
     dateStr: `Hoje, ${postDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`,
-    color: colors[index % colors.length],
+    color: post.color || parsed.color || colors[index % colors.length],
   };
 }
 
@@ -863,11 +881,37 @@ export default function App() {
           return [incomingLog, ...prev];
         });
       },
-      onTaskCreated: (incomingTask: HouseTask) => {
+      onTaskCreated: (incomingTask: any) => {
+        const taskPayload = incomingTask?.task || incomingTask;
+        if (!taskPayload?.id) return;
+        const mapped = mapBackendTaskToHouseTask(taskPayload, familyMembers);
         setTasks((prev) => {
-          if (prev.some((t) => t.id === incomingTask.id)) return prev;
-          return [incomingTask, ...prev];
+          if (prev.some((t) => t.id === mapped.id)) return prev;
+          const hasTemp = prev.some((t) => t.id.startsWith('temp_t_') && t.title === mapped.title);
+          if (hasTemp) {
+            return prev.map((t) => (t.id.startsWith('temp_t_') && t.title === mapped.title ? mapped : t));
+          }
+          return [mapped, ...prev];
         });
+        if (mapped.isRotation) {
+          setRotations((prev) => {
+            const generated = mapBackendTasksToRotations([taskPayload], familyMembers);
+            if (generated.length === 0) return prev;
+            const exists = prev.some((r) => r.id === mapped.id || r.taskId === mapped.id);
+            if (exists) return prev.map((r) => (r.id === mapped.id || r.taskId === mapped.id ? generated[0] : r));
+            const hasTempRot = prev.some(
+              (r) => (r.id.startsWith('temp_t_') || r.taskId?.startsWith('temp_t_')) && r.taskTitle === mapped.title
+            );
+            if (hasTempRot) {
+              return prev.map((r) =>
+                (r.id.startsWith('temp_t_') || r.taskId?.startsWith('temp_t_')) && r.taskTitle === mapped.title
+                  ? generated[0]
+                  : r
+              );
+            }
+            return [...generated, ...prev];
+          });
+        }
       },
       onTaskUpdated: (incomingData: any) => {
         const taskPayload = incomingData?.task || incomingData;
@@ -954,6 +998,10 @@ export default function App() {
       onRuleCreated: (incomingRule: HouseRule) => {
         setHouseRules((prev) => {
           if (prev.some((r) => r.id === incomingRule.id)) return prev;
+          const hasTemp = prev.some((r) => r.id.startsWith('temp_hr_') && r.title === incomingRule.title);
+          if (hasTemp) {
+            return prev.map((r) => (r.id.startsWith('temp_hr_') && r.title === incomingRule.title ? incomingRule : r));
+          }
           return [...prev, incomingRule];
         });
       },
@@ -1421,9 +1469,6 @@ export default function App() {
       });
     }
 
-    if (currentHouse?.id) {
-      emitTaskCreated(currentHouse.id, optimisticTask);
-    }
     recordHouseActivity(`Nova tarefa "${optimisticTask.title}" criada.`, authUser?.name, 'ROTATED', tempId);
     showToast(`Tarefa "${optimisticTask.title}" criada com sucesso!`);
 
@@ -1440,12 +1485,22 @@ export default function App() {
       });
 
       const realTask = mapBackendTaskToHouseTask(backendCreated, familyMembers);
-      setTasks((prev) => prev.map((t) => (t.id === tempId ? realTask : t)));
+      setTasks((prev) => {
+        const alreadyHasReal = prev.some((t) => t.id === realTask.id);
+        if (alreadyHasReal) {
+          return prev.filter((t) => t.id !== tempId);
+        }
+        return prev.map((t) => (t.id === tempId ? realTask : t));
+      });
 
       if (realTask.isRotation) {
         setRotations((prev) => {
           const generated = mapBackendTasksToRotations([realTask], familyMembers);
           if (generated.length === 0) return prev.filter((r) => r.id !== tempId && r.taskId !== tempId);
+          const alreadyHasRealRot = prev.some((r) => r.id === realTask.id || r.taskId === realTask.id);
+          if (alreadyHasRealRot) {
+            return prev.filter((r) => r.id !== tempId && r.taskId !== tempId);
+          }
           return prev.map((r) => (r.id === tempId || r.taskId === tempId ? generated[0] : r));
         });
       }
@@ -1537,12 +1592,13 @@ export default function App() {
     // 1. Atualização Otimista Imediata (0ms)
     setTasks((prev) => prev.filter((t) => t.id !== taskId));
     setRotations((prev) => prev.filter((r) => r.id !== taskId && r.taskId !== taskId));
-    if (currentHouse?.id) {
-      emitTaskDeleted(currentHouse.id, taskId);
-    }
     if (taskObj) {
       recordHouseActivity(`Tarefa "${taskObj.title}" foi excluída.`, authUser?.name, 'FAILED', taskId);
       showToast(`Tarefa "${taskObj.title}" excluída.`);
+    }
+
+    if (taskId.startsWith('temp_t_')) {
+      return;
     }
 
     // 2. Persistência assíncrona
@@ -1813,9 +1869,6 @@ export default function App() {
 
     // 1. Atualização Otimista Imediata (0ms)
     setHouseRules((prev) => [...prev, createdRule]);
-    if (currentHouse?.id) {
-      emitRuleCreated(currentHouse.id, createdRule);
-    }
     recordHouseActivity(`Nova regra adicionada: "${rule.title}"`);
     showToast('Regra da casa adicionada!');
 
@@ -1828,7 +1881,13 @@ export default function App() {
       });
 
       if (backendRule?.id) {
-        setHouseRules((prev) => prev.map((r) => (r.id === tempId ? backendRule : r)));
+        setHouseRules((prev) => {
+          const alreadyHasReal = prev.some((r) => r.id === backendRule.id);
+          if (alreadyHasReal) {
+            return prev.filter((r) => r.id !== tempId);
+          }
+          return prev.map((r) => (r.id === tempId ? backendRule : r));
+        });
       }
     } catch (err: any) {
       console.error('[Rules] Erro ao adicionar regra:', err);
@@ -1847,8 +1906,9 @@ export default function App() {
     }
     if (currentHouse?.id) {
       for (const dr of deletedRules) {
-        rulesApi.deleteRule(dr.id, currentHouse.id).catch(() => {});
-        emitRuleDeleted(currentHouse.id, dr.id);
+        if (!dr.id.startsWith('temp_hr_')) {
+          rulesApi.deleteRule(dr.id, currentHouse.id).catch(() => {});
+        }
       }
     }
   };

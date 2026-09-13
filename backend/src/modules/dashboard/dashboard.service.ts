@@ -3,6 +3,26 @@ import { RotationService } from '../tasks/tasks.rotation.service.js';
 import { AppError } from '../../shared/errors/AppError.js';
 import type { Shift } from '@prisma/client';
 
+export function parseBulletinContent(rawContent: string): { title?: string; content: string; color?: string } {
+  if (typeof rawContent === 'string' && rawContent.startsWith('{') && rawContent.endsWith('}')) {
+    try {
+      const parsed = JSON.parse(rawContent);
+      if (typeof parsed.text === 'string') {
+        return {
+          title: parsed.title || undefined,
+          content: parsed.text,
+          color: parsed.color || undefined,
+        };
+      }
+    } catch {}
+  }
+  return {
+    title: undefined,
+    content: rawContent,
+    color: undefined,
+  };
+}
+
 export class DashboardService {
   constructor(private rotationService = new RotationService()) {}
 
@@ -165,19 +185,24 @@ export class DashboardService {
       },
       current_shift_tasks: tasksWithAssignee,
       members: house.users,
-      bulletin_posts: bulletinPosts.map((post) => ({
-        id: post.id,
-        content: post.content,
-        created_at: post.created_at,
-        author: post.author,
-      })),
+      bulletin_posts: bulletinPosts.map((post) => {
+        const parsed = parseBulletinContent(post.content);
+        return {
+          id: post.id,
+          title: parsed.title,
+          content: parsed.content,
+          color: parsed.color,
+          created_at: post.created_at,
+          author: post.author,
+        };
+      }),
     };
   }
 
   /**
    * Cria uma nova publicação no mural de recados da residência.
    */
-  async createBulletinPost(houseId: string, authorId: string, content: string) {
+  async createBulletinPost(houseId: string, authorId: string, content: string, meta?: { title?: string; color?: string }) {
     if (!houseId) {
       throw new AppError('Identificação da residência (houseId) é obrigatória.', 400, 'HOUSE_ID_REQUIRED');
     }
@@ -188,11 +213,21 @@ export class DashboardService {
       throw new AppError('Conteúdo do recado não pode estar vazio.', 400, 'CONTENT_REQUIRED');
     }
 
+    const trimmedContent = content.trim();
+    const storedContent =
+      meta?.title || meta?.color
+        ? JSON.stringify({
+            title: meta.title?.trim() || undefined,
+            text: trimmedContent,
+            color: meta.color || undefined,
+          })
+        : trimmedContent;
+
     const post = await prisma.bulletinBoard.create({
       data: {
         house_id: houseId,
         author_id: authorId,
-        content: content.trim(),
+        content: storedContent,
       },
       include: {
         author: {
@@ -204,9 +239,13 @@ export class DashboardService {
       },
     });
 
+    const parsed = parseBulletinContent(post.content);
+
     return {
       id: post.id,
-      content: post.content,
+      title: parsed.title,
+      content: parsed.content,
+      color: parsed.color,
       created_at: post.created_at,
       author: post.author,
     };
