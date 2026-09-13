@@ -121,15 +121,21 @@ export const StatisticsView: React.FC<StatisticsViewProps> = ({
     };
   }, [tasks, familyMembers, currentHouseId, currentUserId]);
 
+  const familyMembersRef = React.useRef(familyMembers);
+  familyMembersRef.current = familyMembers;
+  const computeLocalRef = React.useRef(computeLocalStatistics);
+  computeLocalRef.current = computeLocalStatistics;
+
   const fetchStats = useCallback(async () => {
-    const local = computeLocalStatistics();
+    const local = computeLocalRef.current();
     try {
       setIsRefreshing(true);
       setIsCountComplete(false);
       const data = await statisticsApi.getStatistics(currentHouseId, currentUserId);
       if (data) {
+        const members = familyMembersRef.current;
         const enrichedContributions = (data.contributions || []).map((c) => {
-          const member = familyMembers.find((m) => m.id === c.user_id || m.name === c.name);
+          const member = members.find((m) => m.id === c.user_id || m.name === c.name);
           return {
             ...c,
             avatar: c.avatar || member?.avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(c.name)}`,
@@ -141,27 +147,31 @@ export const StatisticsView: React.FC<StatisticsViewProps> = ({
               ...data.top_contributor,
               avatar:
                 data.top_contributor.avatar ||
-                familyMembers.find((m) => m.id === data.top_contributor?.user_id)?.avatar ||
+                members.find((m) => m.id === data.top_contributor?.user_id)?.avatar ||
                 `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(data.top_contributor.name)}`,
             }
           : null;
 
-        setStats({
-          ...data,
-          contributions: enrichedContributions,
-          top_contributor: enrichedTop,
+        setStats((prev) => {
+          if (!prev || prev.harmony.score !== data.harmony.score) {
+            setAnimKey((k) => k + 1);
+          }
+          return {
+            ...data,
+            contributions: enrichedContributions,
+            top_contributor: enrichedTop,
+          };
         });
       } else {
-        setStats(local);
+        setStats((prev) => prev || local);
       }
     } catch {
-      setStats(local);
+      setStats((prev) => prev || local);
     } finally {
       setLoading(false);
       setIsRefreshing(false);
-      setAnimKey((prev) => prev + 1);
     }
-  }, [currentHouseId, currentUserId, familyMembers, computeLocalStatistics]);
+  }, [currentHouseId, currentUserId]);
 
   useEffect(() => {
     fetchStats();

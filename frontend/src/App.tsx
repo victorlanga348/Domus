@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   TabType,
@@ -318,6 +318,8 @@ export default function App() {
       },
     ];
   });
+  const familyMembersRef = useRef<FamilyMember[]>(familyMembers);
+  familyMembersRef.current = familyMembers;
 
   const [onlineUserIds, setOnlineUserIds] = useState<string[]>([]);
 
@@ -611,6 +613,26 @@ export default function App() {
           };
         });
 
+        // Verificação de igualdade superficial para evitar re-renderizações cíclicas
+        const isIdentical =
+          prev.length === merged.length &&
+          prev.every((p, i) => {
+            const m = merged[i];
+            return (
+              p.id === m.id &&
+              p.name === m.name &&
+              p.email === m.email &&
+              p.role === m.role &&
+              p.vacation_mode === m.vacation_mode &&
+              p.statusTag === m.statusTag &&
+              p.avatar === m.avatar
+            );
+          });
+
+        if (isIdentical) {
+          return prev;
+        }
+
         if (houseKey) {
           localStorage.setItem(`${houseKey}_members`, JSON.stringify(merged));
         }
@@ -657,8 +679,8 @@ export default function App() {
           .getTasks(houseId, userId)
           .then((backendTasks) => {
             if (Array.isArray(backendTasks)) {
-              setTasks(backendTasks.map((t) => mapBackendTaskToHouseTask(t, familyMembers)));
-              const generatedRotations = mapBackendTasksToRotations(backendTasks, familyMembers);
+              setTasks(backendTasks.map((t) => mapBackendTaskToHouseTask(t, familyMembersRef.current)));
+              const generatedRotations = mapBackendTasksToRotations(backendTasks, familyMembersRef.current);
               setRotations(generatedRotations);
             }
           })
@@ -743,7 +765,7 @@ export default function App() {
         checkSessionValidity(err);
       }
     },
-    [currentHouse?.id, authUser?.id, familyMembers, handleSyncMembers, checkSessionValidity]
+    [currentHouse?.id, authUser?.id, handleSyncMembers, checkSessionValidity]
   );
 
   // Sincronização inicial automática dos dados centrais da residência ao carregar

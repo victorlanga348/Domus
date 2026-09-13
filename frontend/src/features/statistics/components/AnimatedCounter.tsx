@@ -25,6 +25,7 @@ export const AnimatedCounter: React.FC<AnimatedCounterProps> = ({
   formatter = (v) => Math.round(v),
 }) => {
   const [displayValue, setDisplayValue] = useState(0);
+  const prevValueRef = useRef(0);
   const frameRef = useRef<number | null>(null);
   const timeoutRef = useRef<number | null>(null);
 
@@ -37,12 +38,14 @@ export const AnimatedCounter: React.FC<AnimatedCounterProps> = ({
 
     if (prefersReducedMotion) {
       setDisplayValue(value);
+      prevValueRef.current = value;
       onComplete?.();
       return;
     }
 
-    const startValue = 0;
+    const startValue = prevValueRef.current;
     const targetValue = value;
+    prevValueRef.current = targetValue;
     const delta = targetValue - startValue;
 
     if (delta === 0) {
