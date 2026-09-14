@@ -49,6 +49,7 @@ stateDiagram-v2
   2. **Em Tarefas com Rodízio:** A pessoa que havia realizado a tarefa (identificada pelo `locked_by_id` da conclusão) **reassume a responsabilidade imediata da tarefa**. O `rotation_index` no banco de dados é restaurado para a posição exata daquele morador na lista de participantes ordenada (A-Z) ou decrementado circularmente.
   3. **Em Tarefas Fixas / Individuais:** A tarefa retorna a `status: 'OPEN'` mantendo seu responsável designado e liberando os campos de trava (`locked_by_id`, `locked_at`, `last_block_reason`).
   4. **Reflexo Universal em Tempo Real:** A alteração propaga imediatamente via WebSocket (`house:task_status_changed`, `task:updated`, `house:rotation_advanced`) para todos os moradores da residência sem exceção, atualizando tanto a lista de tarefas quanto o carrossel de rodízios e relatórios.
+  5. **Sem Estado Intermediário ("Livre"):** A retomada do responsável ocorre de imediato (0ms) na atualização otimista local. O cartão da tarefa nunca transita para "Livre" antes de receber a resposta da API, exibindo diretamente o morador que havia realizado a tarefa por último.
 
 ### 4.3 Gestão e Adição de Membros
 - **Regra Estrita:** Nenhum morador comum pode convidar ou adicionar novos membros à residência.

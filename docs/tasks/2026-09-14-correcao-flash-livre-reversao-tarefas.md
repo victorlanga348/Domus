@@ -1,6 +1,6 @@
 # Task: Correção do Flash "Livre" na Reversão de Tarefas
 **Data:** 2026-09-14  
-**Status:** Proposta  
+**Status:** Concluída  
 **Specs Impactadas:** `[[docs/product/tasks-rotation.md]]`, `[[docs/pages/tasks-rotation.md]]`
 
 ---
@@ -56,11 +56,11 @@ Ao reverter uma tarefa concluída ou pulada (através do botão "Reverter p/ Pen
 ---
 
 ## 4. Critérios de Aceitação
-- [ ] Ao clicar em "Reverter p/ Pendente" e confirmar no modal, a tarefa deve exibir imediatamente (0ms) o responsável anterior (último que concluiu ou rodízio restaurado), sem piscar `"Livre"`.
-- [ ] O carrossel de rodízios e a fila de participantes em `rotations` devem atualizar no mesmo instante para apontar a vez ativa (`isNext: true`) para o morador restaurado.
-- [ ] Ao recarregar a página ou receber eventos de socket (`task:updated`, `house:task_status_changed`), o responsável permanece idêntico e consistente.
-- [ ] Tarefas genuinamente comunitárias (sem participantes ou marcadas como "Qualquer pessoa") continuam exibindo `"Livre"`.
-- [ ] Nenhum erro de typecheck ou testes quebrados.
+- [x] Ao clicar em "Reverter p/ Pendente" e confirmar no modal, a tarefa deve exibir imediatamente (0ms) o responsável anterior (último que concluiu ou rodízio restaurado), sem piscar `"Livre"`.
+- [x] O carrossel de rodízios e a fila de participantes em `rotations` devem atualizar no mesmo instante para apontar a vez ativa (`isNext: true`) para o morador restaurado.
+- [x] Ao recarregar a página ou receber eventos de socket (`task:updated`, `house:task_status_changed`), o responsável permanece idêntico e consistente.
+- [x] Tarefas genuinamente comunitárias (sem participantes ou marcadas como "Qualquer pessoa") continuam exibindo `"Livre"`.
+- [x] Nenhum erro de typecheck ou testes quebrados.
 
 ---
 
@@ -81,13 +81,13 @@ Ao reverter uma tarefa concluída ou pulada (através do botão "Reverter p/ Pen
 ---
 
 ## 6. Validação e Testes
-- [ ] `rtk npm test` no backend executado com 100% de sucesso.
-- [ ] `rtk npm run typecheck` no frontend e backend sem erros.
-- [ ] `rtk npm run build` no frontend concluído com sucesso.
+- [x] `rtk npm test` no backend executado com 100% de sucesso (76/76 testes).
+- [x] `rtk npm run typecheck` no frontend e backend sem erros.
+- [x] `rtk npm run build` no frontend concluído com sucesso.
 
 ---
 
 ## 7. Sincronização com /docs
-- [ ] `docs/product/tasks-rotation.md` atualizado detalhando a transição imediata (0ms) sem estado intermediário "Livre".
-- [ ] `docs/tasks/2026-09-14-correcao-flash-livre-reversao-tarefas.md` atualizado para status "Concluída".
-- [ ] Governança de documentação verificada.
+- [x] `docs/product/tasks-rotation.md` atualizado detalhando a transição imediata (0ms) sem estado intermediário "Livre".
+- [x] `docs/tasks/2026-09-14-correcao-flash-livre-reversao-tarefas.md` atualizado para status "Concluída".
+- [x] Governança de documentação verificada.
