@@ -238,6 +238,72 @@ export class TaskService {
   }
 
   /**
+   * skipTask:
+   * Pula a vez na tarefa de rodízio e avança a escala para o próximo participante.
+   * Trava de segurança: apenas o morador da vez ou o Admin Geral podem pular a tarefa.
+   */
+  async skipTask(
+    taskId: string,
+    userId: string,
+    userRole?: string
+  ): Promise<{ task: Task; nextAssignee: User; skippedBy: User }> {
+    const task = await this.getTaskById(taskId);
+
+    if (!userId) {
+      throw new AppError('Usuário não autenticado.', 401, 'UNAUTHORIZED');
+    }
+
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) {
+      throw new AppError('Usuário não encontrado.', 404, 'USER_NOT_FOUND');
+    }
+
+    const role = userRole || user.role;
+    const isGeneralAdmin = user.role === 'ADMIN' || role === 'ADMIN_GERAL' || role === 'Admin Geral';
+
+    // Trava de segurança: apenas a pessoa designada / da vez ou o Admin Geral pode pular a tarefa
+    let idResponsavelValido: string;
+    if (task.participants && task.participants.length > 1) {
+      const responsible = await this.rotationService.getCurrentResponsible(taskId);
+      idResponsavelValido = responsible.id;
+    } else if (task.participants && task.participants.length === 1) {
+      idResponsavelValido = task.participants[0].user_id;
+    } else {
+      idResponsavelValido = task.creator_id;
+    }
+
+    if (idResponsavelValido !== userId && !isGeneralAdmin) {
+      throw new AppError(
+        'Apenas a pessoa da vez no rodízio ou o Admin Geral pode pular a tarefa.',
+        403,
+        'FORBIDDEN_TASK_SKIP'
+      );
+    }
+
+    const { task: updatedTask, nextAssignee } = await this.rotationService.rotateTask(taskId);
+
+    const logComment = isGeneralAdmin && idResponsavelValido !== userId
+      ? `${user.name} (Admin Geral) pulou a vez na tarefa "${task.title}"`
+      : `${user.name} pulou a vez na tarefa "${task.title}"`;
+
+    await prisma.activityLog.create({
+      data: {
+        task_id: taskId,
+        user_id: userId,
+        house_id: task.house_id,
+        action_type: 'ROTATED',
+        comment: logComment,
+      },
+    });
+
+    return {
+      task: updatedTask,
+      nextAssignee,
+      skippedBy: user,
+    };
+  }
+
+  /**
    * revertTask:
    * Reverte uma tarefa concluída para status OPEN.
    * Regra Canônica: A pessoa que havia realizado a tarefa retoma para si mesma a tarefa revertida,

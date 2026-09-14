@@ -52,6 +52,9 @@ export interface HouseTask {
   completedBy?: string;
   completedById?: string;
   completedAt?: string;
+  skippedBy?: string;
+  skippedById?: string;
+  skippedAt?: string;
 }
 
 export interface TaskRotation {

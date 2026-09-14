@@ -46,13 +46,18 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
 
   // Filter Logic
   const filteredTasks = completedOrPastTasks.filter((item) => {
-    if (memberFilter !== 'all' && item.nextMember !== memberFilter) return false;
+    if (memberFilter !== 'all') {
+      const isMatchCompletedBy = item.completedBy?.trim().toLowerCase() === memberFilter.trim().toLowerCase();
+      const isMatchNextMember = item.nextMember?.trim().toLowerCase() === memberFilter.trim().toLowerCase();
+      if (!isMatchCompletedBy && !isMatchNextMember) return false;
+    }
     if (statusFilter !== 'all' && item.status !== statusFilter) return false;
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
       const matchTitle = item.title.toLowerCase().includes(q);
-      const matchMember = item.nextMember?.toLowerCase().includes(q) || false;
-      if (!matchTitle && !matchMember) return false;
+      const matchCompletedBy = item.completedBy?.toLowerCase().includes(q) || false;
+      const matchNextMember = item.nextMember?.toLowerCase().includes(q) || false;
+      if (!matchTitle && !matchCompletedBy && !matchNextMember) return false;
     }
     return true;
   });

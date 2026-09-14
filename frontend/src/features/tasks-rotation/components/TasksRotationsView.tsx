@@ -557,18 +557,37 @@ export const TasksRotationsView: React.FC<TasksRotationsViewProps> = ({
 
                         {/* Responsável Bar */}
                         <div className="mt-2.5 bg-[#f0fcfa] px-2.5 py-1.5 rounded-lg border border-[#e4f0ee] flex items-center justify-between text-xs">
-                          <span className="text-[10px] font-semibold text-[#727877]">Responsável:</span>
+                          <span className="text-[10px] font-semibold text-[#727877]">
+                            {task.status === 'completed' ? 'Concluída por:' : 'Responsável:'}
+                          </span>
                           <div className="flex items-center gap-1 min-w-0">
-                            {task.nextMemberAvatar && (
-                              <img
-                                src={task.nextMemberAvatar}
-                                alt={task.nextMember}
-                                className="w-3.5 h-3.5 rounded-full object-cover shrink-0"
-                              />
-                            )}
-                            <span className="font-bold text-[11px] text-[#16302e] truncate">
-                              {task.nextMember === 'Qualquer pessoa' || (!task.nextMember && !task.isRotation) ? 'Livre' : (task.nextMember || 'Livre')}
-                            </span>
+                            {(() => {
+                              const isCompleted = task.status === 'completed';
+                              const completedMember = isCompleted && (task.completedById || task.completedBy)
+                                ? familyMembers.find((m) => (task.completedById && m.id === task.completedById) || (task.completedBy && m.name.toLowerCase() === task.completedBy.toLowerCase()))
+                                : null;
+                              const displayAvatar = isCompleted
+                                ? completedMember?.avatar || task.nextMemberAvatar
+                                : task.nextMemberAvatar;
+                              const displayName = isCompleted
+                                ? task.completedBy || completedMember?.name || task.nextMember || 'Concluída'
+                                : (task.nextMember === 'Qualquer pessoa' || (!task.nextMember && !task.isRotation) ? 'Livre' : (task.nextMember || 'Livre'));
+
+                              return (
+                                <>
+                                  {displayAvatar && (
+                                    <img
+                                      src={displayAvatar}
+                                      alt={displayName}
+                                      className="w-3.5 h-3.5 rounded-full object-cover shrink-0"
+                                    />
+                                  )}
+                                  <span className="font-bold text-[11px] text-[#16302e] truncate">
+                                    {displayName}
+                                  </span>
+                                </>
+                              );
+                            })()}
                           </div>
                         </div>
                       </div>
@@ -610,10 +629,6 @@ export const TasksRotationsView: React.FC<TasksRotationsViewProps> = ({
                                     type="button"
                                     onClick={() => {
                                       onTaskStatusChange(task.id, 'completed');
-                                      if (task.isRotation && rotations.length > 0) {
-                                        const matchingRot = rotations.find((r) => r.taskId === task.id || r.id === task.id) || rotations[0];
-                                        onRotateNext(matchingRot.id);
-                                      }
                                     }}
                                     className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 active:scale-[0.96] text-white text-[11px] font-bold rounded-lg transition-all shadow-2xs flex items-center gap-1 cursor-pointer"
                                     aria-label="Concluir Tarefa"

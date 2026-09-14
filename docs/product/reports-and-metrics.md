@@ -20,3 +20,10 @@ Todos os eventos críticos são gravados com timestamp preciso, `userId` e paylo
 - `TASK_COMPLETED`: Quando foi finalizada e qual foi o próximo membro sorteado na rotação (`task_id` obrigatório).
 - `TASK_BLOCKED`: Quando um impedimento foi relatado e qual o motivo (`task_id` obrigatório).
 - `USER_VACATION_TOGGLED`: Quando um morador entrou ou saiu de férias (notificação de sistema, sem contagem de tarefas).
+
+---
+
+## 3. Histórico de Tarefas Concluídas & Reversibilidade (`ReportsView`)
+- **Exibição Universal:** Todas as tarefas concluídas (incluindo tarefas de rodízio executadas pela pessoa designada ou pelo Admin Geral) constam na lista de histórico com o rótulo `"Concluída por: [Nome]"`, avatar correspondente e data/hora de conclusão.
+- **Filtros e Pesquisa:** O dropdown de membros e o campo de busca pesquisam tanto pelo executor (`completedBy`) quanto pelo sucessor (`nextMember`), garantindo que qualquer morador localize rapidamente suas execuções passadas.
+- **Ação de Reversão:** Administradores e Admin Geral dispõem do botão `"Reverter p/ Pendente"` para devolver tarefas concluídas à lista de tarefas pendentes com restauração da escala de rodízio para o morador anterior.
