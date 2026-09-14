@@ -83,4 +83,14 @@ stateDiagram-v2
 - **Moradores Novos / Recém-Cadastrados:** Ao ingressar na residência com o código de convite, o novo morador tem acesso imediato à visualização de todas as tarefas já criadas (passadas, em andamento ou futuras) e seus históricos, antes mesmo de ser incluído como participante ativo de alguma escala pelo Admin.
 - **Moradores Não-Participantes:** Um morador que não faça parte do pool de participantes de uma tarefa específica continua visualizando normalmente o card da tarefa, o responsável atual e o histórico, garantindo plena transparência e harmonia operacional na convivência compartilhada.
 
+### 4.9 Pulamento de Tarefas & Confirmação Obrigatória
+- **Confirmação Prévia:** O acionamento do botão `[ Pular ]` em tarefas de rodízio exige confirmação explícita através do `ConfirmActionModal`, prevenindo toques acidentais em dispositivos móveis.
+- **Autoridade Permitida:** Morador que detém a vez ativa (`isNext === true`) ou o **Admin Geral**.
+- **Registro no Histórico e Auditoria:** Ao pular, o status da tarefa é registrado como `"skipped"` (Pulada), armazenando `skippedBy`, `skippedById` e `skippedAt`. No histórico de tarefas (`ReportsView`), a tarefa exibe o badge `"Pulada"` e a menção explícita `"Pulada por: [Nome de quem pulou]"`, além de registrar no feed da residência o evento `ROTATED`.
+
+### 4.10 Indicação do Responsável & Tarefas Comunitárias ("Livre")
+- **Cartão de Tarefa Concluída:** A área `"Responsável:"` exibe com precisão o morador que concluiu a tarefa (`task.completedBy`) acompanhado de seu avatar.
+- **Cartão de Tarefa Aberta/Pendente:** Exibe o responsável atual designado da vez (`task.nextMember`).
+- **Tarefas Comunitárias / Sem Atribuição:** Quando uma tarefa não possui responsável designado (sem participantes restritos ou aberta para qualquer morador), a área de responsável exibe obrigatoriamente a designação **"Livre"** (sem exibição de avatar).
+
 

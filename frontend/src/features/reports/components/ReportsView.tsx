@@ -48,16 +48,18 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
   const filteredTasks = completedOrPastTasks.filter((item) => {
     if (memberFilter !== 'all') {
       const isMatchCompletedBy = item.completedBy?.trim().toLowerCase() === memberFilter.trim().toLowerCase();
+      const isMatchSkippedBy = item.skippedBy?.trim().toLowerCase() === memberFilter.trim().toLowerCase();
       const isMatchNextMember = item.nextMember?.trim().toLowerCase() === memberFilter.trim().toLowerCase();
-      if (!isMatchCompletedBy && !isMatchNextMember) return false;
+      if (!isMatchCompletedBy && !isMatchSkippedBy && !isMatchNextMember) return false;
     }
     if (statusFilter !== 'all' && item.status !== statusFilter) return false;
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
       const matchTitle = item.title.toLowerCase().includes(q);
       const matchCompletedBy = item.completedBy?.toLowerCase().includes(q) || false;
+      const matchSkippedBy = item.skippedBy?.toLowerCase().includes(q) || false;
       const matchNextMember = item.nextMember?.toLowerCase().includes(q) || false;
-      if (!matchTitle && !matchCompletedBy && !matchNextMember) return false;
+      if (!matchTitle && !matchCompletedBy && !matchSkippedBy && !matchNextMember) return false;
     }
     return true;
   });
@@ -194,27 +196,70 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
 
                     <div className="flex items-center gap-1.5 mt-1 text-xs text-[#727877] flex-wrap">
                       <span className="font-medium">
-                        {item.status === 'completed' ? 'Concluída por:' : 'Responsável:'}
+                        {item.status === 'completed'
+                          ? 'Concluída por:'
+                          : item.status === 'skipped'
+                          ? 'Pulada por:'
+                          : 'Responsável:'}
                       </span>
                       <span className="inline-flex items-center gap-1 font-bold text-[#16302e]">
-                        {((item.status === 'completed' && item.completedBy
-                          ? familyMembers.find((m) => m.name === item.completedBy || m.id === item.completedById)?.avatar || item.nextMemberAvatar
-                          : item.nextMemberAvatar)) && (
-                          <img
-                            src={
-                              (item.status === 'completed' && item.completedBy
-                                ? familyMembers.find((m) => m.name === item.completedBy || m.id === item.completedById)?.avatar || item.nextMemberAvatar
-                                : item.nextMemberAvatar)
+                        {(() => {
+                          const isCompleted = item.status === 'completed';
+                          const isSkipped = item.status === 'skipped';
+
+                          let displayName = 'Livre';
+                          let displayAvatar: string | undefined = undefined;
+
+                          if (isCompleted) {
+                            const completedMember = (item.completedById || item.completedBy)
+                              ? familyMembers.find(
+                                  (m) =>
+                                    (item.completedById && m.id === item.completedById) ||
+                                    (item.completedBy && m.name.toLowerCase() === item.completedBy.toLowerCase())
+                                )
+                              : null;
+                            displayName = item.completedBy || completedMember?.name || 'Livre';
+                            displayAvatar = completedMember?.avatar;
+                          } else if (isSkipped) {
+                            const skippedMember = (item.skippedById || item.skippedBy)
+                              ? familyMembers.find(
+                                  (m) =>
+                                    (item.skippedById && m.id === item.skippedById) ||
+                                    (item.skippedBy && m.name.toLowerCase() === item.skippedBy.toLowerCase())
+                                )
+                              : null;
+                            displayName = item.skippedBy || skippedMember?.name || item.completedBy || 'Livre';
+                            displayAvatar = skippedMember?.avatar;
+                          } else {
+                            const isFree =
+                              !item.nextMember ||
+                              item.nextMember === 'Livre' ||
+                              item.nextMember === 'Qualquer pessoa' ||
+                              item.nextMember === 'Todos' ||
+                              (!item.nextMemberId && !item.isRotation && (!item.participantIds || item.participantIds.length === 0));
+
+                            if (isFree) {
+                              displayName = 'Livre';
+                              displayAvatar = undefined;
+                            } else {
+                              displayName = item.nextMember;
+                              displayAvatar = item.nextMemberAvatar;
                             }
-                            alt={item.status === 'completed' && item.completedBy ? item.completedBy : (item.nextMember || 'Morador')}
-                            className="w-4 h-4 rounded-full object-cover shrink-0"
-                          />
-                        )}
-                        <span>
-                          {item.status === 'completed' && item.completedBy
-                            ? item.completedBy
-                            : (item.nextMember || 'Sem atribuição')}
-                        </span>
+                          }
+
+                          return (
+                            <>
+                              {displayAvatar && displayName !== 'Livre' && (
+                                <img
+                                  src={displayAvatar}
+                                  alt={displayName}
+                                  className="w-4 h-4 rounded-full object-cover shrink-0"
+                                />
+                              )}
+                              <span>{displayName}</span>
+                            </>
+                          );
+                        })()}
                       </span>
                       <span className="text-[#c1c8c6]">•</span>
                       <span className="text-[11px] font-semibold text-[#7b5800]">

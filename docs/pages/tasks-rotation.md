@@ -21,13 +21,17 @@ Visualização em 3 colunas (Desktop) ou lista segmentada (Mobile):
 ### 2.3 Cartão de Tarefa (`Task Card`)
 Cada cartão exibe:
 - Título e categoria com ícone temático.
-- Avatar e nome do responsável da vez (`currentAssignee`).
-- Badge de status (`OPEN`, `LOCKED [Tempo Restante]`, `BLOCKED [Motivo]`, `COMPLETED`).
+- Área `"Responsável:"`:
+  - Se `COMPLETED`: exibe o morador responsável que concluiu a tarefa (`task.completedBy`) acompanhado de seu avatar.
+  - Se `OPEN`: exibe o morador designado da vez (`task.nextMember`).
+  - Se sem atribuição / tarefa comunitária: exibe estritamente **"Livre"** (sem avatar).
+- Badge de status (`OPEN`, `LOCKED [Tempo Restante]`, `BLOCKED [Motivo]`, `COMPLETED`, `SKIPPED`).
 - Fila de próximos participantes no rodízio (ordem alfabética).
 - Botões de ação contextuais:
   - Se `OPEN`:
     - **Para o Morador Responsável OU Admin Geral:** Botão `[ Concluir ]` verde ativo.
     - **Para Outros Moradores (inclusive Sub-Admins não designados):** Botão desabilitado em cinza com tooltip: `"Aguardando confirmação de [Nome do Responsável]"`.
+    - **Botão `[ Pular ]` (em tarefas de rodízio):** Disponível para o morador da vez ou Admin Geral. Dispara obrigatoriamente o `ConfirmActionModal` (`"Pular Vez na Tarefa"`) antes de avançar a escala e registrar o status de pulada no histórico.
   - Se `COMPLETED`:
     - **Para Moradores Comuns:** Apenas o selo verde `"Concluída"` (sem botões de ação).
     - **Para Admin Geral e Sub-Admins:** Selo `"Concluída"` acompanhado de botão discreto `[ Reverter para Pendente ]`, abrindo modal de confirmação.

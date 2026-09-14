@@ -498,16 +498,28 @@ export const NotificationsDrawer: React.FC<{
 
                       <div className="flex items-center justify-between pt-2 border-t border-[#f7e6bc] text-[11px]">
                         <div className="flex items-center gap-1 min-w-0">
-                          {task.nextMemberAvatar && (
-                            <img
-                              src={task.nextMemberAvatar}
-                              alt={task.nextMember}
-                              className="w-4 h-4 rounded-full object-cover shrink-0"
-                            />
-                          )}
-                          <span className="font-bold text-[#16302e] truncate">
-                            Responsável: {task.nextMember === 'Qualquer pessoa' || (!task.nextMember && !task.isRotation) ? 'Livre' : (task.nextMember || 'Livre')}
-                          </span>
+                          {(() => {
+                            const isCompleted = task.status === 'completed';
+                            const displayName = isCompleted
+                              ? (task.completedBy || 'Livre')
+                              : (task.nextMember === 'Qualquer pessoa' || (!task.nextMember && !task.isRotation) ? 'Livre' : (task.nextMember || 'Livre'));
+                            const displayAvatar = isCompleted ? undefined : (displayName !== 'Livre' ? task.nextMemberAvatar : undefined);
+
+                            return (
+                              <>
+                                {displayAvatar && (
+                                  <img
+                                    src={displayAvatar}
+                                    alt={displayName}
+                                    className="w-4 h-4 rounded-full object-cover shrink-0"
+                                  />
+                                )}
+                                <span className="font-bold text-[#16302e] truncate">
+                                  Responsável: {displayName}
+                                </span>
+                              </>
+                            );
+                          })()}
                         </div>
 
                         {onTaskStatusChange && (

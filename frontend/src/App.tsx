@@ -1786,9 +1786,18 @@ export default function App() {
                 : {}),
             };
           }
-          if (newStatus === 'pending' && t.status === 'completed') {
-            const whoCompletedName = t.completedBy || completedByName;
-            const whoCompletedId = t.completedById;
+          if (newStatus === 'skipped') {
+            return {
+              ...t,
+              status: newStatus,
+              skippedBy: completedByName,
+              skippedById: completedById,
+              skippedAt: new Date().toISOString(),
+            };
+          }
+          if (newStatus === 'pending' && (t.status === 'completed' || t.status === 'skipped')) {
+            const whoCompletedName = t.status === 'skipped' ? (t.skippedBy || completedByName) : (t.completedBy || completedByName);
+            const whoCompletedId = t.status === 'skipped' ? (t.skippedById || completedById) : t.completedById;
             const whoCompletedMember = whoCompletedId
               ? familyMembers.find((m) => m.id === whoCompletedId)
               : familyMembers.find((m) => m.name.toLowerCase() === whoCompletedName.toLowerCase());
@@ -1804,6 +1813,9 @@ export default function App() {
               completedBy: undefined,
               completedById: undefined,
               completedAt: undefined,
+              skippedBy: undefined,
+              skippedById: undefined,
+              skippedAt: undefined,
               nextMember: restoredMemberName,
               nextMemberId: whoCompletedMember?.id || whoCompletedId,
               nextMemberAvatar: restoredMemberAvatar,
@@ -1820,6 +1832,7 @@ export default function App() {
 
     const taskObj = tasks.find((t) => t.id === taskId);
     const wasCompleted = taskObj?.status === 'completed';
+    const wasSkipped = taskObj?.status === 'skipped';
 
     if (newStatus === 'completed') {
       recordHouseActivity(
@@ -1885,9 +1898,24 @@ export default function App() {
       } else {
         showToast(`Tarefa "${taskObj?.title || 'Tarefa'}" concluída com sucesso!`);
       }
-    } else if (newStatus === 'pending' && wasCompleted) {
-      const whoCompletedName = taskObj?.completedBy || completedByName;
-      const whoCompletedId = taskObj?.completedById;
+    } else if (newStatus === 'skipped') {
+      recordHouseActivity(
+        `${completedByName} pulou a tarefa "${taskObj?.title || 'Tarefa'}".`,
+        completedByName,
+        'ROTATED',
+        taskId
+      );
+      if (authUser?.id) {
+        tasksApi
+          .skipTask(taskId, authUser.id, currentUser.role)
+          .catch((err: any) => {
+            console.warn('[DOMUS] Erro ao persistir pulamento da tarefa:', err);
+          });
+      }
+      showToast(`Tarefa "${taskObj?.title || 'Tarefa'}" foi pulada.`);
+    } else if (newStatus === 'pending' && (wasCompleted || wasSkipped)) {
+      const whoCompletedName = wasSkipped ? (taskObj?.skippedBy || completedByName) : (taskObj?.completedBy || completedByName);
+      const whoCompletedId = wasSkipped ? (taskObj?.skippedById || completedById) : taskObj?.completedById;
       const whoCompletedMember = whoCompletedId
         ? familyMembers.find((m) => m.id === whoCompletedId)
         : familyMembers.find((m) => m.name.toLowerCase() === whoCompletedName.toLowerCase());
@@ -1946,7 +1974,7 @@ export default function App() {
             showToast(err.message || 'Erro ao reverter tarefa.');
             // Reverte o estado visual caso o backend recuse (ex: 403)
             setTasks((prev) =>
-              prev.map((t) => (t.id === taskId ? { ...t, status: 'completed' } : t))
+              prev.map((t) => (t.id === taskId ? { ...t, status: wasSkipped ? 'skipped' : 'completed' } : t))
             );
           });
       }

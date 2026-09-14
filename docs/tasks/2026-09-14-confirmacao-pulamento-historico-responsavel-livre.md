@@ -1,7 +1,7 @@
 # Task: Confirmação de Pulamento de Tarefa, Histórico de Puladas e Indicação de Responsável Conclusor / Livre
 
 **Data:** 2026-09-14  
-**Status:** Proposta  
+**Status:** Concluída  
 **Specs Impactadas:** `[[docs/product/tasks-rotation.md]]`, `[[docs/integrations/api-contracts.md]]`, `[[docs/pages/tasks-rotation.md]]`, `[[docs/pages/reports.md]]`
 
 ---
@@ -50,14 +50,14 @@ Atualmente, a ação de pular uma tarefa no rodízio ocorre de forma imediata ao
 ---
 
 ## 4. Critérios de Aceitação
-- [ ] O clique em "Pular" abre o modal de confirmação com visual Domus (`ConfirmActionModal`).
-- [ ] A tarefa só é pulada e o rodízio só avança após confirmação explícita no modal.
-- [ ] Ao pular, é registrado no histórico (`ReportsView`) o status `"Pulada"` e o texto `"Pulada por: [Nome de quem pulou]"`, com o avatar correspondente.
-- [ ] O feed central de atividades (`ActivityLog` / Notificações) recebe o evento de que a tarefa foi pulada pelo morador.
-- [ ] Na área do responsável (cartão de tarefa), se a tarefa estiver concluída, exibe quem a concluiu (`completedBy`).
-- [ ] Na área do responsável, se não houver um responsável designado (tarefa aberta/sem participantes), exibe `"Livre"`.
-- [ ] Filtro e busca de membros no histórico consideram quem pulou e quem concluiu a tarefa.
-- [ ] Typecheck e suíte de testes passando com 100% de sucesso sem regressões.
+- [x] O clique em "Pular" abre o modal de confirmação com visual Domus (`ConfirmActionModal`).
+- [x] A tarefa só é pulada e o rodízio só avança após confirmação explícita no modal.
+- [x] Ao pular, é registrado no histórico (`ReportsView`) o status `"Pulada"` e o texto `"Pulada por: [Nome de quem pulou]"`, com o avatar correspondente.
+- [x] O feed central de atividades (`ActivityLog` / Notificações) recebe o evento de que a tarefa foi pulada pelo morador.
+- [x] Na área do responsável (cartão de tarefa), se a tarefa estiver concluída, exibe quem a concluiu (`completedBy`).
+- [x] Na área do responsável, se não houver um responsável designado (tarefa aberta/sem participantes), exibe `"Livre"`.
+- [x] Filtro e busca de membros no histórico consideram quem pulou e quem concluiu a tarefa.
+- [x] Typecheck e suíte de testes passando com 100% de sucesso sem regressões.
 
 ---
 
@@ -89,14 +89,14 @@ Atualmente, a ação de pular uma tarefa no rodízio ocorre de forma imediata ao
 ---
 
 ## 6. Validação e Testes
-- [ ] `rtk npm run typecheck` no frontend e no backend.
-- [ ] `rtk npm test` no backend (todos os testes verdes).
-- [ ] Teste de acessibilidade (ARIA labels e foco do modal de confirmação).
+- [x] `rtk npm run typecheck` no frontend e no backend.
+- [x] `rtk npm test` no backend (todos os testes verdes).
+- [x] Teste de acessibilidade (ARIA labels e foco do modal de confirmação).
 
 ---
 
 ## 7. Sincronização com /docs
-- [ ] `docs/product/tasks-rotation.md` atualizado com as regras de pulamento, confirmação e responsável/livre.
-- [ ] `docs/integrations/api-contracts.md` atualizado com o endpoint de pulamento.
-- [ ] `docs/pages/tasks-rotation.md` e `docs/pages/reports.md` atualizados.
-- [ ] Governança validada em [docs/documentation-governance.md](file:///c:/Users/victo/OneDrive/Documentos/Github/Domus/docs/documentation-governance.md).
+- [x] `docs/product/tasks-rotation.md` atualizado com as regras de pulamento, confirmação e responsável/livre.
+- [x] `docs/integrations/api-contracts.md` atualizado com o endpoint de pulamento.
+- [x] `docs/pages/tasks-rotation.md` e `docs/pages/reports.md` atualizados.
+- [x] Governança validada em [docs/documentation-governance.md](file:///c:/Users/victo/OneDrive/Documentos/Github/Domus/docs/documentation-governance.md).

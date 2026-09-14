@@ -47,6 +47,7 @@ export const TasksRotationsView: React.FC<TasksRotationsViewProps> = ({
   const [selectedPeriod, setSelectedPeriod] = useState<'all' | 'morning' | 'afternoon' | 'night'>('all');
   const [statusFilter, setStatusFilter] = useState<'pending' | 'completed' | 'all'>('pending');
   const [taskToRevert, setTaskToRevert] = useState<HouseTask | null>(null);
+  const [taskToSkip, setTaskToSkip] = useState<HouseTask | null>(null);
 
   const isGeneralAdmin = currentUserRole === 'Admin Geral' || currentUserRole === 'ADMIN';
   const isAdmin = currentUserRole === 'Admin' || currentUserRole === 'SUB_ADMIN';
@@ -557,25 +558,46 @@ export const TasksRotationsView: React.FC<TasksRotationsViewProps> = ({
 
                         {/* Responsável Bar */}
                         <div className="mt-2.5 bg-[#f0fcfa] px-2.5 py-1.5 rounded-lg border border-[#e4f0ee] flex items-center justify-between text-xs">
-                          <span className="text-[10px] font-semibold text-[#727877]">
-                            {task.status === 'completed' ? 'Concluída por:' : 'Responsável:'}
-                          </span>
+                          <span className="text-[10px] font-semibold text-[#727877]">Responsável:</span>
                           <div className="flex items-center gap-1 min-w-0">
                             {(() => {
                               const isCompleted = task.status === 'completed';
-                              const completedMember = isCompleted && (task.completedById || task.completedBy)
-                                ? familyMembers.find((m) => (task.completedById && m.id === task.completedById) || (task.completedBy && m.name.toLowerCase() === task.completedBy.toLowerCase()))
-                                : null;
-                              const displayAvatar = isCompleted
-                                ? completedMember?.avatar || task.nextMemberAvatar
-                                : task.nextMemberAvatar;
-                              const displayName = isCompleted
-                                ? task.completedBy || completedMember?.name || task.nextMember || 'Concluída'
-                                : (task.nextMember === 'Qualquer pessoa' || (!task.nextMember && !task.isRotation) ? 'Livre' : (task.nextMember || 'Livre'));
+                              const isSkipped = task.status === 'skipped';
+                              let displayName = 'Livre';
+                              let displayAvatar: string | undefined = undefined;
+
+                              if (isCompleted) {
+                                const completedMember = (task.completedById || task.completedBy)
+                                  ? familyMembers.find((m) => (task.completedById && m.id === task.completedById) || (task.completedBy && m.name.toLowerCase() === task.completedBy.toLowerCase()))
+                                  : null;
+                                displayName = task.completedBy || completedMember?.name || 'Livre';
+                                displayAvatar = completedMember?.avatar;
+                              } else if (isSkipped) {
+                                const skippedMember = (task.skippedById || task.skippedBy)
+                                  ? familyMembers.find((m) => (task.skippedById && m.id === task.skippedById) || (task.skippedBy && m.name.toLowerCase() === task.skippedBy.toLowerCase()))
+                                  : null;
+                                displayName = task.skippedBy || skippedMember?.name || 'Livre';
+                                displayAvatar = skippedMember?.avatar;
+                              } else {
+                                const isFree =
+                                  !task.nextMember ||
+                                  task.nextMember === 'Livre' ||
+                                  task.nextMember === 'Qualquer pessoa' ||
+                                  task.nextMember === 'Todos' ||
+                                  (!task.nextMemberId && !task.isRotation && (!task.participantIds || task.participantIds.length === 0));
+
+                                if (isFree) {
+                                  displayName = 'Livre';
+                                  displayAvatar = undefined;
+                                } else {
+                                  displayName = task.nextMember;
+                                  displayAvatar = task.nextMemberAvatar;
+                                }
+                              }
 
                               return (
                                 <>
-                                  {displayAvatar && (
+                                  {displayAvatar && displayName !== 'Livre' && (
                                     <img
                                       src={displayAvatar}
                                       alt={displayName}
@@ -656,16 +678,13 @@ export const TasksRotationsView: React.FC<TasksRotationsViewProps> = ({
                               })()}
 
                               {isRotation && rotations.length > 0 && Boolean(
+                                isGeneralAdmin ||
                                 (currentUserId && task.nextMemberId && task.nextMemberId === currentUserId) ||
                                 (effectiveUserName && task.nextMember && task.nextMember.trim().toLowerCase() === effectiveUserName.trim().toLowerCase())
                               ) && (
                                 <button
                                   type="button"
-                                  onClick={() => {
-                                    const matchingRot = rotations.find((r) => r.taskId === task.id || r.id === task.id) || rotations[0];
-                                    onRotateNext(matchingRot.id);
-                                    onTaskStatusChange(task.id, 'skipped');
-                                  }}
+                                  onClick={() => setTaskToSkip(task)}
                                   className="px-2 py-1 bg-white border border-[#c1c8c6] text-[#7b5800] hover:bg-amber-50 active:scale-[0.96] text-[11px] font-bold rounded-lg transition-all flex items-center gap-1 cursor-pointer"
                                   title="Pular vez para a próxima pessoa da fila"
                                   aria-label="Pular vez na fila do rodízio"
@@ -1437,6 +1456,30 @@ export const TasksRotationsView: React.FC<TasksRotationsViewProps> = ({
         cancelText="Cancelar"
         variant="warning"
         icon="undo"
+      />
+
+      {/* Modal de Confirmação para Pular Tarefa */}
+      <ConfirmActionModal
+        isOpen={Boolean(taskToSkip)}
+        onClose={() => setTaskToSkip(null)}
+        onConfirm={() => {
+          if (taskToSkip) {
+            const matchingRot =
+              rotations.find((r) => r.taskId === taskToSkip.id || r.id === taskToSkip.id) ||
+              rotations[0];
+            if (matchingRot) {
+              onRotateNext(matchingRot.id);
+            }
+            onTaskStatusChange(taskToSkip.id, 'skipped');
+            setTaskToSkip(null);
+          }
+        }}
+        title="Pular Vez na Tarefa"
+        description={`Deseja realmente pular a tarefa "${taskToSkip?.title}"? A vez passará para a próxima pessoa da fila e o pulamento será registrado no histórico.`}
+        confirmText="Pular Tarefa"
+        cancelText="Cancelar"
+        variant="warning"
+        icon="skip_next"
       />
     </div>
   );

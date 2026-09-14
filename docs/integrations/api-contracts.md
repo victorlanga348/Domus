@@ -169,6 +169,41 @@
   - `403 Forbidden`: `"Apenas a pessoa da vez no rodízio pode girar a escala."` (`FORBIDDEN_TASK_ROTATION`) quando acionado por usuário fora da sua vez.
   - `404 Not Found`: `TASK_NOT_FOUND` se o ID da tarefa não existir.
 
+### `POST /api/tasks/:id/skip` (ou `PATCH /api/tasks/:id/skip`, alias `/api/tasks/:id/pular`)
+- **Descrição:** Pula a vez ativa na escala de rodízio, avança circularmente o `rotation_index` para o próximo participante e registra auditoria de pulamento no `ActivityLog`.
+- **Autorização:** Apenas o morador que atualmente detém a vez ativa ou o **Admin Geral** (`ADMIN`, `Admin Geral`).
+- **Headers:** `x-user-id`, `x-user-role`
+- **Payload:** `{ "user_id": "uuid-user", "user_role": "opcional" }`
+- **Resposta (200):**
+  ```json
+  {
+    "status": "success",
+    "data": {
+      "task": {
+        "id": "uuid-task",
+        "title": "Limpar a Cozinha",
+        "rotation_index": 2,
+        "status": "OPEN"
+      },
+      "nextAssignee": {
+        "id": "uuid-user-next",
+        "name": "Carlos",
+        "vacation_mode": false
+      },
+      "skippedBy": {
+        "id": "uuid-user-skipped",
+        "name": "Bruno"
+      }
+    }
+  }
+  ```
+- **Eventos WebSocket Emitidos:**
+  - `house:rotation_advanced`: `{ rotationId: "uuid-task", taskId: "uuid-task", nextAssignee: User }`
+  - `task:updated`: `{ task, nextAssignee, skippedBy }`
+- **Erros:**
+  - `403 Forbidden`: `"Apenas a pessoa da vez no rodízio ou o Admin Geral pode pular a tarefa."` (`FORBIDDEN_TASK_SKIP`) quando acionado por morador fora da sua vez sem privilégio de Admin Geral.
+  - `404 Not Found`: `TASK_NOT_FOUND` se o ID da tarefa não existir.
+
 ### `POST /api/tasks/:id/revert` (ou `PATCH /api/tasks/:id/revert`, alias `/api/tasks/:id/reverter`)
 - **Descrição:** Reverte uma tarefa concluída para o status `OPEN`, restaurando o `rotation_index` e a atribuição para a pessoa que havia concluído a tarefa de rodízio (como se nunca tivesse concluído) e liberando travas (`locked_by_id: null`, `locked_at: null`, `last_block_reason: null`).
 - **Autorização:** Exclusivo para o **Admin Geral** e **Sub-Admins** (`ADMIN`, `SUB_ADMIN`, `Admin`, `Admin Geral`).
