@@ -169,6 +169,15 @@ export class TaskService {
         locked_by_id: userId,
         locked_at: new Date(),
       },
+      include: {
+        participants: {
+          include: {
+            user: true,
+          },
+        },
+        locked_by: true,
+        creator: true,
+      },
     });
 
     if (task.participants && task.participants.length > 1) {

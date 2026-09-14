@@ -143,17 +143,6 @@ export class TaskController {
           const { emitToHouse } = await import('../../shared/socket/socketServer.js');
           emitToHouse(houseId, 'house:task_status_changed', { taskId: id, status: 'OPEN' });
           emitToHouse(houseId, 'task:updated', { task: result });
-
-          if (result.participants && result.participants.length > 1) {
-            try {
-              const nextAssignee = await this.taskService.getNextAssignee(id);
-              emitToHouse(houseId, 'house:rotation_advanced', {
-                rotationId: id,
-                taskId: id,
-                nextAssignee,
-              });
-            } catch {}
-          }
         } catch {}
       }
 

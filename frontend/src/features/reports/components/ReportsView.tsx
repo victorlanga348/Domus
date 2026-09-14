@@ -218,8 +218,12 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
                                     (item.completedBy && m.name.toLowerCase() === item.completedBy.toLowerCase())
                                 )
                               : null;
-                            displayName = item.completedBy || completedMember?.name || 'Livre';
-                            displayAvatar = completedMember?.avatar;
+                            displayName = completedMember?.name || item.completedBy || item.nextMember || 'Morador';
+                            displayAvatar =
+                              completedMember?.avatar ||
+                              (item.completedBy
+                                ? `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(displayName)}`
+                                : item.nextMemberAvatar);
                           } else if (isSkipped) {
                             const skippedMember = (item.skippedById || item.skippedBy)
                               ? familyMembers.find(
@@ -228,24 +232,42 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
                                     (item.skippedBy && m.name.toLowerCase() === item.skippedBy.toLowerCase())
                                 )
                               : null;
-                            displayName = item.skippedBy || skippedMember?.name || item.completedBy || 'Livre';
+                            displayName = skippedMember?.name || item.skippedBy || item.completedBy || 'Livre';
                             displayAvatar = skippedMember?.avatar;
                           } else {
-                            const isFree =
-                              !item.nextMember ||
-                              item.nextMember === 'Livre' ||
-                              item.nextMember === 'Qualquer pessoa' ||
-                              item.nextMember === 'Todos' ||
-                              (!item.nextMemberId && !item.isRotation && (!item.participantIds || item.participantIds.length === 0));
+                            const hasSpecificMember = Boolean(
+                              item.nextMember &&
+                              item.nextMember !== 'Livre' &&
+                              item.nextMember !== 'Qualquer pessoa' &&
+                              item.nextMember !== 'Todos'
+                            );
 
-                            if (isFree) {
+                            if (hasSpecificMember) {
+                              displayName = item.nextMember;
+                              displayAvatar =
+                                item.nextMemberAvatar ||
+                                familyMembers.find(
+                                  (m) =>
+                                    (item.nextMemberId && m.id === item.nextMemberId) ||
+                                    m.name.toLowerCase() === item.nextMember.toLowerCase()
+                                )?.avatar;
+                            } else {
                               displayName = 'Livre';
                               displayAvatar = undefined;
-                            } else {
-                              displayName = item.nextMember;
-                              displayAvatar = item.nextMemberAvatar;
                             }
                           }
+
+                          const completedMemberObj = (item.completedById || item.completedBy)
+                            ? familyMembers.find(
+                                (m) =>
+                                  (item.completedById && m.id === item.completedById) ||
+                                  (item.completedBy && m.name.toLowerCase() === item.completedBy.toLowerCase())
+                              )
+                            : null;
+                          const authorRole = item.completedByRole || completedMemberObj?.role;
+                          const isGeneralAdmin =
+                            authorRole === 'Admin Geral' || authorRole === 'ADMIN' || authorRole === 'ADMIN_GERAL';
+                          const isSubAdmin = authorRole === 'Admin' || authorRole === 'SUB_ADMIN';
 
                           return (
                             <>
@@ -257,6 +279,18 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
                                 />
                               )}
                               <span>{displayName}</span>
+                              {isCompleted && isGeneralAdmin && (
+                                <span className="px-1.5 py-0.5 rounded text-[10px] font-extrabold bg-amber-100 text-amber-900 border border-amber-300 inline-flex items-center gap-0.5">
+                                  <span className="material-symbols-outlined text-[11px]">shield_person</span>
+                                  <span>Admin Geral</span>
+                                </span>
+                              )}
+                              {isCompleted && isSubAdmin && (
+                                <span className="px-1.5 py-0.5 rounded text-[10px] font-extrabold bg-sky-100 text-sky-900 border border-sky-300 inline-flex items-center gap-0.5">
+                                  <span className="material-symbols-outlined text-[11px]">admin_panel_settings</span>
+                                  <span>Admin</span>
+                                </span>
+                              )}
                             </>
                           );
                         })()}

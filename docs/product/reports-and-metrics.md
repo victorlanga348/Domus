@@ -23,7 +23,8 @@ Todos os eventos críticos são gravados com timestamp preciso, `userId` e paylo
 
 ---
 
-## 3. Histórico de Tarefas Concluídas & Reversibilidade (`ReportsView`)
-- **Exibição Universal:** Todas as tarefas concluídas (incluindo tarefas de rodízio executadas pela pessoa designada ou pelo Admin Geral) constam na lista de histórico com o rótulo `"Concluída por: [Nome]"`, avatar correspondente e data/hora de conclusão.
+## 3. Histórico de Tarefas Concluídas, Identificação de Autor & Reversibilidade (`ReportsView` e `TasksRotationsView`)
+- **Exibição Universal & Identificação do Autor:** Todas as tarefas concluídas (incluindo tarefas de rodízio e tarefas comunitárias) constam na lista de histórico e nos cards de concluídas com o rótulo `"Concluída por: [Avatar] [Nome]"`, avatar correspondente e data/hora de conclusão.
+- **Destaque Visual de Cargo (Admin / Admin Geral):** Quando uma tarefa de rodízio ou individual é concluída por intervenção de um **Admin Geral** (`role === 'ADMIN' | 'Admin Geral'`) ou **Sub-Admin** (`role === 'SUB_ADMIN' | 'Admin'`), um badge destacado é exibido ao lado do nome do autor (ex: `Admin Geral` em âmbar ou `Admin` em azul). Isso garante transparência total para que todos os moradores saibam se a tarefa foi feita pelo responsável da escala ou por intervenção administrativa.
 - **Filtros e Pesquisa:** O dropdown de membros e o campo de busca pesquisam tanto pelo executor (`completedBy`) quanto pelo sucessor (`nextMember`), garantindo que qualquer morador localize rapidamente suas execuções passadas.
 - **Ação de Reversão:** Administradores e Admin Geral dispõem do botão `"Reverter p/ Pendente"` para devolver tarefas concluídas à lista de tarefas pendentes com restauração da escala de rodízio para o morador anterior.

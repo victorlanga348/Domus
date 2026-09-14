@@ -130,8 +130,16 @@ function mapBackendTaskToHouseTask(task: any, currentMembers: FamilyMember[]): H
         : task.frequency === 'MONTHLY'
         ? 'Mensal'
         : 'Única (Um só dia)',
-    completedBy: task.status === 'COMPLETED' ? (task.locked_by?.name || 'Concluído') : undefined,
-    completedById: task.status === 'COMPLETED' ? (task.locked_by?.id || undefined) : undefined,
+    completedBy:
+      task.status === 'COMPLETED'
+        ? (task.locked_by?.name || currentMembers.find((m) => m.id === task.locked_by_id)?.name || (task.locked_by_id ? 'Morador' : undefined))
+        : undefined,
+    completedById:
+      task.status === 'COMPLETED' ? (task.locked_by?.id || task.locked_by_id || undefined) : undefined,
+    completedByRole:
+      task.status === 'COMPLETED'
+        ? (task.locked_by?.role || currentMembers.find((m) => m.id === (task.locked_by?.id || task.locked_by_id))?.role || undefined)
+        : undefined,
   };
 }
 
@@ -946,7 +954,26 @@ export default function App() {
         const taskPayload = incomingData?.task || incomingData;
         if (taskPayload?.id) {
           const mapped = mapBackendTaskToHouseTask(taskPayload, familyMembers);
-          setTasks((prev) => prev.map((t) => (t.id === mapped.id ? mapped : t)));
+          setTasks((prev) =>
+            prev.map((t) => {
+              if (t.id === mapped.id) {
+                return {
+                  ...t,
+                  ...mapped,
+                  participantIds:
+                    mapped.participantIds && mapped.participantIds.length > 0
+                      ? mapped.participantIds
+                      : t.participantIds,
+                  participants:
+                    mapped.participants && mapped.participants.length > 0
+                      ? mapped.participants
+                      : t.participants,
+                  isRotation: mapped.isRotation ?? t.isRotation,
+                };
+              }
+              return t;
+            })
+          );
           setRotations((prev) => {
             const generated = mapBackendTasksToRotations([taskPayload], familyMembers);
             if (generated.length === 0) return prev.filter((r) => r.id !== mapped.id && r.taskId !== mapped.id);
@@ -972,9 +999,17 @@ export default function App() {
       onTaskDeleted: ({ taskId }: { taskId: string }) => {
         setTasks((prev) => prev.filter((t) => t.id !== taskId));
       },
-      onTaskStatusChanged: ({ taskId, status }: { taskId: string; status: HouseTask['status'] }) => {
+      onTaskStatusChanged: ({ taskId, status }: { taskId: string; status: any }) => {
+        const normalizedStatus: HouseTask['status'] =
+          status === 'OPEN'
+            ? 'pending'
+            : status === 'COMPLETED'
+            ? 'completed'
+            : status === 'BLOCKED'
+            ? 'alert'
+            : (status as HouseTask['status']);
         setTasks((prev) =>
-          prev.map((t) => (t.id === taskId ? { ...t, status } : t))
+          prev.map((t) => (t.id === taskId ? { ...t, status: normalizedStatus } : t))
         );
       },
       onNoteCreated: (incomingNote: any) => {
@@ -1058,7 +1093,15 @@ export default function App() {
       onRuleDeleted: ({ ruleId }: { ruleId: string }) => {
         setHouseRules((prev) => prev.filter((r) => r.id !== ruleId));
       },
-      onRotationAdvanced: ({ rotationId, taskId }: { rotationId: string; taskId?: string }) => {
+      onRotationAdvanced: ({
+        rotationId,
+        taskId,
+        nextAssignee,
+      }: {
+        rotationId: string;
+        taskId?: string;
+        nextAssignee?: any;
+      }) => {
         let nextMemberName = '';
         let nextMemberAvatar = '';
         let nextMemberId: string | undefined = undefined;
@@ -1066,6 +1109,33 @@ export default function App() {
         setRotations((prev) =>
           prev.map((rot) => {
             if (rot.id === rotationId || rot.taskId === rotationId) {
+              if (nextAssignee?.id || nextAssignee?.name) {
+                const targetId = nextAssignee.id;
+                const targetName = (nextAssignee.name || '').trim().toLowerCase();
+                const updatedQueue = rot.queue.map((q) => {
+                  const isMatch = targetId
+                    ? q.id === targetId
+                    : q.name.trim().toLowerCase() === targetName;
+                  return {
+                    ...q,
+                    isNext: isMatch,
+                  };
+                });
+                const matched = updatedQueue.find((q) => q.isNext) || updatedQueue[0];
+                nextMemberName = matched?.name || nextAssignee.name;
+                nextMemberAvatar =
+                  matched?.avatar ||
+                  nextAssignee.avatar_url ||
+                  `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(nextMemberName)}`;
+                nextMemberId = matched?.id || targetId;
+                return {
+                  ...rot,
+                  nextMember: nextMemberName,
+                  nextMemberAvatar: nextMemberAvatar,
+                  queue: updatedQueue,
+                };
+              }
+
               const queue = [...rot.queue];
               if (queue.length > 0) {
                 const first = queue.shift()!;
@@ -1730,6 +1800,73 @@ export default function App() {
     const completedByName = authUser?.name || 'Morador';
     const completedById = authUser?.id;
 
+    const taskObj = tasks.find((t) => t.id === taskId);
+    const wasCompleted = taskObj?.status === 'completed';
+    const wasSkipped = taskObj?.status === 'skipped';
+
+    // Determinar com precisão o membro anterior a ser restaurado em caso de reversão para pendente
+    let resolvedRestoredMember: FamilyMember | undefined = undefined;
+
+    if (newStatus === 'pending' && (wasCompleted || wasSkipped)) {
+      const whoId = wasSkipped ? taskObj?.skippedById : taskObj?.completedById;
+      const whoName = wasSkipped ? taskObj?.skippedBy : taskObj?.completedBy;
+
+      // 1. Pelo ID ou Nome direto no objeto da tarefa (se for nome de membro válido)
+      if (whoId) {
+        resolvedRestoredMember = familyMembers.find((m) => m.id === whoId);
+      }
+      if (!resolvedRestoredMember && whoName && whoName !== 'Concluído' && whoName !== 'Livre') {
+        resolvedRestoredMember = familyMembers.find((m) => m.name.toLowerCase() === whoName.toLowerCase());
+      }
+
+      // 2. Se pertencer a um rodízio, o último que fez é o participante anterior ao isNext na fila circular
+      const targetRotation = rotations.find((r) => r.id === taskId || r.taskId === taskId);
+      if (!resolvedRestoredMember && targetRotation && targetRotation.queue && targetRotation.queue.length > 0) {
+        const nextIdx = targetRotation.queue.findIndex((q) => q.isNext);
+        const prevIdx = nextIdx > 0 ? nextIdx - 1 : targetRotation.queue.length - 1;
+        const prevMemberItem = targetRotation.queue[prevIdx];
+        if (prevMemberItem) {
+          resolvedRestoredMember = prevMemberItem.id
+            ? familyMembers.find((m) => m.id === prevMemberItem.id)
+            : familyMembers.find((m) => m.name.toLowerCase() === prevMemberItem.name.toLowerCase());
+        }
+      }
+
+      // 3. Fallback no histórico de atividades recente
+      if (!resolvedRestoredMember) {
+        const recentCompletedLog = activityLogs.find(
+          (l) =>
+            (l.id === taskId || (l as any).task_id === taskId || l.title?.toLowerCase().includes(taskObj?.title?.toLowerCase() || '')) &&
+            (l.title?.toLowerCase().includes('concluiu') || (l as any).action_type === 'COMPLETED')
+        );
+        if (recentCompletedLog && recentCompletedLog.author) {
+          resolvedRestoredMember = familyMembers.find(
+            (m) => m.name.toLowerCase() === recentCompletedLog.author.toLowerCase()
+          );
+        }
+      }
+
+      // 4. Fallback para o nextMember anterior da tarefa ou morador logado
+      if (!resolvedRestoredMember) {
+        if (taskObj?.nextMemberId) {
+          resolvedRestoredMember = familyMembers.find((m) => m.id === taskObj.nextMemberId);
+        } else if (taskObj?.nextMember && taskObj.nextMember !== 'Livre' && taskObj.nextMember !== 'Qualquer pessoa') {
+          resolvedRestoredMember = familyMembers.find((m) => m.name.toLowerCase() === taskObj.nextMember.toLowerCase());
+        }
+      }
+    }
+
+    const restoredMemberName =
+      resolvedRestoredMember?.name ||
+      (taskObj?.nextMember && taskObj.nextMember !== 'Livre' && taskObj.nextMember !== 'Qualquer pessoa'
+        ? taskObj.nextMember
+        : completedByName);
+    const restoredMemberId = resolvedRestoredMember?.id || taskObj?.nextMemberId;
+    const restoredMemberAvatar =
+      resolvedRestoredMember?.avatar ||
+      taskObj?.nextMemberAvatar ||
+      `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(restoredMemberName)}`;
+
     // Se for conclusão de tarefa, verificar se pertence a um rodízio e avançar automaticamente a fila
     let nextMemberName = '';
     let nextMemberAvatar = '';
@@ -1776,6 +1913,7 @@ export default function App() {
               status: newStatus,
               completedBy: completedByName,
               completedById: completedById,
+              completedByRole: currentUser.role,
               completedAt: new Date().toISOString(),
               ...(nextMemberName
                 ? {
@@ -1796,29 +1934,25 @@ export default function App() {
             };
           }
           if (newStatus === 'pending' && (t.status === 'completed' || t.status === 'skipped')) {
-            const whoCompletedName = t.status === 'skipped' ? (t.skippedBy || completedByName) : (t.completedBy || completedByName);
-            const whoCompletedId = t.status === 'skipped' ? (t.skippedById || completedById) : t.completedById;
-            const whoCompletedMember = whoCompletedId
-              ? familyMembers.find((m) => m.id === whoCompletedId)
-              : familyMembers.find((m) => m.name.toLowerCase() === whoCompletedName.toLowerCase());
-
-            const restoredMemberName = whoCompletedMember?.name || whoCompletedName;
-            const restoredMemberAvatar =
-              whoCompletedMember?.avatar ||
-              `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(restoredMemberName)}`;
-
+            const matchingRot = rotations.find((r) => r.id === taskId || r.taskId === taskId);
             return {
               ...t,
               status: 'pending',
               completedBy: undefined,
               completedById: undefined,
+              completedByRole: undefined,
               completedAt: undefined,
               skippedBy: undefined,
               skippedById: undefined,
               skippedAt: undefined,
               nextMember: restoredMemberName,
-              nextMemberId: whoCompletedMember?.id || whoCompletedId,
+              nextMemberId: restoredMemberId,
               nextMemberAvatar: restoredMemberAvatar,
+              isRotation: t.isRotation ?? Boolean(matchingRot),
+              participantIds:
+                t.participantIds && t.participantIds.length > 0
+                  ? t.participantIds
+                  : (matchingRot?.participantIds || []),
             };
           }
           return { ...t, status: newStatus };
@@ -1829,10 +1963,6 @@ export default function App() {
     if (currentHouse?.id) {
       emitTaskStatusChanged(currentHouse.id, taskId, newStatus);
     }
-
-    const taskObj = tasks.find((t) => t.id === taskId);
-    const wasCompleted = taskObj?.status === 'completed';
-    const wasSkipped = taskObj?.status === 'skipped';
 
     if (newStatus === 'completed') {
       recordHouseActivity(
@@ -1914,18 +2044,6 @@ export default function App() {
       }
       showToast(`Tarefa "${taskObj?.title || 'Tarefa'}" foi pulada.`);
     } else if (newStatus === 'pending' && (wasCompleted || wasSkipped)) {
-      const whoCompletedName = wasSkipped ? (taskObj?.skippedBy || completedByName) : (taskObj?.completedBy || completedByName);
-      const whoCompletedId = wasSkipped ? (taskObj?.skippedById || completedById) : taskObj?.completedById;
-      const whoCompletedMember = whoCompletedId
-        ? familyMembers.find((m) => m.id === whoCompletedId)
-        : familyMembers.find((m) => m.name.toLowerCase() === whoCompletedName.toLowerCase());
-
-      const restoredMemberName = whoCompletedMember?.name || whoCompletedName;
-      const restoredMemberId = whoCompletedMember?.id || whoCompletedId;
-      const restoredMemberAvatar =
-        whoCompletedMember?.avatar ||
-        `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(restoredMemberName)}`;
-
       setRotations((prev) =>
         prev.map((rot) => {
           if (rot.id === taskId || rot.taskId === taskId) {
@@ -1938,10 +2056,14 @@ export default function App() {
                 isNext: isMatch,
               };
             });
+            if (!updatedQueue.some((q) => q.isNext) && updatedQueue.length > 0) {
+              updatedQueue[0].isNext = true;
+            }
+            const activeMember = updatedQueue.find((q) => q.isNext) || updatedQueue[0];
             return {
               ...rot,
-              nextMember: restoredMemberName,
-              nextMemberAvatar: restoredMemberAvatar,
+              nextMember: activeMember?.name || restoredMemberName,
+              nextMemberAvatar: activeMember?.avatar || restoredMemberAvatar,
               queue: updatedQueue,
             };
           }

@@ -570,30 +570,52 @@ export const TasksRotationsView: React.FC<TasksRotationsViewProps> = ({
                                 const completedMember = (task.completedById || task.completedBy)
                                   ? familyMembers.find((m) => (task.completedById && m.id === task.completedById) || (task.completedBy && m.name.toLowerCase() === task.completedBy.toLowerCase()))
                                   : null;
-                                displayName = task.completedBy || completedMember?.name || 'Livre';
-                                displayAvatar = completedMember?.avatar;
+                                displayName = completedMember?.name || task.completedBy || task.nextMember || 'Morador';
+                                displayAvatar =
+                                  completedMember?.avatar ||
+                                  (task.completedBy
+                                    ? `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(displayName)}`
+                                    : task.nextMemberAvatar);
                               } else if (isSkipped) {
                                 const skippedMember = (task.skippedById || task.skippedBy)
                                   ? familyMembers.find((m) => (task.skippedById && m.id === task.skippedById) || (task.skippedBy && m.name.toLowerCase() === task.skippedBy.toLowerCase()))
                                   : null;
-                                displayName = task.skippedBy || skippedMember?.name || 'Livre';
+                                displayName = skippedMember?.name || task.skippedBy || task.completedBy || 'Livre';
                                 displayAvatar = skippedMember?.avatar;
                               } else {
-                                const isFree =
-                                  !task.nextMember ||
-                                  task.nextMember === 'Livre' ||
-                                  task.nextMember === 'Qualquer pessoa' ||
-                                  task.nextMember === 'Todos' ||
-                                  (!task.nextMemberId && !task.isRotation && (!task.participantIds || task.participantIds.length === 0));
+                                const hasSpecificMember = Boolean(
+                                  task.nextMember &&
+                                  task.nextMember !== 'Livre' &&
+                                  task.nextMember !== 'Qualquer pessoa' &&
+                                  task.nextMember !== 'Todos'
+                                );
 
-                                if (isFree) {
+                                if (hasSpecificMember) {
+                                  displayName = task.nextMember;
+                                  displayAvatar =
+                                    task.nextMemberAvatar ||
+                                    familyMembers.find(
+                                      (m) =>
+                                        (task.nextMemberId && m.id === task.nextMemberId) ||
+                                        m.name.toLowerCase() === task.nextMember.toLowerCase()
+                                    )?.avatar;
+                                } else {
                                   displayName = 'Livre';
                                   displayAvatar = undefined;
-                                } else {
-                                  displayName = task.nextMember;
-                                  displayAvatar = task.nextMemberAvatar;
                                 }
                               }
+
+                              const completedMemberObj = (task.completedById || task.completedBy)
+                                ? familyMembers.find(
+                                    (m) =>
+                                      (task.completedById && m.id === task.completedById) ||
+                                      (task.completedBy && m.name.toLowerCase() === task.completedBy.toLowerCase())
+                                  )
+                                : null;
+                              const authorRole = task.completedByRole || completedMemberObj?.role;
+                              const isGeneralAdmin =
+                                authorRole === 'Admin Geral' || authorRole === 'ADMIN' || authorRole === 'ADMIN_GERAL';
+                              const isSubAdmin = authorRole === 'Admin' || authorRole === 'SUB_ADMIN';
 
                               return (
                                 <>
@@ -607,6 +629,18 @@ export const TasksRotationsView: React.FC<TasksRotationsViewProps> = ({
                                   <span className="font-bold text-[11px] text-[#16302e] truncate">
                                     {displayName}
                                   </span>
+                                  {isCompleted && isGeneralAdmin && (
+                                    <span className="px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-amber-100 text-amber-900 border border-amber-300 inline-flex items-center gap-0.5 shrink-0">
+                                      <span className="material-symbols-outlined text-[10px]">shield_person</span>
+                                      <span>Admin Geral</span>
+                                    </span>
+                                  )}
+                                  {isCompleted && isSubAdmin && (
+                                    <span className="px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-sky-100 text-sky-900 border border-sky-300 inline-flex items-center gap-0.5 shrink-0">
+                                      <span className="material-symbols-outlined text-[10px]">admin_panel_settings</span>
+                                      <span>Admin</span>
+                                    </span>
+                                  )}
                                 </>
                               );
                             })()}

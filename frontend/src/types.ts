@@ -51,6 +51,7 @@ export interface HouseTask {
   participants?: { id: string; name: string; avatar?: string; vacation_mode?: boolean }[];
   completedBy?: string;
   completedById?: string;
+  completedByRole?: string;
   completedAt?: string;
   skippedBy?: string;
   skippedById?: string;
