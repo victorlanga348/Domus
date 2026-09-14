@@ -1786,6 +1786,29 @@ export default function App() {
                 : {}),
             };
           }
+          if (newStatus === 'pending' && t.status === 'completed') {
+            const whoCompletedName = t.completedBy || completedByName;
+            const whoCompletedId = t.completedById;
+            const whoCompletedMember = whoCompletedId
+              ? familyMembers.find((m) => m.id === whoCompletedId)
+              : familyMembers.find((m) => m.name.toLowerCase() === whoCompletedName.toLowerCase());
+
+            const restoredMemberName = whoCompletedMember?.name || whoCompletedName;
+            const restoredMemberAvatar =
+              whoCompletedMember?.avatar ||
+              `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(restoredMemberName)}`;
+
+            return {
+              ...t,
+              status: 'pending',
+              completedBy: undefined,
+              completedById: undefined,
+              completedAt: undefined,
+              nextMember: restoredMemberName,
+              nextMemberId: whoCompletedMember?.id || whoCompletedId,
+              nextMemberAvatar: restoredMemberAvatar,
+            };
+          }
           return { ...t, status: newStatus };
         }
         return t;
@@ -1863,6 +1886,41 @@ export default function App() {
         showToast(`Tarefa "${taskObj?.title || 'Tarefa'}" concluída com sucesso!`);
       }
     } else if (newStatus === 'pending' && wasCompleted) {
+      const whoCompletedName = taskObj?.completedBy || completedByName;
+      const whoCompletedId = taskObj?.completedById;
+      const whoCompletedMember = whoCompletedId
+        ? familyMembers.find((m) => m.id === whoCompletedId)
+        : familyMembers.find((m) => m.name.toLowerCase() === whoCompletedName.toLowerCase());
+
+      const restoredMemberName = whoCompletedMember?.name || whoCompletedName;
+      const restoredMemberId = whoCompletedMember?.id || whoCompletedId;
+      const restoredMemberAvatar =
+        whoCompletedMember?.avatar ||
+        `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(restoredMemberName)}`;
+
+      setRotations((prev) =>
+        prev.map((rot) => {
+          if (rot.id === taskId || rot.taskId === taskId) {
+            const updatedQueue = rot.queue.map((q) => {
+              const isMatch = restoredMemberId
+                ? q.id === restoredMemberId
+                : q.name.trim().toLowerCase() === restoredMemberName.trim().toLowerCase();
+              return {
+                ...q,
+                isNext: isMatch,
+              };
+            });
+            return {
+              ...rot,
+              nextMember: restoredMemberName,
+              nextMemberAvatar: restoredMemberAvatar,
+              queue: updatedQueue,
+            };
+          }
+          return rot;
+        })
+      );
+
       recordHouseActivity(
         `Tarefa "${taskObj?.title || 'Tarefa'}" foi revertida para pendente por ${completedByName}.`,
         completedByName,
@@ -1870,13 +1928,27 @@ export default function App() {
         taskId
       );
       if (authUser?.id) {
-        tasksApi.revertTask(taskId, authUser.id, currentUser.role).catch((err: any) => {
-          showToast(err.message || 'Erro ao reverter tarefa.');
-          // Reverte o estado visual caso o backend recuse (ex: 403)
-          setTasks((prev) =>
-            prev.map((t) => (t.id === taskId ? { ...t, status: 'completed' } : t))
-          );
-        });
+        tasksApi
+          .revertTask(taskId, authUser.id, currentUser.role)
+          .then((revertedBackendTask: any) => {
+            const taskData = revertedBackendTask?.data || revertedBackendTask;
+            if (taskData?.id) {
+              const mapped = mapBackendTaskToHouseTask(taskData, familyMembers);
+              setTasks((prev) => prev.map((t) => (t.id === mapped.id ? mapped : t)));
+              setRotations((prev) => {
+                const generated = mapBackendTasksToRotations([taskData], familyMembers);
+                if (generated.length === 0) return prev;
+                return prev.map((r) => (r.id === mapped.id || r.taskId === mapped.id ? generated[0] : r));
+              });
+            }
+          })
+          .catch((err: any) => {
+            showToast(err.message || 'Erro ao reverter tarefa.');
+            // Reverte o estado visual caso o backend recuse (ex: 403)
+            setTasks((prev) =>
+              prev.map((t) => (t.id === taskId ? { ...t, status: 'completed' } : t))
+            );
+          });
       }
       showToast(`Tarefa "${taskObj?.title || 'Tarefa'}" revertida para pendente.`);
     } else if (newStatus === 'alert') {

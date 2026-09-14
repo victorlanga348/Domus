@@ -240,9 +240,11 @@ export class TaskService {
   /**
    * revertTask:
    * Reverte uma tarefa concluída para status OPEN.
+   * Regra Canônica: A pessoa que havia realizado a tarefa retoma para si mesma a tarefa revertida,
+   * restaurando o rotation_index como se nunca a tivesse concluído.
    * Trava de segurança: apenas o Admin Geral e Sub-Admins têm permissão para reverter.
    */
-  async revertTask(taskId: string, userId: string, userRole?: string): Promise<Task> {
+  async revertTask(taskId: string, userId: string, userRole?: string): Promise<TaskWithDetails> {
     const task = await this.getTaskById(taskId);
 
     const user = await prisma.user.findUnique({ where: { id: userId } });
@@ -262,6 +264,28 @@ export class TaskService {
       );
     }
 
+    // Se for tarefa de rodízio com múltiplos participantes, restaurar o rotation_index
+    // para a pessoa que havia concluído a tarefa
+    let targetRotationIndex: number | undefined = undefined;
+
+    if (task.participants && task.participants.length > 1) {
+      const sortedParticipants = [...task.participants].sort((a, b) =>
+        a.user.name.localeCompare(b.user.name, 'pt-BR', { sensitivity: 'base' })
+      );
+      const poolSize = sortedParticipants.length;
+
+      const completedUserIndex = task.locked_by_id
+        ? sortedParticipants.findIndex((p) => p.user_id === task.locked_by_id)
+        : -1;
+
+      if (completedUserIndex !== -1) {
+        targetRotationIndex = completedUserIndex;
+      } else {
+        // Se locked_by_id não estiver no pool (ex: Admin Geral concluiu por terceiro), decrementar circularmente
+        targetRotationIndex = ((task.rotation_index - 1) % poolSize + poolSize) % poolSize;
+      }
+    }
+
     await prisma.activityLog.create({
       data: {
         task_id: taskId,
@@ -272,7 +296,7 @@ export class TaskService {
       },
     });
 
-    return this.taskRepo.revertStatus(taskId);
+    return this.taskRepo.revertStatus(taskId, targetRotationIndex);
   }
 
   /**

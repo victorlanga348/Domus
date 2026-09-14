@@ -156,14 +156,24 @@ export class TaskRepository {
     });
   }
 
-  async revertStatus(id: string): Promise<Task> {
+  async revertStatus(id: string, rotation_index?: number): Promise<TaskWithDetails> {
     return prisma.task.update({
       where: { id },
       data: {
         status: 'OPEN',
+        ...(rotation_index !== undefined && { rotation_index }),
         locked_by_id: null,
         locked_at: null,
         last_block_reason: null,
+      },
+      include: {
+        participants: {
+          include: {
+            user: true,
+          },
+        },
+        locked_by: true,
+        creator: true,
       },
     });
   }

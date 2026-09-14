@@ -170,12 +170,18 @@
   - `404 Not Found`: `TASK_NOT_FOUND` se o ID da tarefa não existir.
 
 ### `POST /api/tasks/:id/revert` (ou `PATCH /api/tasks/:id/revert`, alias `/api/tasks/:id/reverter`)
+- **Descrição:** Reverte uma tarefa concluída para o status `OPEN`, restaurando o `rotation_index` e a atribuição para a pessoa que havia concluído a tarefa de rodízio (como se nunca tivesse concluído) e liberando travas (`locked_by_id: null`, `locked_at: null`, `last_block_reason: null`).
 - **Autorização:** Exclusivo para o **Admin Geral** e **Sub-Admins** (`ADMIN`, `SUB_ADMIN`, `Admin`, `Admin Geral`).
-- **Headers:** `x-user-id`, `x-user-role`
+- **Headers:** `x-user-id`, `x-user-role`, `x-house-id`
 - **Payload:** `{ "user_id": "uuid-user", "user_role": "ADMIN" }`
-- **Resposta (200):** Tarefa restaurada para o status `OPEN`, com `locked_by_id: null`, `locked_at: null`.
+- **Resposta (200):** Objeto completo `TaskWithDetails` com participantes, creator e locks liberados.
+- **Eventos WebSocket Emitidos:**
+  - `house:task_status_changed`: `{ taskId: "uuid-task", status: "OPEN" }`
+  - `task:updated`: `{ task: TaskWithDetails }`
+  - `house:rotation_advanced`: `{ rotationId: "uuid-task", taskId: "uuid-task", nextAssignee: User }` (quando tarefa em rodízio)
 - **Erros:**
-  - `403 Forbidden`: `"Apenas administradores e o Admin Geral têm permissão para reverter uma tarefa concluída."` para moradores comuns (`MEMBER`, `Resident`).
+  - `403 Forbidden`: `"Apenas administradores e o Admin Geral têm permissão para reverter uma tarefa concluída."` (`FORBIDDEN_TASK_REVERT`) para moradores comuns (`MEMBER`, `Resident`).
+  - `404 Not Found`: `TASK_NOT_FOUND` se o ID da tarefa não existir.
 
 ### `POST /api/tasks/:id/block`
 - **Payload:** `{ "reason": "Falta de produto de limpeza" }`

@@ -44,6 +44,11 @@ stateDiagram-v2
 - **Quem pode executar:** Exclusivo para o **Admin Geral** e **Sub-Admins** (`role === 'ADMIN' | 'SUB_ADMIN'`).
 - **Moradores comuns:** Visualizam apenas o selo verde `"Concluída"`, sem botões de ação ou intervenção.
 - **Confirmação:** Exige modal de confirmação antes do disparo da requisição à API.
+- **Regra Canônica de Retomada do Responsável (Rodízio & Tarefas Fixas):**
+  1. Ao reverter uma tarefa concluída para o estado pendente (`OPEN`), o sistema restaura o estado exato anterior à conclusão, **como se a tarefa nunca tivesse sido concluída**.
+  2. **Em Tarefas com Rodízio:** A pessoa que havia realizado a tarefa (identificada pelo `locked_by_id` da conclusão) **reassume a responsabilidade imediata da tarefa**. O `rotation_index` no banco de dados é restaurado para a posição exata daquele morador na lista de participantes ordenada (A-Z) ou decrementado circularmente.
+  3. **Em Tarefas Fixas / Individuais:** A tarefa retorna a `status: 'OPEN'` mantendo seu responsável designado e liberando os campos de trava (`locked_by_id`, `locked_at`, `last_block_reason`).
+  4. **Reflexo Universal em Tempo Real:** A alteração propaga imediatamente via WebSocket (`house:task_status_changed`, `task:updated`, `house:rotation_advanced`) para todos os moradores da residência sem exceção, atualizando tanto a lista de tarefas quanto o carrossel de rodízios e relatórios.
 
 ### 4.3 Gestão e Adição de Membros
 - **Regra Estrita:** Nenhum morador comum pode convidar ou adicionar novos membros à residência.
