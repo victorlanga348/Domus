@@ -105,12 +105,12 @@
 - **Resposta (200):** Tarefa com status `LOCKED`, `lockedById` e `lockedAt`.
 
 ### `POST /api/tasks/:id/complete` (ou `PATCH /api/tasks/:id/complete`, alias `/api/tasks/:id/concluir`)
-- **Autorização:** Morador designado (tarefa direcionada), membro da vez no rodízio OU **Admin Geral** (`ADMIN`, `Admin Geral`).
+- **Autorização:** Morador designado (tarefa direcionada), membro da vez no rodízio, qualquer morador da mesma residência (se tarefa livre/comunitária, `participants = []`) OU **Admin Geral** (`ADMIN`, `Admin Geral`).
 - **Headers:** `x-user-id`, `x-user-role` (opcional, para identificar privilégio de Admin Geral)
 - **Payload:** `{ "user_id": "uuid-user", "pin": "opcional", "user_role": "opcional" }`
 - **Resposta (200):** Tarefa com status `COMPLETED`, `locked_by_id` atualizado e novo `nextAssignee` (se rodízio).
 - **Erros:**
-  - `403 Forbidden`: `"Apenas a pessoa designada para esta tarefa ou o Admin Geral pode marcá-la como concluída."` (`FORBIDDEN_TASK_COMPLETION`) caso chamado por terceiro comum.
+  - `403 Forbidden`: `"Apenas a pessoa designada para esta tarefa ou o Admin Geral pode marcá-la como concluída."` (`FORBIDDEN_TASK_COMPLETION`) caso chamado por terceiro comum em tarefas direcionadas/rodízio, ou se usuário não pertencer à mesma residência em tarefas livres.
   - `400 Bad Request`: `"Tarefa já foi concluída."` caso já esteja finalizada.
 
 ### `POST /api/tasks/:id/forgive-failure` (alias `/api/tasks/:id/perdoar-falha`)

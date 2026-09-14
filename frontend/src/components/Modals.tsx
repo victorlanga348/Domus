@@ -459,11 +459,12 @@ export const NotificationsDrawer: React.FC<{
               ) : (
                 alertTasks.map((task) => {
                   const isGeneralAdmin = currentUserRole === 'Admin Geral' || currentUserRole === 'ADMIN';
+                  const isFreeTask = !task.isRotation && (!task.participantIds || task.participantIds.length === 0) && (task.nextMember === 'Livre' || task.nextMember === 'Qualquer pessoa' || !task.nextMemberId);
                   const isAssignedUser = Boolean(
                     (currentUserId && task.nextMemberId && task.nextMemberId === currentUserId) ||
                     (currentUserName && task.nextMember && task.nextMember.trim().toLowerCase() === currentUserName.trim().toLowerCase())
                   );
-                  const canComplete = isAssignedUser || isGeneralAdmin;
+                  const canComplete = isFreeTask || isAssignedUser || isGeneralAdmin;
 
                   return (
                     <div
@@ -505,7 +506,7 @@ export const NotificationsDrawer: React.FC<{
                             />
                           )}
                           <span className="font-bold text-[#16302e] truncate">
-                            Responsável: {task.nextMember || 'Todos'}
+                            Responsável: {task.nextMember === 'Qualquer pessoa' || (!task.nextMember && !task.isRotation) ? 'Livre' : (task.nextMember || 'Livre')}
                           </span>
                         </div>
 

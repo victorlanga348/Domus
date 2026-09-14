@@ -94,16 +94,21 @@ function mapBackendTaskToHouseTask(task: any, currentMembers: FamilyMember[]): H
       }
     }
     assignee = chosen || sorted[0];
+  } else if (rawParticipants.length === 1) {
+    assignee = task.current_assignee || rawParticipants[0]?.user;
   } else {
-    assignee = task.current_assignee || task.participants?.[0]?.user || task.creator;
+    // Tarefa Livre / Comunitária (sem participantes restritos)
+    assignee = null;
   }
 
-  const assigneeName = assignee?.name || 'Morador';
+  const isFreeTask = !isRotation && rawParticipants.length === 0;
+  const assigneeName = assignee?.name || (isFreeTask ? 'Livre' : 'Morador');
   const assigneeId = assignee?.id;
-  const assigneeAvatar =
-    assignee?.avatar_url ||
-    currentMembers.find((m) => m.id === assignee?.id)?.avatar ||
-    `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(assigneeName)}`;
+  const assigneeAvatar = assignee
+    ? assignee?.avatar_url ||
+      currentMembers.find((m) => m.id === assignee?.id)?.avatar ||
+      `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(assigneeName)}`
+    : undefined;
 
   return {
     id: task.id,
@@ -1541,17 +1546,25 @@ export default function App() {
       'Única (Um só dia)': 'ONCE',
     };
 
+    const isFreeTask =
+      newTask.nextMember === 'Qualquer pessoa' ||
+      newTask.nextMember === 'Livre' ||
+      (Array.isArray(newTask.participantIds) && newTask.participantIds.length === 0 && !newTask.isRotation);
+
     const matchedMember = familyMembers.find((m) => m.name === newTask.nextMember);
-    const participantIds =
-      newTask.participantIds && newTask.participantIds.length > 0
-        ? newTask.participantIds
-        : matchedMember
-        ? [matchedMember.id]
-        : [authUser.id];
+    const participantIds = isFreeTask
+      ? []
+      : newTask.participantIds && newTask.participantIds.length > 0
+      ? newTask.participantIds
+      : matchedMember
+      ? [matchedMember.id]
+      : [authUser.id];
 
     const tempId = `temp_t_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
     const optimisticTask: HouseTask = {
       ...newTask,
+      nextMember: isFreeTask ? 'Livre' : newTask.nextMember,
+      nextMemberAvatar: isFreeTask ? undefined : newTask.nextMemberAvatar,
       id: tempId,
       status: 'pending',
       participantIds,

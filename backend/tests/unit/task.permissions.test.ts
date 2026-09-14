@@ -24,7 +24,7 @@ interface MockTask {
 /**
  * Função canônica pura para resolver o morador responsável válido da tarefa
  */
-function resolveValidAssigneeId(task: MockTask): string {
+function resolveValidAssigneeId(task: MockTask): string | null {
   if (task.participants && task.participants.length > 1) {
     const sorted = [...task.participants].map((p) => p.user).sort((a, b) =>
       a.name.localeCompare(b.name, 'pt-BR', { sensitivity: 'base' })
@@ -43,18 +43,35 @@ function resolveValidAssigneeId(task: MockTask): string {
   } else if (task.participants && task.participants.length === 1) {
     return task.participants[0].user_id;
   }
-  return task.creator_id;
+  return null; // Tarefa livre / comunitária (sem restrição de participantes)
 }
 
 /**
- * Validação canônica de permissão para concluir tarefa (morador da vez ou Admin Geral)
+ * Validação canônica de permissão para concluir tarefa (morador da vez, responsável individual, qualquer membro em tarefa livre, ou Admin Geral)
  */
-function validateCompleteTaskPermission(task: MockTask, userId: string, userRole?: string): void {
+function validateCompleteTaskPermission(
+  task: MockTask,
+  userId: string,
+  userRole?: string,
+  userHouseId?: string
+): void {
   if (task.status === 'COMPLETED') {
     throw new Error('Tarefa já foi concluída.');
   }
 
   const isGeneralAdmin = userRole === 'ADMIN' || userRole === 'ADMIN_GERAL' || userRole === 'Admin Geral';
+  const isFreeTask = !task.participants || task.participants.length === 0;
+
+  if (isFreeTask) {
+    if (userHouseId && task.house_id && userHouseId !== task.house_id && !isGeneralAdmin) {
+      const err: any = new Error('Usuário não pertence à mesma residência da tarefa.');
+      err.statusCode = 403;
+      err.code = 'FORBIDDEN';
+      throw err;
+    }
+    return;
+  }
+
   const idResponsavelValido = resolveValidAssigneeId(task);
 
   if (idResponsavelValido !== userId && !isGeneralAdmin) {
@@ -224,6 +241,56 @@ describe('Regras de Permissão: Conclusão de Tarefas (Backend)', () => {
     assert.throws(() => {
       validateCompleteTaskPermission(task, 'u-alice');
     });
+  });
+
+  it('deve permitir que qualquer morador da residência conclua uma tarefa livre (sem participantes)', () => {
+    const freeTask: MockTask = {
+      id: 'task-free',
+      title: 'Comprar detergente',
+      status: 'OPEN',
+      rotation_index: 0,
+      creator_id: 'user-admin',
+      house_id: 'house-1',
+      participants: [],
+    };
+
+    // Morador 1 da mesma residência
+    assert.doesNotThrow(() => {
+      validateCompleteTaskPermission(freeTask, 'user-pedro', 'MEMBER', 'house-1');
+    });
+
+    // Morador 2 da mesma residência
+    assert.doesNotThrow(() => {
+      validateCompleteTaskPermission(freeTask, 'user-maria', 'MEMBER', 'house-1');
+    });
+
+    // Admin Geral
+    assert.doesNotThrow(() => {
+      validateCompleteTaskPermission(freeTask, 'user-admin', 'ADMIN', 'house-1');
+    });
+  });
+
+  it('deve bloquear com 403 quando usuário de outra residência tentar concluir tarefa livre', () => {
+    const freeTask: MockTask = {
+      id: 'task-free',
+      title: 'Comprar detergente',
+      status: 'OPEN',
+      rotation_index: 0,
+      creator_id: 'user-admin',
+      house_id: 'house-1',
+      participants: [],
+    };
+
+    assert.throws(
+      () => {
+        validateCompleteTaskPermission(freeTask, 'user-estranho', 'MEMBER', 'house-2');
+      },
+      (err: any) => {
+        assert.strictEqual(err.statusCode, 403);
+        assert.strictEqual(err.message, 'Usuário não pertence à mesma residência da tarefa.');
+        return true;
+      }
+    );
   });
 });
 

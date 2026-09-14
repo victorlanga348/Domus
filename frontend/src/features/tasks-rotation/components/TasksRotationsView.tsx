@@ -236,9 +236,14 @@ export const TasksRotationsView: React.FC<TasksRotationsViewProps> = ({
     let rotationIdToUse: string | undefined;
 
     if (taskAssignmentType === 'member') {
-      assignedName = selectedMember;
-      const found = familyMembers.find((m) => m.name === selectedMember);
-      if (found) assignedAvatar = found.avatar;
+      if (selectedMember === 'Qualquer pessoa' || selectedMember === 'Livre') {
+        assignedName = 'Livre';
+        assignedAvatar = undefined;
+      } else {
+        assignedName = selectedMember;
+        const found = familyMembers.find((m) => m.name === selectedMember);
+        if (found) assignedAvatar = found.avatar;
+      }
     } else {
       // Rotation assignment
       if (rotationMode === 'new') {
@@ -332,13 +337,17 @@ export const TasksRotationsView: React.FC<TasksRotationsViewProps> = ({
 
     let taskParticipantIds: string[] = [];
     if (taskAssignmentType === 'member') {
-      const found = familyMembers.find((m) => m.name === selectedMember);
-      if (found?.id) {
-        taskParticipantIds = [found.id];
-      } else if (currentUserId) {
-        taskParticipantIds = [currentUserId];
-      } else if (familyMembers[0]?.id) {
-        taskParticipantIds = [familyMembers[0].id];
+      if (selectedMember === 'Qualquer pessoa' || selectedMember === 'Livre') {
+        taskParticipantIds = [];
+      } else {
+        const found = familyMembers.find((m) => m.name === selectedMember);
+        if (found?.id) {
+          taskParticipantIds = [found.id];
+        } else if (currentUserId) {
+          taskParticipantIds = [currentUserId];
+        } else if (familyMembers[0]?.id) {
+          taskParticipantIds = [familyMembers[0].id];
+        }
       }
     } else {
       const participants = familyMembers.filter((m) =>
@@ -558,7 +567,7 @@ export const TasksRotationsView: React.FC<TasksRotationsViewProps> = ({
                               />
                             )}
                             <span className="font-bold text-[11px] text-[#16302e] truncate">
-                              {task.nextMember || 'Livre'}
+                              {task.nextMember === 'Qualquer pessoa' || (!task.nextMember && !task.isRotation) ? 'Livre' : (task.nextMember || 'Livre')}
                             </span>
                           </div>
                         </div>
@@ -588,43 +597,48 @@ export const TasksRotationsView: React.FC<TasksRotationsViewProps> = ({
                             </>
                           ) : (
                             <>
-                              {Boolean(
-                                (currentUserId && task.nextMemberId && task.nextMemberId === currentUserId) ||
-                                (effectiveUserName && task.nextMember && task.nextMember.trim().toLowerCase() === effectiveUserName.trim().toLowerCase()) ||
-                                isGeneralAdmin
-                              ) ? (
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    onTaskStatusChange(task.id, 'completed');
-                                    if (task.isRotation && rotations.length > 0) {
-                                      const matchingRot = rotations.find((r) => r.taskId === task.id || r.id === task.id) || rotations[0];
-                                      onRotateNext(matchingRot.id);
-                                    }
-                                  }}
-                                  className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 active:scale-[0.96] text-white text-[11px] font-bold rounded-lg transition-all shadow-2xs flex items-center gap-1 cursor-pointer"
-                                  aria-label="Concluir Tarefa"
-                                >
-                                  <span className="material-symbols-outlined text-xs">check_circle</span>
-                                  <span>Concluir</span>
-                                </button>
-                              ) : (
-                                <div className="relative group inline-block">
+                              {(() => {
+                                const isFreeTask = !task.isRotation && (!task.participantIds || task.participantIds.length === 0) && (task.nextMember === 'Livre' || task.nextMember === 'Qualquer pessoa' || !task.nextMemberId);
+                                const isAssignedUser = Boolean(
+                                  (currentUserId && task.nextMemberId && task.nextMemberId === currentUserId) ||
+                                  (effectiveUserName && task.nextMember && task.nextMember.trim().toLowerCase() === effectiveUserName.trim().toLowerCase())
+                                );
+                                const canCompleteTask = isFreeTask || isAssignedUser || isGeneralAdmin;
+
+                                return canCompleteTask ? (
                                   <button
                                     type="button"
-                                    disabled
-                                    className="px-2.5 py-1 bg-slate-100 text-slate-400 border border-slate-200 text-[11px] font-bold rounded-lg flex items-center gap-1 cursor-not-allowed opacity-80"
-                                    aria-disabled="true"
-                                    aria-label="Conclusão bloqueada"
+                                    onClick={() => {
+                                      onTaskStatusChange(task.id, 'completed');
+                                      if (task.isRotation && rotations.length > 0) {
+                                        const matchingRot = rotations.find((r) => r.taskId === task.id || r.id === task.id) || rotations[0];
+                                        onRotateNext(matchingRot.id);
+                                      }
+                                    }}
+                                    className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 active:scale-[0.96] text-white text-[11px] font-bold rounded-lg transition-all shadow-2xs flex items-center gap-1 cursor-pointer"
+                                    aria-label="Concluir Tarefa"
                                   >
-                                    <span className="material-symbols-outlined text-xs text-slate-400">lock</span>
+                                    <span className="material-symbols-outlined text-xs">check_circle</span>
                                     <span>Concluir</span>
                                   </button>
-                                  <div className="hidden group-hover:block absolute bottom-full left-0 mb-1.5 z-30 px-2 py-1 bg-[#16302e] text-white text-[10px] font-medium rounded-md shadow-md whitespace-nowrap pointer-events-none">
-                                    Aguardando confirmação de {task.nextMember || 'outro morador'}
+                                ) : (
+                                  <div className="relative group inline-block">
+                                    <button
+                                      type="button"
+                                      disabled
+                                      className="px-2.5 py-1 bg-slate-100 text-slate-400 border border-slate-200 text-[11px] font-bold rounded-lg flex items-center gap-1 cursor-not-allowed opacity-80"
+                                      aria-disabled="true"
+                                      aria-label="Conclusão bloqueada"
+                                    >
+                                      <span className="material-symbols-outlined text-xs text-slate-400">lock</span>
+                                      <span>Concluir</span>
+                                    </button>
+                                    <div className="hidden group-hover:block absolute bottom-full left-0 mb-1.5 z-30 px-2 py-1 bg-[#16302e] text-white text-[10px] font-medium rounded-md shadow-md whitespace-nowrap pointer-events-none">
+                                      Aguardando confirmação de {task.nextMember || 'outro morador'}
+                                    </div>
                                   </div>
-                                </div>
-                              )}
+                                );
+                              })()}
 
                               {isRotation && rotations.length > 0 && Boolean(
                                 (currentUserId && task.nextMemberId && task.nextMemberId === currentUserId) ||

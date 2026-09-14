@@ -34,10 +34,11 @@ stateDiagram-v2
 ## 4. Regras de Permissão & Governança
 
 ### 4.1 Conclusão de Tarefas
-- **Regra Universal:** Em todo o aplicativo, **nenhum morador pode concluir tarefas que não sejam suas**, com a **exclusiva exceção do Admin Geral** (`role === 'ADMIN' | 'Admin Geral'`).
+- **Regra Universal:** Em todo o aplicativo, **nenhum morador pode concluir tarefas que não sejam suas**, com a **exclusiva exceção do Admin Geral** (`role === 'ADMIN' | 'Admin Geral'`) e de **Tarefas Livres / Comunitárias**.
 - **Tarefa Direcionada:** Apenas o morador designado (`tarefa.responsavelId === usuarioAtual.id`) ou o Admin Geral.
 - **Tarefa de Rodízio:** Apenas o morador da vez no turno (`rodizio.membroAtualId === usuarioAtual.id`, ordem A-Z com salto de férias) ou o Admin Geral.
-- **Violação (403 Forbidden):** Bloqueio estrito no backend e botão desabilitado em cinza no frontend (tanto na tela de tarefas quanto no Drawer de Alertas/Notificações) com tooltip: `"Aguardando confirmação de [Nome do Responsável]"`.
+- **Tarefa Livre / Comunitária (`participants = []`):** Qualquer morador ativo pertencente à mesma residência (`task.house_id === user.house_id`) ou o Admin Geral. O botão permanece habilitado para todos os membros da casa e o ActivityLog registra o morador específico que realizou a conclusão.
+- **Violação (403 Forbidden):** Bloqueio estrito no backend e botão desabilitado em cinza no frontend (tanto na tela de tarefas quanto no Drawer de Alertas/Notificações) com tooltip: `"Aguardando confirmação de [Nome do Responsável]"`. Moradores de fora da residência recebem HTTP 403 mesmo em tarefas livres.
 
 ### 4.2 Reversão / Cancelamento de Tarefas Concluídas
 - **Quem pode executar:** Exclusivo para o **Admin Geral** e **Sub-Admins** (`role === 'ADMIN' | 'SUB_ADMIN'`).
