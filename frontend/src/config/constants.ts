@@ -2,23 +2,35 @@
  * Constantes globais e de configuração do frontend DOMUS.
  */
 
-// Resolução dinâmica de host: normaliza localhost/::1 para 127.0.0.1 (evita timeout IPv6 no Windows/Docker) e suporta acesso móvel na LAN
-const getHost = (): string => {
+const PRODUCTION_BACKEND_URL = 'https://domus-api.duckdns.org:3333';
+
+const isLocalOrLanHost = (hostname: string): boolean => {
+  return (
+    hostname === 'localhost' ||
+    hostname === '127.0.0.1' ||
+    hostname === '::1' ||
+    /^192\.168\.\d+\.\d+$/.test(hostname) ||
+    /^10\.\d+\.\d+\.\d+$/.test(hostname) ||
+    /^172\.(1[6-9]|2\d|3[0-1])\.\d+\.\d+$/.test(hostname)
+  );
+};
+
+const getBaseUrl = (): string => {
   if (typeof window !== 'undefined' && window.location.hostname) {
     const hostname = window.location.hostname;
-    if (hostname === 'localhost' || hostname === '::1') {
-      return '127.0.0.1';
+    if (isLocalOrLanHost(hostname)) {
+      const normalizedHost = hostname === 'localhost' || hostname === '::1' ? '127.0.0.1' : hostname;
+      return `http://${normalizedHost}:3333`;
     }
-    return hostname;
   }
-  return '127.0.0.1';
+  return PRODUCTION_BACKEND_URL;
 };
 
 export const APP_CONFIG = {
   APP_NAME: 'Domus',
   VERSION: '1.0.0',
   DEFAULT_LANGUAGE: 'pt-BR',
-  API_BASE_URL: import.meta.env?.VITE_API_URL || `http://${getHost()}:3333/api`,
-  SOCKET_URL: import.meta.env?.VITE_SOCKET_URL || `http://${getHost()}:3333`,
+  API_BASE_URL: import.meta.env?.VITE_API_URL || `${getBaseUrl()}/api`,
+  SOCKET_URL: import.meta.env?.VITE_SOCKET_URL || getBaseUrl(),
 };
 
