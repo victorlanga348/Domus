@@ -26,11 +26,28 @@ const getBaseUrl = (): string => {
   return PRODUCTION_BACKEND_URL;
 };
 
+const resolveApiUrl = (): string => {
+  const envUrl = import.meta.env?.VITE_API_URL?.trim();
+  if (envUrl) {
+    const clean = envUrl.replace(/\/$/, '');
+    return clean.endsWith('/api') ? clean : `${clean}/api`;
+  }
+  return `${getBaseUrl()}/api`;
+};
+
+const resolveSocketUrl = (): string => {
+  const envUrl = import.meta.env?.VITE_SOCKET_URL?.trim();
+  if (envUrl) {
+    return envUrl.replace(/\/$/, '').replace(/\/api$/, '');
+  }
+  return getBaseUrl();
+};
+
 export const APP_CONFIG = {
   APP_NAME: 'Domus',
   VERSION: '1.0.0',
   DEFAULT_LANGUAGE: 'pt-BR',
-  API_BASE_URL: import.meta.env?.VITE_API_URL || `${getBaseUrl()}/api`,
-  SOCKET_URL: import.meta.env?.VITE_SOCKET_URL || getBaseUrl(),
+  API_BASE_URL: resolveApiUrl(),
+  SOCKET_URL: resolveSocketUrl(),
 };
 
