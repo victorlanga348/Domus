@@ -55,7 +55,9 @@ export function initSocketServer(httpServer: HttpServer): SocketIOServer {
         if (/^https?:\/\/(localhost|127\.0\.0\.1|192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+|172\.(1[6-9]|2\d|3[0-1])\.\d+\.\d+)(:\d+)?$/.test(origin)) {
           return callback(null, true);
         }
-        callback(null, origin === env.CORS_ORIGIN);
+        const cleanOrigin = origin.replace(/\/$/, '');
+        const allowed = env.CORS_ORIGIN.split(',').map((o) => o.trim().replace(/\/$/, ''));
+        callback(null, allowed.includes(cleanOrigin) || allowed.includes('*'));
       },
       credentials: true,
     },
