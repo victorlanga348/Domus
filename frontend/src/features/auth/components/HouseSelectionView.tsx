@@ -32,11 +32,11 @@ export const HouseSelectionView: React.FC<HouseSelectionViewProps> = ({
   const [joinLoading, setJoinLoading] = useState(false);
   const [joinError, setJoinError] = useState<string | null>(null);
 
-  // Carregar residências salvas do usuário apenas se possuir residência ativa
+  // Carregar residências salvas do usuário vinculadas ao seu ID
   useEffect(() => {
     let isMounted = true;
     async function loadMyHouses() {
-      if (!currentUser.house_id) {
+      if (!currentUser.id) {
         setMyHouses([]);
         setLoadingMyHouses(false);
         return;
@@ -158,14 +158,14 @@ export const HouseSelectionView: React.FC<HouseSelectionViewProps> = ({
           </p>
         </div>
 
-        {/* Seção de Minha Residência Salva (Apenas se o usuário estiver ativamente vinculado) */}
-        {Boolean(currentUser.house_id) && (loadingMyHouses || myHouses.length > 0) && (
+        {/* Seção de Minhas Residências (Exibe todas as residências às quais o usuário pertence) */}
+        {(loadingMyHouses || myHouses.length > 0) && (
           <div className="bg-white rounded-3xl p-6 sm:p-7 border border-[#d9e5e3] shadow-xs space-y-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2.5">
                 <span className="material-symbols-outlined text-xl text-[#7b5800]">apartment</span>
                 <h2 className="text-sm sm:text-base font-black text-[#16302e]">
-                  Minha Residência Atual {loadingMyHouses ? '' : `(${myHouses.length})`}
+                  Minhas Residências {loadingMyHouses ? '' : `(${myHouses.length})`}
                 </h2>
               </div>
               <span className="text-xs text-[#727877]">Acesso seguro</span>
@@ -177,16 +177,32 @@ export const HouseSelectionView: React.FC<HouseSelectionViewProps> = ({
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {myHouses.map((houseItem) => {
                   const isSelecting = selectingHouseId === houseItem.id;
+                  const isCurrentActive = currentUser.house_id === houseItem.id;
                   return (
                     <div
                       key={houseItem.id}
-                      className="p-4 rounded-2xl border border-[#d9e5e3] bg-[#f0fcfa] hover:border-[#7b5800] transition-all flex flex-col justify-between space-y-3"
+                      className={`p-4 rounded-2xl border transition-all flex flex-col justify-between space-y-3 ${
+                        isCurrentActive
+                          ? 'border-[#16302e] bg-[#eef7f5] shadow-xs'
+                          : 'border-[#d9e5e3] bg-[#f0fcfa] hover:border-[#7b5800]'
+                      }`}
                     >
                       <div className="flex items-start justify-between gap-2">
                         <div>
                           <h3 className="text-sm font-black text-[#16302e]">{houseItem.name}</h3>
+                          <div className="flex items-center gap-1.5 mt-1">
+                            {houseItem.vacation_mode ? (
+                              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#ffca5e]/30 text-[#755400] border border-[#ffca5e]/50">
+                                Em Férias
+                              </span>
+                            ) : (
+                              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300">
+                                Ativa
+                              </span>
+                            )}
+                          </div>
                         </div>
-                        <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-[#16302e] text-white">
+                        <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-[#16302e] text-white shrink-0">
                           {houseItem.my_role === 'ADMIN' ? 'Arquiteto' : 'Morador'}
                         </span>
                       </div>
@@ -196,10 +212,10 @@ export const HouseSelectionView: React.FC<HouseSelectionViewProps> = ({
                         <button
                           onClick={() => handleSelectExistingHouse(houseItem)}
                           disabled={isSelecting}
-                          className="px-3.5 py-1.5 bg-[#7b5800] hover:bg-[#5d4200] text-white rounded-xl font-bold transition-all shadow-xs flex items-center gap-1.5 disabled:opacity-50"
+                          className="px-3.5 py-1.5 bg-[#7b5800] hover:bg-[#5d4200] text-white rounded-xl font-bold transition-all shadow-xs flex items-center gap-1.5 disabled:opacity-50 cursor-pointer"
                         >
                           <span className="material-symbols-outlined text-sm">login</span>
-                          <span>{isSelecting ? 'Acessando...' : 'Acessar'}</span>
+                          <span>{isSelecting ? 'Acessando...' : isCurrentActive ? 'Continuar' : 'Acessar'}</span>
                         </button>
                       </div>
                     </div>

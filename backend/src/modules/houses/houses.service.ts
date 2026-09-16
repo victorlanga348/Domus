@@ -40,6 +40,23 @@ export class HouseService {
     const invite_code = `CASA-${randomCode}`;
 
     return prisma.$transaction(async (tx) => {
+      // 1. Se o usuário já possuía residência ativa anterior, coloca a residência anterior em modo férias
+      if (userId) {
+        const currentUser = await tx.user.findUnique({ where: { id: userId } });
+        if (currentUser?.house_id) {
+          await tx.houseMember.upsert({
+            where: { user_id_house_id: { user_id: userId, house_id: currentUser.house_id } },
+            update: { vacation_mode: true },
+            create: {
+              user_id: userId,
+              house_id: currentUser.house_id,
+              role: currentUser.role,
+              vacation_mode: true,
+            },
+          });
+        }
+      }
+
       const house = await tx.house.create({
         data: {
           name: houseName.trim(),
@@ -48,11 +65,24 @@ export class HouseService {
         },
       });
 
+      // 2. Cria o vínculo da nova residência em HouseMember com papel de ADMIN ativo
+      await tx.houseMember.upsert({
+        where: { user_id_house_id: { user_id: userId, house_id: house.id } },
+        update: { role: 'ADMIN', vacation_mode: false },
+        create: {
+          user_id: userId,
+          house_id: house.id,
+          role: 'ADMIN',
+          vacation_mode: false,
+        },
+      });
+
       const updatedUser = await tx.user.update({
         where: { id: userId },
         data: {
           house_id: house.id,
           role: 'ADMIN',
+          vacation_mode: false,
         },
         select: {
           id: true,
@@ -72,8 +102,8 @@ export class HouseService {
 
   /**
    * 2. joinHouse:
-   * Busca a casa prioritariamente pelo Código de Convite (@unique) ou nome e vincula o usuário estritamente como MEMBER (Morador).
-   * Opção A: Acesso exclusivo por código de convite sem validação de senha.
+   * Busca a casa prioritariamente pelo Código de Convite (@unique) ou nome e vincula o usuário como MEMBER (Morador).
+   * Suporte a Multi-Residência: Permite ingressar sem sair da residência anterior; a anterior entra em modo férias.
    */
   async joinHouse(userId: string, houseIdentifier: string, _housePassword?: string) {
     if (!houseIdentifier || !houseIdentifier.trim()) {
@@ -86,10 +116,6 @@ export class HouseService {
 
     if (!user) {
       throw new AppError('Usuário não encontrado.', 404, 'USER_NOT_FOUND');
-    }
-
-    if (user.house_id) {
-      throw new AppError('Usuário já pertence a uma residência ativa.', 400, 'USER_ALREADY_IN_HOUSE');
     }
 
     const trimmedIdentifier = houseIdentifier.trim();
@@ -121,31 +147,59 @@ export class HouseService {
       throw new AppError('Residência não encontrada com o código fornecido.', 404, 'HOUSE_NOT_FOUND');
     }
 
-    // Regra mandatória: Qualquer usuário que ingressa ou reingressa na residência assume cargo de Morador (MEMBER)
-    const updatedUser = await prisma.user.update({
-      where: { id: userId },
-      data: {
-        house_id: house.id,
-        role: 'MEMBER',
-      },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        role: true,
-        house_id: true,
-      },
+    return prisma.$transaction(async (tx) => {
+      // 1. Se o usuário já possuía residência ativa diferente, coloca o vínculo anterior em modo férias
+      if (user.house_id && user.house_id !== house.id) {
+        await tx.houseMember.upsert({
+          where: { user_id_house_id: { user_id: userId, house_id: user.house_id } },
+          update: { vacation_mode: true },
+          create: {
+            user_id: userId,
+            house_id: user.house_id,
+            role: user.role,
+            vacation_mode: true,
+          },
+        });
+      }
+
+      // 2. Cria ou reativa o vínculo em HouseMember na nova residência como MEMBER e fora de férias
+      await tx.houseMember.upsert({
+        where: { user_id_house_id: { user_id: userId, house_id: house.id } },
+        update: { role: 'MEMBER', vacation_mode: false },
+        create: {
+          user_id: userId,
+          house_id: house.id,
+          role: 'MEMBER',
+          vacation_mode: false,
+        },
+      });
+
+      const updatedUser = await tx.user.update({
+        where: { id: userId },
+        data: {
+          house_id: house.id,
+          role: 'MEMBER',
+          vacation_mode: false,
+        },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          role: true,
+          house_id: true,
+        },
+      });
+
+      try {
+        const { emitToHouse } = await import('../../shared/socket/socketServer.js');
+        emitToHouse(house.id, 'house:members_updated', { houseId: house.id });
+      } catch {}
+
+      return {
+        house,
+        user: updatedUser,
+      };
     });
-
-    try {
-      const { emitToHouse } = await import('../../shared/socket/socketServer.js');
-      emitToHouse(house.id, 'house:members_updated', { houseId: house.id });
-    } catch {}
-
-    return {
-      house,
-      user: updatedUser,
-    };
   }
 
   async getHouseById(id: string): Promise<House> {
@@ -178,7 +232,8 @@ export class HouseService {
   /**
    * 4. switchHouse:
    * Alterna a residência ativa do usuário sem necessitar de novo login.
-   * Regra Obrigatória: O Admin Geral não pode alternar de casa se houver outros moradores na residência atual sem transferir a liderança.
+   * Regra Obrigatória: O Admin Geral pode alternar livremente para outra residência sem sair da primeira.
+   * Ao alternar, o morador entra automaticamente em modo de férias (vacation_mode: true) na residência anterior.
    */
   async switchHouse(userId: string, targetHouseId: string) {
     if (!userId) {
@@ -190,46 +245,82 @@ export class HouseService {
       throw new AppError('Usuário não encontrado.', 404, 'USER_NOT_FOUND');
     }
 
-    if (user.house_id && user.house_id !== targetHouseId && user.role === 'ADMIN') {
-      const otherMembersCount = await prisma.user.count({
-        where: {
-          house_id: user.house_id,
-          id: { not: userId },
-        },
-      });
-
-      if (otherMembersCount > 0) {
-        throw new AppError(
-          'O Administrador Geral não pode alternar de residência sem antes transferir a liderança.',
-          403,
-          'CANNOT_SWITCH_HOUSE_AS_GENERAL_ADMIN'
-        );
-      }
-    }
-
     const house = await this.houseRepo.findById(targetHouseId);
     if (!house) {
       throw new AppError('Residência não encontrada.', 404, 'HOUSE_NOT_FOUND');
     }
 
-    const updatedUser = await prisma.user.update({
-      where: { id: userId },
-      data: {
-        house_id: targetHouseId,
-      },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        role: true,
-        house_id: true,
-      },
-    });
+    const originHouseId = user.house_id;
 
-    return {
-      house,
-      user: updatedUser,
-    };
+    return prisma.$transaction(async (tx) => {
+      // 1. Colocar o vínculo da casa de origem em modo de férias (se diferente da destino)
+      if (originHouseId && originHouseId !== targetHouseId) {
+        await tx.houseMember.upsert({
+          where: { user_id_house_id: { user_id: userId, house_id: originHouseId } },
+          update: { vacation_mode: true },
+          create: {
+            user_id: userId,
+            house_id: originHouseId,
+            role: user.role,
+            vacation_mode: true,
+          },
+        });
+      }
+
+      // 2. Buscar ou inicializar o vínculo da residência de destino
+      let targetMembership = await tx.houseMember.findUnique({
+        where: { user_id_house_id: { user_id: userId, house_id: targetHouseId } },
+      });
+
+      if (!targetMembership) {
+        // Se ainda não existir registro em HouseMember (ex: legado), cria com o papel atual
+        targetMembership = await tx.houseMember.create({
+          data: {
+            user_id: userId,
+            house_id: targetHouseId,
+            role: 'MEMBER',
+            vacation_mode: false,
+          },
+        });
+      } else {
+        // Ativa o morador na residência de destino (fora de férias)
+        targetMembership = await tx.houseMember.update({
+          where: { id: targetMembership.id },
+          data: { vacation_mode: false },
+        });
+      }
+
+      // 3. Atualizar a residência ativa no usuário com o cargo correspondente na residência de destino
+      const updatedUser = await tx.user.update({
+        where: { id: userId },
+        data: {
+          house_id: targetHouseId,
+          role: targetMembership.role,
+          vacation_mode: false,
+        },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          role: true,
+          house_id: true,
+        },
+      });
+
+      // 4. Notificar ambas as residências via WebSocket
+      try {
+        const { emitToHouse } = await import('../../shared/socket/socketServer.js');
+        if (originHouseId && originHouseId !== targetHouseId) {
+          emitToHouse(originHouseId, 'house:members_updated', { houseId: originHouseId });
+        }
+        emitToHouse(targetHouseId, 'house:members_updated', { houseId: targetHouseId });
+      } catch {}
+
+      return {
+        house,
+        user: updatedUser,
+      };
+    });
   }
 
   /**
@@ -294,24 +385,40 @@ export class HouseService {
 
         // Execução atômica da sucessão e saída
         return prisma.$transaction(async (tx) => {
-          // 1. Promover o novo Admin Geral
+          // 1. Promover o novo Admin Geral em User e em HouseMember
           const promotedAdmin = await tx.user.update({
             where: { id: newAdminId },
             data: { role: 'ADMIN' },
             select: { id: true, name: true, email: true, role: true, house_id: true },
           });
 
-          // 2. Desvincular o Admin Geral anterior e redefinir cargo para MEMBER
+          await tx.houseMember.updateMany({
+            where: { user_id: newAdminId, house_id: houseId },
+            data: { role: 'ADMIN' },
+          });
+
+          // 2. Remover o vínculo da casa atual em HouseMember
+          await tx.houseMember.deleteMany({
+            where: { user_id: userId, house_id: houseId },
+          });
+
+          // 3. Buscar se o morador pertence a outra residência ativa
+          const nextHouse = await tx.houseMember.findFirst({
+            where: { user_id: userId },
+            orderBy: { updated_at: 'desc' },
+          });
+
           const updatedUser = await tx.user.update({
             where: { id: userId },
             data: {
-              house_id: null,
-              role: 'MEMBER',
+              house_id: nextHouse ? nextHouse.house_id : null,
+              role: nextHouse ? nextHouse.role : 'MEMBER',
+              vacation_mode: nextHouse ? nextHouse.vacation_mode : false,
             },
             select: { id: true, name: true, email: true, role: true, house_id: true },
           });
 
-          // 3. Registrar log de atividade da residência
+          // 4. Registrar log de atividade da residência
           await tx.activityLog.create({
             data: {
               user_id: userId,
@@ -321,7 +428,7 @@ export class HouseService {
             },
           });
 
-          // 4. Notificar via WebSocket
+          // 5. Notificar via WebSocket
           try {
             const { emitToHouse } = await import('../../shared/socket/socketServer.js');
             emitToHouse(houseId, 'house:admin_transferred', {
@@ -352,12 +459,23 @@ export class HouseService {
 
     if (remainingCount === 0) {
       return prisma.$transaction(async (tx) => {
-        // 1. Desvincular o usuário e resetar cargo para MEMBER
+        // 1. Remover o vínculo em HouseMember
+        await tx.houseMember.deleteMany({
+          where: { user_id: userId, house_id: houseId },
+        });
+
+        const nextHouse = await tx.houseMember.findFirst({
+          where: { user_id: userId },
+          orderBy: { updated_at: 'desc' },
+        });
+
+        // 2. Desvincular o usuário e apontar para outra residência se existir
         const updatedUser = await tx.user.update({
           where: { id: userId },
           data: {
-            house_id: null,
-            role: 'MEMBER',
+            house_id: nextHouse ? nextHouse.house_id : null,
+            role: nextHouse ? nextHouse.role : 'MEMBER',
+            vacation_mode: nextHouse ? nextHouse.vacation_mode : false,
           },
           select: {
             id: true,
@@ -368,7 +486,7 @@ export class HouseService {
           },
         });
 
-        // 2. Casa 100% vazia (0 moradores): Excluir automaticamente do banco para evitar registros órfãos
+        // 3. Casa 100% vazia (0 moradores): Excluir automaticamente do banco para evitar registros órfãos
         await tx.house.delete({
           where: { id: houseId },
         });
@@ -381,32 +499,44 @@ export class HouseService {
     }
 
     // Caso não seja ADMIN, mas ainda restem outros moradores na casa
-    const updatedUser = await prisma.user.update({
-      where: { id: userId },
-      data: {
-        house_id: null,
-        role: 'MEMBER',
-      },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        role: true,
-        house_id: true,
-      },
-    });
-
-    try {
-      const { emitToHouse } = await import('../../shared/socket/socketServer.js');
-      emitToHouse(houseId, 'house:member_left', {
-        userId,
-        name: currentUser.name,
+    return prisma.$transaction(async (tx) => {
+      await tx.houseMember.deleteMany({
+        where: { user_id: userId, house_id: houseId },
       });
-    } catch {}
 
-    return {
-      user: updatedUser,
-    };
+      const nextHouse = await tx.houseMember.findFirst({
+        where: { user_id: userId },
+        orderBy: { updated_at: 'desc' },
+      });
+
+      const updatedUser = await tx.user.update({
+        where: { id: userId },
+        data: {
+          house_id: nextHouse ? nextHouse.house_id : null,
+          role: nextHouse ? nextHouse.role : 'MEMBER',
+          vacation_mode: nextHouse ? nextHouse.vacation_mode : false,
+        },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          role: true,
+          house_id: true,
+        },
+      });
+
+      try {
+        const { emitToHouse } = await import('../../shared/socket/socketServer.js');
+        emitToHouse(houseId, 'house:member_left', {
+          userId,
+          name: currentUser.name,
+        });
+      } catch {}
+
+      return {
+        user: updatedUser,
+      };
+    });
   }
 
   /**

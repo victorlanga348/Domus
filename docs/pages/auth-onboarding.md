@@ -31,10 +31,13 @@ Permitir que novos e recorrentes moradores criem suas contas, acessem o sistema 
 
 ### 2.3 Escolha de Residência / Boas-vindas (`HouseholdSelectionView` / `HouseSelectionView`)
 - **Layout:** Moldura institucional DOMUS com cards interativos de seleção e formulários.
-- **Seção Superior - Minha Residência Atual:**
-  - Exibida dinamicamente **apenas** quando o usuário possui vínculo ativo com uma residência (`house_id !== null`).
-  - Usuários que saíram da residência (`house_id === null`) **não** visualizam casas salvas nem códigos de convite antigos.
-  - Acesso direto seguro para alternância de contexto sem expor o `invite_code` na tela pública.
+- **Seção Superior - Minhas Residências (Multi-Casa):**
+  - Carrega dinamicamente via `GET /api/houses/my-houses` todas as residências cadastradas em `HouseMember` para o morador.
+  - Exibe cards para cada residência com:
+    - Nome da residência e total de moradores.
+    - Badge de Cargo: `Admin Geral` (dourado) ou `Morador` (verde).
+    - Badge de Status: `Ativa` (esmeralda suave com pulso luminoso) para a casa ativa, ou `Em Férias` (âmbar com ícone `beach_access`) para residências onde o usuário está em férias automáticas.
+    - Botão de Ação: "Continuar" para a residência ativa ou "Acessar" para alternar instantaneamente para o lar selecionado via `POST /api/houses/switch`.
 - **Card 1 - Criar Residência:**
   - Ícone de casa em círculo suave (`add_home`).
   - Título: "Criar Nova Residência".

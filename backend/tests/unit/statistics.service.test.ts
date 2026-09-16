@@ -57,16 +57,25 @@ function calculateStatistics(
 }
 
 /**
- * Validação de permissão de alternância de residência (idêntica à regra de houses.service.ts)
+ * Validação de permissão de alternância e saída de residência (idêntica às regras de houses.service.ts)
  */
 function validateSwitchHouse(
+  _currentUser: MockUser,
+  _targetHouseId: string
+): { allowed: boolean; errorCode?: string } {
+  // Regra atualizada: o morador (inclusive Admin Geral) pode alternar livremente para outra residência
+  return { allowed: true };
+}
+
+function validateLeaveHouse(
   currentUser: MockUser,
   otherMembersCount: number,
-  targetHouseId: string
+  newAdminId?: string
 ): { allowed: boolean; errorCode?: string } {
-  if (currentUser.house_id && currentUser.house_id !== targetHouseId && currentUser.role === 'ADMIN') {
-    if (otherMembersCount > 0) {
-      return { allowed: false, errorCode: 'CANNOT_SWITCH_HOUSE_AS_GENERAL_ADMIN' };
+  // Apenas ao sair definitivamente, e apenas se houver 2 ou mais pessoas (otherMembersCount > 0), exige sucessor
+  if (currentUser.role === 'ADMIN' && otherMembersCount > 0) {
+    if (!newAdminId || newAdminId === currentUser.id) {
+      return { allowed: false, errorCode: 'ADMIN_TRANSFER_REQUIRED' };
     }
   }
   return { allowed: true };
@@ -144,8 +153,8 @@ describe('StatisticsService (Isolamento de Modo Férias e Logs de Tarefas)', () 
   });
 });
 
-describe('HousesService (Governança de Alternância de Residência para Admin Geral)', () => {
-  it('deve impedir que o Admin Geral alterne de residência se houver outros moradores na casa atual', () => {
+describe('HousesService (Governança de Alternância e Saída para Admin Geral)', () => {
+  it('deve permitir que o Admin Geral alterne de residência mesmo que haja outros moradores na casa atual', () => {
     const adminUser: MockUser = {
       id: 'admin-1',
       name: 'Carlos',
@@ -153,12 +162,11 @@ describe('HousesService (Governança de Alternância de Residência para Admin G
       house_id: 'house-1',
     };
 
-    const result = validateSwitchHouse(adminUser, 2, 'house-2');
-    assert.equal(result.allowed, false);
-    assert.equal(result.errorCode, 'CANNOT_SWITCH_HOUSE_AS_GENERAL_ADMIN');
+    const result = validateSwitchHouse(adminUser, 'house-2');
+    assert.equal(result.allowed, true, 'Admin Geral pode alternar livremente para outra residência');
   });
 
-  it('deve permitir que o Admin Geral alterne de residência se for o único morador', () => {
+  it('deve exigir que o Admin Geral nomeie sucessor ao sair da residência se houver 2 ou mais pessoas', () => {
     const adminUser: MockUser = {
       id: 'admin-1',
       name: 'Carlos',
@@ -166,11 +174,30 @@ describe('HousesService (Governança de Alternância de Residência para Admin G
       house_id: 'house-1',
     };
 
-    const result = validateSwitchHouse(adminUser, 0, 'house-2');
-    assert.equal(result.allowed, true);
+    // 2 outros moradores na residência, sem sucessor indicado
+    const resultWithoutSuccessor = validateLeaveHouse(adminUser, 2);
+    assert.equal(resultWithoutSuccessor.allowed, false);
+    assert.equal(resultWithoutSuccessor.errorCode, 'ADMIN_TRANSFER_REQUIRED');
+
+    // Com sucessor válido indicado
+    const resultWithSuccessor = validateLeaveHouse(adminUser, 2, 'morador-sucessor');
+    assert.equal(resultWithSuccessor.allowed, true);
   });
 
-  it('deve permitir que um membro regular (MEMBER) alterne de residência mesmo que haja outros moradores', () => {
+  it('deve permitir que o Admin Geral saia da residência sem sucessor se for o único morador na casa', () => {
+    const adminUser: MockUser = {
+      id: 'admin-1',
+      name: 'Carlos',
+      role: 'ADMIN',
+      house_id: 'house-1',
+    };
+
+    // 0 outros moradores na residência
+    const result = validateLeaveHouse(adminUser, 0);
+    assert.equal(result.allowed, true, 'Único morador pode sair diretamente sem necessidade de sucessão');
+  });
+
+  it('deve permitir que um membro regular (MEMBER) saia ou alterne de residência diretamente', () => {
     const regularUser: MockUser = {
       id: 'member-1',
       name: 'Daniela',
@@ -178,8 +205,11 @@ describe('HousesService (Governança de Alternância de Residência para Admin G
       house_id: 'house-1',
     };
 
-    const result = validateSwitchHouse(regularUser, 3, 'house-2');
-    assert.equal(result.allowed, true);
+    const switchResult = validateSwitchHouse(regularUser, 'house-2');
+    assert.equal(switchResult.allowed, true);
+
+    const leaveResult = validateLeaveHouse(regularUser, 3);
+    assert.equal(leaveResult.allowed, true);
   });
 });
 

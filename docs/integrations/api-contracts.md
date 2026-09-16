@@ -326,31 +326,59 @@
 - **Resposta (201):** `{ "status": "success", "data": { "house": { "id": "uuid", "name": "...", "invite_code": "CASA-4892" }, "user": {...} } }`
 
 ### `GET /api/houses/my-houses`
-- Lista as residências ativas vinculadas ao usuário autenticado (retorna vazio caso `house_id` seja `null`).
+- Lista todas as residências cadastradas em `HouseMember` para o usuário autenticado, permitindo alternância ágil entre lares.
 - **Headers:** `x-user-id`, `Authorization: Bearer <jwt>`
-- **Resposta (200):** Array de residências com contadores de membros e papel do morador.
+- **Resposta (200):**
+  ```json
+  [
+    {
+      "id": "uuid-house-1",
+      "name": "Casa Alameda",
+      "member_count": 3,
+      "my_role": "ADMIN",
+      "vacation_mode": false,
+      "is_active": true
+    },
+    {
+      "id": "uuid-house-2",
+      "name": "República Central",
+      "member_count": 5,
+      "my_role": "MEMBER",
+      "vacation_mode": true,
+      "is_active": false
+    }
+  ]
+  ```
 
 ### `POST /api/houses/join` (ou `/api/house/join`)
-- Ingressa ou reingressa em uma residência existente.
+- Ingressa ou reingressa em uma residência existente sem necessidade de desvincular-se das casas anteriores.
 - **Payload:** `{ "inviteCode": "CASA-4892", "user_id": "uuid" }`
 - **Regras:**
   - Busca prioritariamente pelo Código Único da Casa (`invite_code`, ex: `CASA-4892`), tolerando maiúsculas e minúsculas.
   - Não exige senha (Opção A).
-  - **Reset Mandatório de Cargo:** Qualquer usuário que ingressar ou reingressar na residência recebe estritamente a role `MEMBER` (`Resident`), sem restauração de cargos administrativos anteriores.
+  - **Multi-Residência com Férias Automáticas:** Caso o usuário já pertença a outra residência, a residência anterior tem seu registro em `HouseMember` atualizado para `vacation_mode = true`. A nova residência torna-se ativa (`vacation_mode = false`) e `users.house_id` é atualizado.
+  - **Reset Mandatório de Cargo:** Qualquer usuário que ingressar na residência recebe estritamente a role `MEMBER` (`Resident`) em `HouseMember`, sem retenção de privilégios de liderança anteriores.
 - **Resposta (200):** `{ "status": "success", "data": { "house": {...}, "user": {...} } }`
 
 ### `POST /api/houses/switch`
 - Alterna a residência ativa do usuário sem destruir a sessão de autenticação.
 - **Payload:** `{ "targetHouseId": "uuid-house" }`
 - **Headers:** `x-user-id`
+- **Regras de Negócio & Governança:**
+  - **Alternância Livre para Admin Geral:** O Administrador Geral pode alternar livremente entre residências das quais faz parte sem obrigatoriedade de transferir sua liderança.
+  - **Modo Férias Automático:** A residência de origem é colocada em `vacation_mode = true` na tabela `house_members`. A residência de destino é reativada (`vacation_mode = false`).
+  - **Restauração de Papel:** `users.role` e `users.house_id` são sincronizados com o cargo exato que o morador possui na residência de destino (`HouseMember.role`).
+  - **Broadcast Real-Time:** Emite `house:members_updated` para ambas as residências (origem e destino) para atualização em tempo real de rodízios e presenças.
 - **Resposta (200):** `{ "house": {...}, "user": {...} }`
 
 ### `POST /api/houses/leave` (ou `/api/house/leave`)
-- Desvincula o morador da residência atual mantendo o login ativo (`house_id = null`, `role = 'MEMBER'`).
+- Desvincula definitivamente o morador da residência atual (`HouseMember` excluído).
 - **Payload:** `{ "userId": "uuid-user", "newAdminId": "uuid-sucessor-opcional" }`
-- **Regras Obrigatórias:**
-  - Se for o `Admin Geral` e houver outros moradores, `newAdminId` é obrigatório (`ADMIN_TRANSFER_REQUIRED`).
-  - **Exclusão de Casa Vazia:** Se o solicitante for o único morador na residência (0 membros restantes), a residência e todos os seus registros são excluídos em definitivo do banco de dados de forma atômica para evitar registros órfãos.
+- **Regras de Governança Estrita:**
+  - **Sucessão Condicional:** A exigência de `newAdminId` só se aplica se o usuário for o `Admin Geral` **e** houver 2 ou mais pessoas na residência (`otherMembersCount > 0`). Caso haja outros moradores e `newAdminId` seja omitido, retorna `400 ADMIN_TRANSFER_REQUIRED`.
+  - **Saída Direta para Morador Único:** Se o solicitante for o único morador restante na residência (0 outros moradores), ele pode sair diretamente sem nomear sucessor.
+  - **Exclusão de Casa Vazia:** Quando o único morador sai, a residência e todos os seus registros atrelados são excluídos atomicamente do banco de dados para evitar registros órfãos (`houseDeleted = true`).
+  - **Redirecionamento Automático:** Caso o usuário ainda pertença a outras residências em `HouseMember`, seu `house_id` ativo é automaticamente direcionado para a próxima residência disponível. Caso contrário, `house_id = null`.
 - **Resposta (200):** `{ "status": "success", "data": { "user": {...}, "newAdmin": {...}, "houseDeleted": boolean } }`
 
 ### `POST /api/houses/remove-member` (ou `/api/house/remove-member`)

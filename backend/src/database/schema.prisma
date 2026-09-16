@@ -66,6 +66,7 @@ model House {
   preference      HousePreference?
   meal_plan       MealPlan?
   member_statuses MemberStatus[]
+  members         HouseMember[]
 
   @@map("houses")
 }
@@ -94,6 +95,7 @@ model User {
   messages            Message[]
   locked_meal_plans   MealPlan[]        @relation("MealPlanLockedBy")
   member_statuses     MemberStatus[]
+  house_memberships   HouseMember[]
 
   @@map("users")
 }
@@ -285,4 +287,20 @@ model MemberStatus {
 
   @@unique([user_id, house_id])
   @@map("member_statuses")
+}
+
+model HouseMember {
+  id            String    @id @default(uuid())
+  user_id       String
+  house_id      String
+  role          UserRole  @default(MEMBER)
+  vacation_mode Boolean   @default(false)
+  created_at    DateTime  @default(now())
+  updated_at    DateTime  @updatedAt
+
+  user  User  @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  house House @relation(fields: [house_id], references: [id], onDelete: Cascade)
+
+  @@unique([user_id, house_id])
+  @@map("house_members")
 }

@@ -4,7 +4,9 @@
 
 ```mermaid
 erDiagram
-    HOUSE ||--o{ USER : contains
+    HOUSE ||--o{ HOUSE_MEMBER : has_memberships
+    USER ||--o{ HOUSE_MEMBER : belongs_via
+    HOUSE ||--o{ USER : active_residents
     HOUSE ||--o{ TASK : manages
     HOUSE ||--o{ ACTIVITY_LOG : records
     HOUSE ||--o{ HOUSE_RULE : has
@@ -18,6 +20,16 @@ erDiagram
         string id PK
         string name
         string code UK
+        datetime createdAt
+        datetime updatedAt
+    }
+
+    HOUSE_MEMBER {
+        string id PK
+        string userId FK
+        string houseId FK
+        enum role "ADMIN | MEMBER"
+        boolean vacationMode
         datetime createdAt
         datetime updatedAt
     }
@@ -150,9 +162,14 @@ erDiagram
 Representa a residência. Fornece isolamento multi-tenant via `houseId`. O `code` é alfanumérico único para o login inicial compartilhado (ex: `CASA-4821`).
 
 ### 2.2 `User` (Membro)
-Membro vinculado à residência. Autenticado por credenciais JWT e PIN seguro. Possui flags de ausência/férias que influenciam o algoritmo de rotação de tarefas.
+Membro do sistema. Autenticado por credenciais JWT e PIN seguro. O campo `houseId` aponta para a **residência ativa atual**, enquanto `house_members` armazena todos os vínculos residenciais aos quais o usuário pertence.
 
-### 2.3 `Room` (Sala de Comunicação / Chat)
+### 2.3 `HouseMember` (Associação Multi-Residência & Modo Férias por Casa)
+Entidade de relacionamento N:N entre `User` e `House`. Permite que um usuário pertença a múltiplas residências simultaneamente sem sair da primeira. Cada vínculo possui:
+- `role`: Papel específico do morador naquela residência (`ADMIN` ou `MEMBER`).
+- `vacation_mode`: Controle de ausência isolado por residência. Ao alternar o contexto de moradia (`POST /api/houses/switch`), as outras residências entram automaticamente em `vacation_mode = true`, garantindo foco exclusivo na casa ativa e liberando as escalas de rodízio das demais residências via regra *Vacation Skip*.
+
+### 2.4 `Room` (Sala de Comunicação / Chat)
 Sala de convivência ou gestão protegida por senha criptografada (hash Bcrypt). Possui criador e múltiplos participantes.
 
 ### 2.4 `Participant` (Associação com Papel / Role)

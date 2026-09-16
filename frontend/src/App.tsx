@@ -1419,14 +1419,11 @@ export default function App() {
   };
 
   const handleSwitchHouse = () => {
-    const isGeneralAdmin = currentUser.role === 'Admin Geral' || authUser?.role === 'ADMIN';
-    const otherMembers = familyMembers.filter((m) => m.id !== authUser?.id && m.email !== authUser?.email);
-    if (isGeneralAdmin && otherMembers.length > 0) {
-      showToast('Como Admin Geral, você não pode trocar de residência sem antes transferir a liderança.');
-      return;
-    }
     setCurrentHouse(null);
     localStorage.removeItem('domus_auth_house');
+    if (typeof window !== 'undefined' && window.location.pathname !== '/') {
+      window.history.pushState(null, '', '/');
+    }
     showToast('Alternando de residência. Escolha uma residência salva ou funde uma nova.');
   };
 
