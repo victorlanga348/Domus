@@ -34,15 +34,22 @@ stateDiagram-v2
 ## 4. Regras de Permissão & Governança
 
 ### 4.1 Conclusão de Tarefas
-- **Regra Universal:** Em todo o aplicativo, **nenhum morador pode concluir tarefas que não sejam suas**, com a **exclusiva exceção do Admin Geral** (`role === 'ADMIN' | 'Admin Geral'`).
+- **Regra Universal:** Em todo o aplicativo, **nenhum morador pode concluir tarefas que não sejam suas**, com a **exclusiva exceção do Admin Geral** (`role === 'ADMIN' | 'Admin Geral'`) e de **Tarefas Livres / Comunitárias**.
 - **Tarefa Direcionada:** Apenas o morador designado (`tarefa.responsavelId === usuarioAtual.id`) ou o Admin Geral.
 - **Tarefa de Rodízio:** Apenas o morador da vez no turno (`rodizio.membroAtualId === usuarioAtual.id`, ordem A-Z com salto de férias) ou o Admin Geral.
-- **Violação (403 Forbidden):** Bloqueio estrito no backend e botão desabilitado em cinza no frontend (tanto na tela de tarefas quanto no Drawer de Alertas/Notificações) com tooltip: `"Aguardando confirmação de [Nome do Responsável]"`.
+- **Tarefa Livre / Comunitária (`participants = []`):** Qualquer morador ativo pertencente à mesma residência (`task.house_id === user.house_id`) ou o Admin Geral. O botão permanece habilitado para todos os membros da casa e o ActivityLog registra o morador específico que realizou a conclusão.
+- **Violação (403 Forbidden):** Bloqueio estrito no backend e botão desabilitado em cinza no frontend (tanto na tela de tarefas quanto no Drawer de Alertas/Notificações) com tooltip: `"Aguardando confirmação de [Nome do Responsável]"`. Moradores de fora da residência recebem HTTP 403 mesmo em tarefas livres.
 
 ### 4.2 Reversão / Cancelamento de Tarefas Concluídas
 - **Quem pode executar:** Exclusivo para o **Admin Geral** e **Sub-Admins** (`role === 'ADMIN' | 'SUB_ADMIN'`).
 - **Moradores comuns:** Visualizam apenas o selo verde `"Concluída"`, sem botões de ação ou intervenção.
 - **Confirmação:** Exige modal de confirmação antes do disparo da requisição à API.
+- **Regra Canônica de Retomada do Responsável (Rodízio & Tarefas Fixas):**
+  1. Ao reverter uma tarefa concluída para o estado pendente (`OPEN`), o sistema restaura o estado exato anterior à conclusão, **como se a tarefa nunca tivesse sido concluída**.
+  2. **Em Tarefas com Rodízio:** A pessoa que havia realizado a tarefa (identificada pelo `locked_by_id` da conclusão) **reassume a responsabilidade imediata da tarefa**. O `rotation_index` no banco de dados é restaurado para a posição exata daquele morador na lista de participantes ordenada (A-Z) ou decrementado circularmente.
+  3. **Em Tarefas Fixas / Individuais:** A tarefa retorna a `status: 'OPEN'` mantendo seu responsável designado e liberando os campos de trava (`locked_by_id`, `locked_at`, `last_block_reason`).
+  4. **Reflexo Universal em Tempo Real:** A alteração propaga imediatamente via WebSocket (`house:task_status_changed`, `task:updated`, `house:rotation_advanced`) para todos os moradores da residência sem exceção, atualizando tanto a lista de tarefas quanto o carrossel de rodízios e relatórios.
+  5. **Sem Estado Intermediário ("Livre"):** A retomada do responsável ocorre de imediato (0ms) na atualização otimista local. O cartão da tarefa nunca transita para "Livre" antes de receber a resposta da API, exibindo diretamente o morador que havia realizado a tarefa por último.
 
 ### 4.3 Gestão e Adição de Membros
 - **Regra Estrita:** Nenhum morador comum pode convidar ou adicionar novos membros à residência.
@@ -76,5 +83,15 @@ stateDiagram-v2
 - **Regra Fundamental de Convivência:** Todas as tarefas da residência (`house_id`), seus respectivos rodízios, status de conclusão e registros de histórico são **universalmente visíveis por todos os moradores da casa**, sem exceção.
 - **Moradores Novos / Recém-Cadastrados:** Ao ingressar na residência com o código de convite, o novo morador tem acesso imediato à visualização de todas as tarefas já criadas (passadas, em andamento ou futuras) e seus históricos, antes mesmo de ser incluído como participante ativo de alguma escala pelo Admin.
 - **Moradores Não-Participantes:** Um morador que não faça parte do pool de participantes de uma tarefa específica continua visualizando normalmente o card da tarefa, o responsável atual e o histórico, garantindo plena transparência e harmonia operacional na convivência compartilhada.
+
+### 4.9 Pulamento de Tarefas & Confirmação Obrigatória
+- **Confirmação Prévia:** O acionamento do botão `[ Pular ]` em tarefas de rodízio exige confirmação explícita através do `ConfirmActionModal`, prevenindo toques acidentais em dispositivos móveis.
+- **Autoridade Permitida:** Morador que detém a vez ativa (`isNext === true`) ou o **Admin Geral**.
+- **Registro no Histórico e Auditoria:** Ao pular, o status da tarefa é registrado como `"skipped"` (Pulada), armazenando `skippedBy`, `skippedById` e `skippedAt`. No histórico de tarefas (`ReportsView`), a tarefa exibe o badge `"Pulada"` e a menção explícita `"Pulada por: [Nome de quem pulou]"`, além de registrar no feed da residência o evento `ROTATED`.
+
+### 4.10 Indicação do Responsável & Tarefas Comunitárias ("Livre")
+- **Cartão de Tarefa Concluída:** A área `"Responsável:"` exibe com precisão o morador que concluiu a tarefa (`task.completedBy`) acompanhado de seu avatar.
+- **Cartão de Tarefa Aberta/Pendente:** Exibe o responsável atual designado da vez (`task.nextMember`).
+- **Tarefas Comunitárias / Sem Atribuição:** Quando uma tarefa não possui responsável designado (sem participantes restritos ou aberta para qualquer morador), a área de responsável exibe obrigatoriamente a designação **"Livre"** (sem exibição de avatar).
 
 

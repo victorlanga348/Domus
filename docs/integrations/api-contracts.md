@@ -105,12 +105,12 @@
 - **Resposta (200):** Tarefa com status `LOCKED`, `lockedById` e `lockedAt`.
 
 ### `POST /api/tasks/:id/complete` (ou `PATCH /api/tasks/:id/complete`, alias `/api/tasks/:id/concluir`)
-- **Autorização:** Morador designado (tarefa direcionada), membro da vez no rodízio OU **Admin Geral** (`ADMIN`, `Admin Geral`).
+- **Autorização:** Morador designado (tarefa direcionada), membro da vez no rodízio, qualquer morador da mesma residência (se tarefa livre/comunitária, `participants = []`) OU **Admin Geral** (`ADMIN`, `Admin Geral`).
 - **Headers:** `x-user-id`, `x-user-role` (opcional, para identificar privilégio de Admin Geral)
 - **Payload:** `{ "user_id": "uuid-user", "pin": "opcional", "user_role": "opcional" }`
 - **Resposta (200):** Tarefa com status `COMPLETED`, `locked_by_id` atualizado e novo `nextAssignee` (se rodízio).
 - **Erros:**
-  - `403 Forbidden`: `"Apenas a pessoa designada para esta tarefa ou o Admin Geral pode marcá-la como concluída."` (`FORBIDDEN_TASK_COMPLETION`) caso chamado por terceiro comum.
+  - `403 Forbidden`: `"Apenas a pessoa designada para esta tarefa ou o Admin Geral pode marcá-la como concluída."` (`FORBIDDEN_TASK_COMPLETION`) caso chamado por terceiro comum em tarefas direcionadas/rodízio, ou se usuário não pertencer à mesma residência em tarefas livres.
   - `400 Bad Request`: `"Tarefa já foi concluída."` caso já esteja finalizada.
 
 ### `POST /api/tasks/:id/forgive-failure` (alias `/api/tasks/:id/perdoar-falha`)
@@ -169,13 +169,54 @@
   - `403 Forbidden`: `"Apenas a pessoa da vez no rodízio pode girar a escala."` (`FORBIDDEN_TASK_ROTATION`) quando acionado por usuário fora da sua vez.
   - `404 Not Found`: `TASK_NOT_FOUND` se o ID da tarefa não existir.
 
-### `POST /api/tasks/:id/revert` (ou `PATCH /api/tasks/:id/revert`, alias `/api/tasks/:id/reverter`)
-- **Autorização:** Exclusivo para o **Admin Geral** e **Sub-Admins** (`ADMIN`, `SUB_ADMIN`, `Admin`, `Admin Geral`).
+### `POST /api/tasks/:id/skip` (ou `PATCH /api/tasks/:id/skip`, alias `/api/tasks/:id/pular`)
+- **Descrição:** Pula a vez ativa na escala de rodízio, avança circularmente o `rotation_index` para o próximo participante e registra auditoria de pulamento no `ActivityLog`.
+- **Autorização:** Apenas o morador que atualmente detém a vez ativa ou o **Admin Geral** (`ADMIN`, `Admin Geral`).
 - **Headers:** `x-user-id`, `x-user-role`
-- **Payload:** `{ "user_id": "uuid-user", "user_role": "ADMIN" }`
-- **Resposta (200):** Tarefa restaurada para o status `OPEN`, com `locked_by_id: null`, `locked_at: null`.
+- **Payload:** `{ "user_id": "uuid-user", "user_role": "opcional" }`
+- **Resposta (200):**
+  ```json
+  {
+    "status": "success",
+    "data": {
+      "task": {
+        "id": "uuid-task",
+        "title": "Limpar a Cozinha",
+        "rotation_index": 2,
+        "status": "OPEN"
+      },
+      "nextAssignee": {
+        "id": "uuid-user-next",
+        "name": "Carlos",
+        "vacation_mode": false
+      },
+      "skippedBy": {
+        "id": "uuid-user-skipped",
+        "name": "Bruno"
+      }
+    }
+  }
+  ```
+- **Eventos WebSocket Emitidos:**
+  - `house:rotation_advanced`: `{ rotationId: "uuid-task", taskId: "uuid-task", nextAssignee: User }`
+  - `task:updated`: `{ task, nextAssignee, skippedBy }`
 - **Erros:**
-  - `403 Forbidden`: `"Apenas administradores e o Admin Geral têm permissão para reverter uma tarefa concluída."` para moradores comuns (`MEMBER`, `Resident`).
+  - `403 Forbidden`: `"Apenas a pessoa da vez no rodízio ou o Admin Geral pode pular a tarefa."` (`FORBIDDEN_TASK_SKIP`) quando acionado por morador fora da sua vez sem privilégio de Admin Geral.
+  - `404 Not Found`: `TASK_NOT_FOUND` se o ID da tarefa não existir.
+
+### `POST /api/tasks/:id/revert` (ou `PATCH /api/tasks/:id/revert`, alias `/api/tasks/:id/reverter`)
+- **Descrição:** Reverte uma tarefa concluída para o status `OPEN`, restaurando o `rotation_index` e a atribuição para a pessoa que havia concluído a tarefa de rodízio (como se nunca tivesse concluído) e liberando travas (`locked_by_id: null`, `locked_at: null`, `last_block_reason: null`).
+- **Autorização:** Exclusivo para o **Admin Geral** e **Sub-Admins** (`ADMIN`, `SUB_ADMIN`, `Admin`, `Admin Geral`).
+- **Headers:** `x-user-id`, `x-user-role`, `x-house-id`
+- **Payload:** `{ "user_id": "uuid-user", "user_role": "ADMIN" }`
+- **Resposta (200):** Objeto completo `TaskWithDetails` com participantes, creator e locks liberados.
+- **Eventos WebSocket Emitidos:**
+  - `house:task_status_changed`: `{ taskId: "uuid-task", status: "OPEN" }`
+  - `task:updated`: `{ task: TaskWithDetails }`
+  - `house:rotation_advanced`: `{ rotationId: "uuid-task", taskId: "uuid-task", nextAssignee: User }` (quando tarefa em rodízio)
+- **Erros:**
+  - `403 Forbidden`: `"Apenas administradores e o Admin Geral têm permissão para reverter uma tarefa concluída."` (`FORBIDDEN_TASK_REVERT`) para moradores comuns (`MEMBER`, `Resident`).
+  - `404 Not Found`: `TASK_NOT_FOUND` se o ID da tarefa não existir.
 
 ### `POST /api/tasks/:id/block`
 - **Payload:** `{ "reason": "Falta de produto de limpeza" }`

@@ -17,9 +17,13 @@ Apresentar métricas consolidadas sobre o cumprimento das rotinas domésticas, �
 - Tabela analítica dos motivos de bloqueio mais recorrentes para apoiar a reposição de insumos.
 
 ### 2.4 Histórico de Tarefas & Governança de Reversão
-- Lista cronológica de tarefas finalizadas com filtros por membro, status e busca textual.
+- Lista cronológica de tarefas finalizadas, puladas e canceladas com filtros por membro, status e busca textual.
+- **Tarefas Concluídas:** Exibem o badge verde `"Concluída"` e a indicação `"Concluída por: [Nome]"` com o avatar do conclusor.
+- **Tarefas Puladas:** Exibem o badge âmbar `"Pulada"` e a indicação explícita `"Pulada por: [Nome]"` com o avatar do morador que pulou a vez.
+- **Tarefas Livres / Sem Atribuição:** Exibem estritamente a indicação **"Livre"** (sem avatar).
+- **Filtros e Busca Inteligente:** O filtro por membro e a barra de pesquisa identificam o autor da conclusão (`completedBy`), o autor do pulamento (`skippedBy`) e o membro designado (`nextMember`).
 - **Governança de Reversão:** Ação de reverter tarefa para pendente disponível exclusivamente para o **Admin Geral** e **Sub-Admins**, exigindo modal de confirmação antes da chamada à API.
-- **Moradores Comuns:** Visualizam os itens com o selo `"Concluída"` sem botões de reversão.
+- **Moradores Comuns:** Visualizam os itens com seus respectivos selos sem botões de reversão.
 
 ### 2.5 Estados de Carregamento (`ReportsSkeleton`)
 - Durante o carregamento e paginação inicial de relatórios e logs de atividade (`loading === true`), a visão renderiza o `ReportsSkeleton` com placeholders de busca, filtros e linhas de tarefas para evitar Layout Shift.

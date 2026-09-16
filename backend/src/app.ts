@@ -33,6 +33,7 @@ app.use(
       callback(null, isAllowedOrigin(origin));
     },
     credentials: true,
+    maxAge: 86400,
   })
 );
 app.use(express.json());

@@ -47,6 +47,7 @@ export const TasksRotationsView: React.FC<TasksRotationsViewProps> = ({
   const [selectedPeriod, setSelectedPeriod] = useState<'all' | 'morning' | 'afternoon' | 'night'>('all');
   const [statusFilter, setStatusFilter] = useState<'pending' | 'completed' | 'all'>('pending');
   const [taskToRevert, setTaskToRevert] = useState<HouseTask | null>(null);
+  const [taskToSkip, setTaskToSkip] = useState<HouseTask | null>(null);
 
   const isGeneralAdmin = currentUserRole === 'Admin Geral' || currentUserRole === 'ADMIN';
   const isAdmin = currentUserRole === 'Admin' || currentUserRole === 'SUB_ADMIN';
@@ -236,9 +237,14 @@ export const TasksRotationsView: React.FC<TasksRotationsViewProps> = ({
     let rotationIdToUse: string | undefined;
 
     if (taskAssignmentType === 'member') {
-      assignedName = selectedMember;
-      const found = familyMembers.find((m) => m.name === selectedMember);
-      if (found) assignedAvatar = found.avatar;
+      if (selectedMember === 'Qualquer pessoa' || selectedMember === 'Livre') {
+        assignedName = 'Livre';
+        assignedAvatar = undefined;
+      } else {
+        assignedName = selectedMember;
+        const found = familyMembers.find((m) => m.name === selectedMember);
+        if (found) assignedAvatar = found.avatar;
+      }
     } else {
       // Rotation assignment
       if (rotationMode === 'new') {
@@ -332,13 +338,17 @@ export const TasksRotationsView: React.FC<TasksRotationsViewProps> = ({
 
     let taskParticipantIds: string[] = [];
     if (taskAssignmentType === 'member') {
-      const found = familyMembers.find((m) => m.name === selectedMember);
-      if (found?.id) {
-        taskParticipantIds = [found.id];
-      } else if (currentUserId) {
-        taskParticipantIds = [currentUserId];
-      } else if (familyMembers[0]?.id) {
-        taskParticipantIds = [familyMembers[0].id];
+      if (selectedMember === 'Qualquer pessoa' || selectedMember === 'Livre') {
+        taskParticipantIds = [];
+      } else {
+        const found = familyMembers.find((m) => m.name === selectedMember);
+        if (found?.id) {
+          taskParticipantIds = [found.id];
+        } else if (currentUserId) {
+          taskParticipantIds = [currentUserId];
+        } else if (familyMembers[0]?.id) {
+          taskParticipantIds = [familyMembers[0].id];
+        }
       }
     } else {
       const participants = familyMembers.filter((m) =>
@@ -550,16 +560,90 @@ export const TasksRotationsView: React.FC<TasksRotationsViewProps> = ({
                         <div className="mt-2.5 bg-[#f0fcfa] px-2.5 py-1.5 rounded-lg border border-[#e4f0ee] flex items-center justify-between text-xs">
                           <span className="text-[10px] font-semibold text-[#727877]">Responsável:</span>
                           <div className="flex items-center gap-1 min-w-0">
-                            {task.nextMemberAvatar && (
-                              <img
-                                src={task.nextMemberAvatar}
-                                alt={task.nextMember}
-                                className="w-3.5 h-3.5 rounded-full object-cover shrink-0"
-                              />
-                            )}
-                            <span className="font-bold text-[11px] text-[#16302e] truncate">
-                              {task.nextMember || 'Livre'}
-                            </span>
+                            {(() => {
+                              const isCompleted = task.status === 'completed';
+                              const isSkipped = task.status === 'skipped';
+                              let displayName = 'Livre';
+                              let displayAvatar: string | undefined = undefined;
+
+                              if (isCompleted) {
+                                const completedMember = (task.completedById || task.completedBy)
+                                  ? familyMembers.find((m) => (task.completedById && m.id === task.completedById) || (task.completedBy && m.name.toLowerCase() === task.completedBy.toLowerCase()))
+                                  : null;
+                                displayName = completedMember?.name || task.completedBy || task.nextMember || 'Morador';
+                                displayAvatar =
+                                  completedMember?.avatar ||
+                                  (task.completedBy
+                                    ? `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(displayName)}`
+                                    : task.nextMemberAvatar);
+                              } else if (isSkipped) {
+                                const skippedMember = (task.skippedById || task.skippedBy)
+                                  ? familyMembers.find((m) => (task.skippedById && m.id === task.skippedById) || (task.skippedBy && m.name.toLowerCase() === task.skippedBy.toLowerCase()))
+                                  : null;
+                                displayName = skippedMember?.name || task.skippedBy || task.completedBy || 'Livre';
+                                displayAvatar = skippedMember?.avatar;
+                              } else {
+                                const hasSpecificMember = Boolean(
+                                  task.nextMember &&
+                                  task.nextMember !== 'Livre' &&
+                                  task.nextMember !== 'Qualquer pessoa' &&
+                                  task.nextMember !== 'Todos'
+                                );
+
+                                if (hasSpecificMember) {
+                                  displayName = task.nextMember;
+                                  displayAvatar =
+                                    task.nextMemberAvatar ||
+                                    familyMembers.find(
+                                      (m) =>
+                                        (task.nextMemberId && m.id === task.nextMemberId) ||
+                                        m.name.toLowerCase() === task.nextMember.toLowerCase()
+                                    )?.avatar;
+                                } else {
+                                  displayName = 'Livre';
+                                  displayAvatar = undefined;
+                                }
+                              }
+
+                              const completedMemberObj = (task.completedById || task.completedBy)
+                                ? familyMembers.find(
+                                    (m) =>
+                                      (task.completedById && m.id === task.completedById) ||
+                                      (task.completedBy && m.name.toLowerCase() === task.completedBy.toLowerCase())
+                                  )
+                                : null;
+                              const authorRole = task.completedByRole || completedMemberObj?.role;
+                              const isGeneralAdmin =
+                                authorRole === 'Admin Geral' || authorRole === 'ADMIN' || authorRole === 'ADMIN_GERAL';
+                              const isSubAdmin = authorRole === 'Admin' || authorRole === 'SUB_ADMIN';
+
+                              return (
+                                <>
+                                  {displayAvatar && displayName !== 'Livre' && (
+                                    <img
+                                      src={displayAvatar}
+                                      alt={displayName}
+                                      className="w-3.5 h-3.5 rounded-full object-cover shrink-0"
+                                    />
+                                  )}
+                                  <span className="font-bold text-[11px] text-[#16302e] truncate">
+                                    {displayName}
+                                  </span>
+                                  {isCompleted && isGeneralAdmin && (
+                                    <span className="px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-amber-100 text-amber-900 border border-amber-300 inline-flex items-center gap-0.5 shrink-0">
+                                      <span className="material-symbols-outlined text-[10px]">shield_person</span>
+                                      <span>Admin Geral</span>
+                                    </span>
+                                  )}
+                                  {isCompleted && isSubAdmin && (
+                                    <span className="px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-sky-100 text-sky-900 border border-sky-300 inline-flex items-center gap-0.5 shrink-0">
+                                      <span className="material-symbols-outlined text-[10px]">admin_panel_settings</span>
+                                      <span>Admin</span>
+                                    </span>
+                                  )}
+                                </>
+                              );
+                            })()}
                           </div>
                         </div>
                       </div>
@@ -588,55 +672,53 @@ export const TasksRotationsView: React.FC<TasksRotationsViewProps> = ({
                             </>
                           ) : (
                             <>
-                              {Boolean(
-                                (currentUserId && task.nextMemberId && task.nextMemberId === currentUserId) ||
-                                (effectiveUserName && task.nextMember && task.nextMember.trim().toLowerCase() === effectiveUserName.trim().toLowerCase()) ||
-                                isGeneralAdmin
-                              ) ? (
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    onTaskStatusChange(task.id, 'completed');
-                                    if (task.isRotation && rotations.length > 0) {
-                                      const matchingRot = rotations.find((r) => r.taskId === task.id || r.id === task.id) || rotations[0];
-                                      onRotateNext(matchingRot.id);
-                                    }
-                                  }}
-                                  className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 active:scale-[0.96] text-white text-[11px] font-bold rounded-lg transition-all shadow-2xs flex items-center gap-1 cursor-pointer"
-                                  aria-label="Concluir Tarefa"
-                                >
-                                  <span className="material-symbols-outlined text-xs">check_circle</span>
-                                  <span>Concluir</span>
-                                </button>
-                              ) : (
-                                <div className="relative group inline-block">
+                              {(() => {
+                                const isFreeTask = !task.isRotation && (!task.participantIds || task.participantIds.length === 0) && (task.nextMember === 'Livre' || task.nextMember === 'Qualquer pessoa' || !task.nextMemberId);
+                                const isAssignedUser = Boolean(
+                                  (currentUserId && task.nextMemberId && task.nextMemberId === currentUserId) ||
+                                  (effectiveUserName && task.nextMember && task.nextMember.trim().toLowerCase() === effectiveUserName.trim().toLowerCase())
+                                );
+                                const canCompleteTask = isFreeTask || isAssignedUser || isGeneralAdmin;
+
+                                return canCompleteTask ? (
                                   <button
                                     type="button"
-                                    disabled
-                                    className="px-2.5 py-1 bg-slate-100 text-slate-400 border border-slate-200 text-[11px] font-bold rounded-lg flex items-center gap-1 cursor-not-allowed opacity-80"
-                                    aria-disabled="true"
-                                    aria-label="Conclusão bloqueada"
+                                    onClick={() => {
+                                      onTaskStatusChange(task.id, 'completed');
+                                    }}
+                                    className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 active:scale-[0.96] text-white text-[11px] font-bold rounded-lg transition-all shadow-2xs flex items-center gap-1 cursor-pointer"
+                                    aria-label="Concluir Tarefa"
                                   >
-                                    <span className="material-symbols-outlined text-xs text-slate-400">lock</span>
+                                    <span className="material-symbols-outlined text-xs">check_circle</span>
                                     <span>Concluir</span>
                                   </button>
-                                  <div className="hidden group-hover:block absolute bottom-full left-0 mb-1.5 z-30 px-2 py-1 bg-[#16302e] text-white text-[10px] font-medium rounded-md shadow-md whitespace-nowrap pointer-events-none">
-                                    Aguardando confirmação de {task.nextMember || 'outro morador'}
+                                ) : (
+                                  <div className="relative group inline-block">
+                                    <button
+                                      type="button"
+                                      disabled
+                                      className="px-2.5 py-1 bg-slate-100 text-slate-400 border border-slate-200 text-[11px] font-bold rounded-lg flex items-center gap-1 cursor-not-allowed opacity-80"
+                                      aria-disabled="true"
+                                      aria-label="Conclusão bloqueada"
+                                    >
+                                      <span className="material-symbols-outlined text-xs text-slate-400">lock</span>
+                                      <span>Concluir</span>
+                                    </button>
+                                    <div className="hidden group-hover:block absolute bottom-full left-0 mb-1.5 z-30 px-2 py-1 bg-[#16302e] text-white text-[10px] font-medium rounded-md shadow-md whitespace-nowrap pointer-events-none">
+                                      Aguardando confirmação de {task.nextMember || 'outro morador'}
+                                    </div>
                                   </div>
-                                </div>
-                              )}
+                                );
+                              })()}
 
                               {isRotation && rotations.length > 0 && Boolean(
+                                isGeneralAdmin ||
                                 (currentUserId && task.nextMemberId && task.nextMemberId === currentUserId) ||
                                 (effectiveUserName && task.nextMember && task.nextMember.trim().toLowerCase() === effectiveUserName.trim().toLowerCase())
                               ) && (
                                 <button
                                   type="button"
-                                  onClick={() => {
-                                    const matchingRot = rotations.find((r) => r.taskId === task.id || r.id === task.id) || rotations[0];
-                                    onRotateNext(matchingRot.id);
-                                    onTaskStatusChange(task.id, 'skipped');
-                                  }}
+                                  onClick={() => setTaskToSkip(task)}
                                   className="px-2 py-1 bg-white border border-[#c1c8c6] text-[#7b5800] hover:bg-amber-50 active:scale-[0.96] text-[11px] font-bold rounded-lg transition-all flex items-center gap-1 cursor-pointer"
                                   title="Pular vez para a próxima pessoa da fila"
                                   aria-label="Pular vez na fila do rodízio"
@@ -1408,6 +1490,30 @@ export const TasksRotationsView: React.FC<TasksRotationsViewProps> = ({
         cancelText="Cancelar"
         variant="warning"
         icon="undo"
+      />
+
+      {/* Modal de Confirmação para Pular Tarefa */}
+      <ConfirmActionModal
+        isOpen={Boolean(taskToSkip)}
+        onClose={() => setTaskToSkip(null)}
+        onConfirm={() => {
+          if (taskToSkip) {
+            const matchingRot =
+              rotations.find((r) => r.taskId === taskToSkip.id || r.id === taskToSkip.id) ||
+              rotations[0];
+            if (matchingRot) {
+              onRotateNext(matchingRot.id);
+            }
+            onTaskStatusChange(taskToSkip.id, 'skipped');
+            setTaskToSkip(null);
+          }
+        }}
+        title="Pular Vez na Tarefa"
+        description={`Deseja realmente pular a tarefa "${taskToSkip?.title}"? A vez passará para a próxima pessoa da fila e o pulamento será registrado no histórico.`}
+        confirmText="Pular Tarefa"
+        cancelText="Cancelar"
+        variant="warning"
+        icon="skip_next"
       />
     </div>
   );

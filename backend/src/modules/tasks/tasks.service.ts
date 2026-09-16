@@ -100,18 +100,22 @@ export class TaskService {
     const role = userRole || user.role;
     const isGeneralAdmin = user.role === 'ADMIN' || role === 'ADMIN_GERAL' || role === 'Admin Geral';
 
-    // Trava de segurança: apenas a pessoa designada para esta tarefa ou o Admin Geral pode marcá-la como concluída
-    let idResponsavelValido: string;
+    // Trava de segurança: apenas a pessoa designada para esta tarefa, qualquer morador da casa (se tarefa livre), ou o Admin Geral pode marcá-la como concluída
+    let idResponsavelValido: string | null = null;
+    const isFreeTask = !task.participants || task.participants.length === 0;
+
     if (task.participants && task.participants.length > 1) {
       const responsible = await this.rotationService.getCurrentResponsible(taskId);
       idResponsavelValido = responsible.id;
     } else if (task.participants && task.participants.length === 1) {
       idResponsavelValido = task.participants[0].user_id;
-    } else {
-      idResponsavelValido = task.creator_id;
     }
 
-    if (idResponsavelValido !== userId && !isGeneralAdmin) {
+    if (isFreeTask) {
+      if (user.house_id && task.house_id && user.house_id !== task.house_id && !isGeneralAdmin) {
+        throw new AppError('Usuário não pertence à mesma residência da tarefa.', 403, 'FORBIDDEN');
+      }
+    } else if (idResponsavelValido !== userId && !isGeneralAdmin) {
       throw new AppError(
         'Apenas a pessoa designada para esta tarefa ou o Admin Geral pode marcá-la como concluída.',
         403,
@@ -127,9 +131,14 @@ export class TaskService {
       }
     }
 
-    const logComment = isGeneralAdmin && idResponsavelValido !== userId
-      ? `${user.name} (Admin Geral) concluiu a tarefa "${task.title}"`
-      : `${user.name} concluiu a tarefa "${task.title}"`;
+    let logComment: string;
+    if (isFreeTask) {
+      logComment = `${user.name} concluiu a tarefa livre "${task.title}"`;
+    } else if (isGeneralAdmin && idResponsavelValido !== userId) {
+      logComment = `${user.name} (Admin Geral) concluiu a tarefa "${task.title}"`;
+    } else {
+      logComment = `${user.name} concluiu a tarefa "${task.title}"`;
+    }
 
     // Registra o ActivityLog como COMPLETED
     await prisma.activityLog.create({
@@ -159,6 +168,15 @@ export class TaskService {
         rotation_index: nextRotationIndex,
         locked_by_id: userId,
         locked_at: new Date(),
+      },
+      include: {
+        participants: {
+          include: {
+            user: true,
+          },
+        },
+        locked_by: true,
+        creator: true,
       },
     });
 
@@ -229,11 +247,79 @@ export class TaskService {
   }
 
   /**
+   * skipTask:
+   * Pula a vez na tarefa de rodízio e avança a escala para o próximo participante.
+   * Trava de segurança: apenas o morador da vez ou o Admin Geral podem pular a tarefa.
+   */
+  async skipTask(
+    taskId: string,
+    userId: string,
+    userRole?: string
+  ): Promise<{ task: Task; nextAssignee: User; skippedBy: User }> {
+    const task = await this.getTaskById(taskId);
+
+    if (!userId) {
+      throw new AppError('Usuário não autenticado.', 401, 'UNAUTHORIZED');
+    }
+
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) {
+      throw new AppError('Usuário não encontrado.', 404, 'USER_NOT_FOUND');
+    }
+
+    const role = userRole || user.role;
+    const isGeneralAdmin = user.role === 'ADMIN' || role === 'ADMIN_GERAL' || role === 'Admin Geral';
+
+    // Trava de segurança: apenas a pessoa designada / da vez ou o Admin Geral pode pular a tarefa
+    let idResponsavelValido: string;
+    if (task.participants && task.participants.length > 1) {
+      const responsible = await this.rotationService.getCurrentResponsible(taskId);
+      idResponsavelValido = responsible.id;
+    } else if (task.participants && task.participants.length === 1) {
+      idResponsavelValido = task.participants[0].user_id;
+    } else {
+      idResponsavelValido = task.creator_id;
+    }
+
+    if (idResponsavelValido !== userId && !isGeneralAdmin) {
+      throw new AppError(
+        'Apenas a pessoa da vez no rodízio ou o Admin Geral pode pular a tarefa.',
+        403,
+        'FORBIDDEN_TASK_SKIP'
+      );
+    }
+
+    const { task: updatedTask, nextAssignee } = await this.rotationService.rotateTask(taskId);
+
+    const logComment = isGeneralAdmin && idResponsavelValido !== userId
+      ? `${user.name} (Admin Geral) pulou a vez na tarefa "${task.title}"`
+      : `${user.name} pulou a vez na tarefa "${task.title}"`;
+
+    await prisma.activityLog.create({
+      data: {
+        task_id: taskId,
+        user_id: userId,
+        house_id: task.house_id,
+        action_type: 'ROTATED',
+        comment: logComment,
+      },
+    });
+
+    return {
+      task: updatedTask,
+      nextAssignee,
+      skippedBy: user,
+    };
+  }
+
+  /**
    * revertTask:
    * Reverte uma tarefa concluída para status OPEN.
+   * Regra Canônica: A pessoa que havia realizado a tarefa retoma para si mesma a tarefa revertida,
+   * restaurando o rotation_index como se nunca a tivesse concluído.
    * Trava de segurança: apenas o Admin Geral e Sub-Admins têm permissão para reverter.
    */
-  async revertTask(taskId: string, userId: string, userRole?: string): Promise<Task> {
+  async revertTask(taskId: string, userId: string, userRole?: string): Promise<TaskWithDetails> {
     const task = await this.getTaskById(taskId);
 
     const user = await prisma.user.findUnique({ where: { id: userId } });
@@ -253,6 +339,28 @@ export class TaskService {
       );
     }
 
+    // Se for tarefa de rodízio com múltiplos participantes, restaurar o rotation_index
+    // para a pessoa que havia concluído a tarefa
+    let targetRotationIndex: number | undefined = undefined;
+
+    if (task.participants && task.participants.length > 1) {
+      const sortedParticipants = [...task.participants].sort((a, b) =>
+        a.user.name.localeCompare(b.user.name, 'pt-BR', { sensitivity: 'base' })
+      );
+      const poolSize = sortedParticipants.length;
+
+      const completedUserIndex = task.locked_by_id
+        ? sortedParticipants.findIndex((p) => p.user_id === task.locked_by_id)
+        : -1;
+
+      if (completedUserIndex !== -1) {
+        targetRotationIndex = completedUserIndex;
+      } else {
+        // Se locked_by_id não estiver no pool (ex: Admin Geral concluiu por terceiro), decrementar circularmente
+        targetRotationIndex = ((task.rotation_index - 1) % poolSize + poolSize) % poolSize;
+      }
+    }
+
     await prisma.activityLog.create({
       data: {
         task_id: taskId,
@@ -263,7 +371,7 @@ export class TaskService {
       },
     });
 
-    return this.taskRepo.revertStatus(taskId);
+    return this.taskRepo.revertStatus(taskId, targetRotationIndex);
   }
 
   /**
@@ -516,13 +624,23 @@ export class TaskService {
       const isFromPreviousDay = updatedAt < startOfToday;
 
       if (isFromPreviousDay && task.status !== 'COMPLETED') {
+        const isFreeTask = !task.participants || task.participants.length === 0;
+
+        if (isFreeTask) {
+          // Tarefas livres não possuem um responsável único; restaura OPEN sem penalizar criador
+          await this.taskRepo.updateStatus(task.id, 'OPEN', {
+            locked_by_id: null,
+            locked_at: null,
+          });
+          expiredCount++;
+          continue;
+        }
+
         let responsibleUser: User;
         if (task.participants && task.participants.length > 1) {
           responsibleUser = await this.rotationService.getCurrentResponsible(task.id);
-        } else if (task.participants && task.participants.length === 1) {
-          responsibleUser = task.participants[0].user;
         } else {
-          responsibleUser = task.creator;
+          responsibleUser = task.participants[0].user;
         }
 
         // 1. Registra falha no histórico do morador responsável

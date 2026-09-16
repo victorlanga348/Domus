@@ -1,6 +1,7 @@
 import { prisma } from '../../database/prisma.js';
 import { AppError } from '../../shared/errors/AppError.js';
-import type { User, Task } from '@prisma/client';
+import type { User } from '@prisma/client';
+import type { TaskWithDetails } from './tasks.repository.js';
 
 export interface NextParticipantResult {
   assignee: User;
@@ -91,7 +92,7 @@ export class RotationService {
    * 2. advanceRotation:
    * Calcula o próximo índice na fila circular (se for o último, volta para 0) e atualiza o rotation_index no banco.
    */
-  async advanceRotation(taskId: string): Promise<Task> {
+  async advanceRotation(taskId: string): Promise<TaskWithDetails> {
     const nextResult = await this.getNextParticipant(taskId);
     const poolSize = nextResult.poolSize;
 
@@ -106,13 +107,22 @@ export class RotationService {
         locked_by_id: null,
         last_block_reason: null,
       },
+      include: {
+        participants: {
+          include: {
+            user: true,
+          },
+        },
+        locked_by: true,
+        creator: true,
+      },
     });
   }
 
   /**
    * Rotação completa da tarefa retornando o próximo responsável.
    */
-  async rotateTask(taskId: string): Promise<{ task: Task; nextAssignee: User }> {
+  async rotateTask(taskId: string): Promise<{ task: TaskWithDetails; nextAssignee: User }> {
     const updatedTask = await this.advanceRotation(taskId);
     const subsequentResult = await this.getNextParticipant(taskId);
 

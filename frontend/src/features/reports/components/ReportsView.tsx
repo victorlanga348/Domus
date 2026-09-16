@@ -46,13 +46,20 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
 
   // Filter Logic
   const filteredTasks = completedOrPastTasks.filter((item) => {
-    if (memberFilter !== 'all' && item.nextMember !== memberFilter) return false;
+    if (memberFilter !== 'all') {
+      const isMatchCompletedBy = item.completedBy?.trim().toLowerCase() === memberFilter.trim().toLowerCase();
+      const isMatchSkippedBy = item.skippedBy?.trim().toLowerCase() === memberFilter.trim().toLowerCase();
+      const isMatchNextMember = item.nextMember?.trim().toLowerCase() === memberFilter.trim().toLowerCase();
+      if (!isMatchCompletedBy && !isMatchSkippedBy && !isMatchNextMember) return false;
+    }
     if (statusFilter !== 'all' && item.status !== statusFilter) return false;
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
       const matchTitle = item.title.toLowerCase().includes(q);
-      const matchMember = item.nextMember?.toLowerCase().includes(q) || false;
-      if (!matchTitle && !matchMember) return false;
+      const matchCompletedBy = item.completedBy?.toLowerCase().includes(q) || false;
+      const matchSkippedBy = item.skippedBy?.toLowerCase().includes(q) || false;
+      const matchNextMember = item.nextMember?.toLowerCase().includes(q) || false;
+      if (!matchTitle && !matchCompletedBy && !matchSkippedBy && !matchNextMember) return false;
     }
     return true;
   });
@@ -189,27 +196,104 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
 
                     <div className="flex items-center gap-1.5 mt-1 text-xs text-[#727877] flex-wrap">
                       <span className="font-medium">
-                        {item.status === 'completed' ? 'Concluída por:' : 'Responsável:'}
+                        {item.status === 'completed'
+                          ? 'Concluída por:'
+                          : item.status === 'skipped'
+                          ? 'Pulada por:'
+                          : 'Responsável:'}
                       </span>
                       <span className="inline-flex items-center gap-1 font-bold text-[#16302e]">
-                        {((item.status === 'completed' && item.completedBy
-                          ? familyMembers.find((m) => m.name === item.completedBy || m.id === item.completedById)?.avatar || item.nextMemberAvatar
-                          : item.nextMemberAvatar)) && (
-                          <img
-                            src={
-                              (item.status === 'completed' && item.completedBy
-                                ? familyMembers.find((m) => m.name === item.completedBy || m.id === item.completedById)?.avatar || item.nextMemberAvatar
-                                : item.nextMemberAvatar)
+                        {(() => {
+                          const isCompleted = item.status === 'completed';
+                          const isSkipped = item.status === 'skipped';
+
+                          let displayName = 'Livre';
+                          let displayAvatar: string | undefined = undefined;
+
+                          if (isCompleted) {
+                            const completedMember = (item.completedById || item.completedBy)
+                              ? familyMembers.find(
+                                  (m) =>
+                                    (item.completedById && m.id === item.completedById) ||
+                                    (item.completedBy && m.name.toLowerCase() === item.completedBy.toLowerCase())
+                                )
+                              : null;
+                            displayName = completedMember?.name || item.completedBy || item.nextMember || 'Morador';
+                            displayAvatar =
+                              completedMember?.avatar ||
+                              (item.completedBy
+                                ? `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(displayName)}`
+                                : item.nextMemberAvatar);
+                          } else if (isSkipped) {
+                            const skippedMember = (item.skippedById || item.skippedBy)
+                              ? familyMembers.find(
+                                  (m) =>
+                                    (item.skippedById && m.id === item.skippedById) ||
+                                    (item.skippedBy && m.name.toLowerCase() === item.skippedBy.toLowerCase())
+                                )
+                              : null;
+                            displayName = skippedMember?.name || item.skippedBy || item.completedBy || 'Livre';
+                            displayAvatar = skippedMember?.avatar;
+                          } else {
+                            const hasSpecificMember = Boolean(
+                              item.nextMember &&
+                              item.nextMember !== 'Livre' &&
+                              item.nextMember !== 'Qualquer pessoa' &&
+                              item.nextMember !== 'Todos'
+                            );
+
+                            if (hasSpecificMember) {
+                              displayName = item.nextMember;
+                              displayAvatar =
+                                item.nextMemberAvatar ||
+                                familyMembers.find(
+                                  (m) =>
+                                    (item.nextMemberId && m.id === item.nextMemberId) ||
+                                    m.name.toLowerCase() === item.nextMember.toLowerCase()
+                                )?.avatar;
+                            } else {
+                              displayName = 'Livre';
+                              displayAvatar = undefined;
                             }
-                            alt={item.status === 'completed' && item.completedBy ? item.completedBy : (item.nextMember || 'Morador')}
-                            className="w-4 h-4 rounded-full object-cover shrink-0"
-                          />
-                        )}
-                        <span>
-                          {item.status === 'completed' && item.completedBy
-                            ? item.completedBy
-                            : (item.nextMember || 'Sem atribuição')}
-                        </span>
+                          }
+
+                          const completedMemberObj = (item.completedById || item.completedBy)
+                            ? familyMembers.find(
+                                (m) =>
+                                  (item.completedById && m.id === item.completedById) ||
+                                  (item.completedBy && m.name.toLowerCase() === item.completedBy.toLowerCase())
+                              )
+                            : null;
+                          const authorRole = item.completedByRole || completedMemberObj?.role;
+                          const isGeneralAdmin =
+                            authorRole === 'Admin Geral' || authorRole === 'ADMIN' || authorRole === 'ADMIN_GERAL';
+                          const isSubAdmin = authorRole === 'Admin' || authorRole === 'SUB_ADMIN';
+
+                          return (
+                            <>
+                              {displayAvatar && displayName !== 'Livre' && (
+                                <img
+                                  src={displayAvatar}
+                                  alt={displayName}
+                                  className="w-4 h-4 rounded-full object-cover shrink-0"
+                                />
+                              )}
+                              <span>{displayName}</span>
+                              {isCompleted && isGeneralAdmin && (
+                                <span className="px-1.5 py-0.5 rounded text-[10px] font-extrabold bg-amber-100 text-amber-900 border border-amber-300 inline-flex items-center gap-0.5">
+                                  <span className="material-symbols-outlined text-[11px]">shield_person</span>
+                                  <span>Admin Geral</span>
+                                </span>
+                              )}
+                              {isCompleted && isSubAdmin && (
+                                <span className="px-1.5 py-0.5 rounded text-[10px] font-extrabold bg-sky-100 text-sky-900 border border-sky-300 inline-flex items-center gap-0.5">
+                                  <span className="material-symbols-outlined text-[11px]">admin_panel_settings</span>
+                                  <span>Admin</span>
+                                </span>
+                              )}
+                            </>
+                          );
+                        })()}
                       </span>
                       <span className="text-[#c1c8c6]">•</span>
                       <span className="text-[11px] font-semibold text-[#7b5800]">

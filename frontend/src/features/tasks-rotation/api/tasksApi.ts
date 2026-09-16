@@ -143,6 +143,25 @@ export const tasksApi = {
     return json.data;
   },
 
+  async skipTask(taskId: string, userId?: string, userRole?: string) {
+    const response = await fetch(`${APP_CONFIG.API_BASE_URL}/tasks/${taskId}/skip`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(userId ? { 'x-user-id': userId } : {}),
+        ...(userRole ? { 'x-user-role': userRole } : {}),
+      },
+      body: JSON.stringify({ user_id: userId, user_role: userRole }),
+    });
+
+    const json = await response.json();
+    if (!response.ok) {
+      throw new Error(json.message || json.error || 'Erro ao pular tarefa');
+    }
+
+    return json.data;
+  },
+
   async revertTask(taskId: string, userId: string, userRole?: string) {
     const response = await fetch(`${APP_CONFIG.API_BASE_URL}/tasks/${taskId}/revert`, {
       method: 'PATCH',

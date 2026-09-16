@@ -52,6 +52,7 @@ Para atender a dispositivos compartilhados (ex: tablet fixo na cozinha) e celula
 - **Produção:** Origem estritamente validada via variável de ambiente `CORS_ORIGIN` com `credentials: true`.
 - **Ambiente de Desenvolvimento & Testes Mobile na LAN:**
   - O backend permite requisições originadas de `localhost`, `127.0.0.1` e faixas de IP privadas locais (`192.168.0.0/16`, `10.0.0.0/8`, `172.16.0.0/12`) em qualquer porta, refletindo o cabeçalho `Origin` na resposta com `Access-Control-Allow-Credentials: true`.
+  - **Cache de Preflight (`maxAge: 86400`):** Respostas de requisições `OPTIONS` enviam `Access-Control-Max-Age: 86400` (24h), eliminando latência repetida de negociação CORS em dispositivos móveis.
   - O servidor HTTP e Socket.io realizam bind em `0.0.0.0` para responder a conexões de smartphones e tablets conectados ao mesmo Wi-Fi.
   - O frontend resolve `API_BASE_URL` e `SOCKET_URL` dinamicamente baseado no `window.location.hostname`, mantendo sincronização de dados transparente entre desktop e mobile.
 
@@ -93,3 +94,8 @@ Para atender a dispositivos compartilhados (ex: tablet fixo na cozinha) e celula
 ### 7.3 Restrição de Adição de Novos Moradores
 - **Proibição a Moradores Comuns:** Membros regulares (`Resident`, `Guest`) não têm acesso a botões, formulários ou rotas de inclusão de novos usuários na residência.
 - **Permissão Exclusiva:** Apenas **Admin Geral** e **Sub-Admins** podem convidar ou cadastrar novos integrantes.
+
+### 7.4 Governança de Criação e Exclusão de Regras da Residência
+- **Permissão Exclusiva de Administradores:** Apenas o **Admin Geral** e **Admins** (`ADMIN` e `SUB_ADMIN`) têm autorização para criar (`POST /api/rules`) ou excluir (`DELETE /api/rules/:id`) regras comunitárias.
+- **Bloqueio de Moradores Regulares:** Moradores comuns (`MEMBER`/`Resident`) são bloqueados pelo backend com `403 Forbidden` (`FORBIDDEN_RULE_CREATE` ou `FORBIDDEN_RULE_DELETE`).
+- **Prevenção de Exclusão Acidental:** No frontend, qualquer exclusão exige confirmação via modal de diálogo, com propagação em tempo real via WebSocket (`house:rule_deleted`).

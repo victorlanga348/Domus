@@ -19,7 +19,7 @@ interface SocketCallbacks {
   onStatusChanged?: (status: any) => void;
   onRuleCreated?: (rule: any) => void;
   onRuleDeleted?: (data: { ruleId: string }) => void;
-  onRotationAdvanced?: (data: { rotationId: string }) => void;
+  onRotationAdvanced?: (data: { rotationId: string; taskId?: string; nextAssignee?: any }) => void;
   onCodeRegenerated?: (data: { houseId: string; invite_code: string }) => void;
   onMealUpdated?: (data: { meal: any }) => void;
   onMealDeleted?: (data: { mealId: string }) => void;

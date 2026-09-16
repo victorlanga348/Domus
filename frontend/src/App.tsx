@@ -94,16 +94,21 @@ function mapBackendTaskToHouseTask(task: any, currentMembers: FamilyMember[]): H
       }
     }
     assignee = chosen || sorted[0];
+  } else if (rawParticipants.length === 1) {
+    assignee = task.current_assignee || rawParticipants[0]?.user;
   } else {
-    assignee = task.current_assignee || task.participants?.[0]?.user || task.creator;
+    // Tarefa Livre / Comunitária (sem participantes restritos)
+    assignee = null;
   }
 
-  const assigneeName = assignee?.name || 'Morador';
+  const isFreeTask = !isRotation && rawParticipants.length === 0;
+  const assigneeName = assignee?.name || (isFreeTask ? 'Livre' : 'Morador');
   const assigneeId = assignee?.id;
-  const assigneeAvatar =
-    assignee?.avatar_url ||
-    currentMembers.find((m) => m.id === assignee?.id)?.avatar ||
-    `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(assigneeName)}`;
+  const assigneeAvatar = assignee
+    ? assignee?.avatar_url ||
+      currentMembers.find((m) => m.id === assignee?.id)?.avatar ||
+      `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(assigneeName)}`
+    : undefined;
 
   return {
     id: task.id,
@@ -125,8 +130,16 @@ function mapBackendTaskToHouseTask(task: any, currentMembers: FamilyMember[]): H
         : task.frequency === 'MONTHLY'
         ? 'Mensal'
         : 'Única (Um só dia)',
-    completedBy: task.status === 'COMPLETED' ? (task.locked_by?.name || 'Concluído') : undefined,
-    completedById: task.status === 'COMPLETED' ? (task.locked_by?.id || undefined) : undefined,
+    completedBy:
+      task.status === 'COMPLETED'
+        ? (task.locked_by?.name || currentMembers.find((m) => m.id === task.locked_by_id)?.name || (task.locked_by_id ? 'Morador' : undefined))
+        : undefined,
+    completedById:
+      task.status === 'COMPLETED' ? (task.locked_by?.id || task.locked_by_id || undefined) : undefined,
+    completedByRole:
+      task.status === 'COMPLETED'
+        ? (task.locked_by?.role || currentMembers.find((m) => m.id === (task.locked_by?.id || task.locked_by_id))?.role || undefined)
+        : undefined,
   };
 }
 
@@ -372,6 +385,7 @@ export default function App() {
   });
   const familyMembersRef = useRef<FamilyMember[]>(familyMembers);
   familyMembersRef.current = familyMembers;
+  const lastSyncTimestampRef = useRef<number>(0);
 
   const [onlineUserIds, setOnlineUserIds] = useState<string[]>([]);
 
@@ -700,6 +714,7 @@ export default function App() {
       if (!currentHouse?.id || !authUser?.id) return;
       const houseId = currentHouse.id;
       const userId = authUser.id;
+      lastSyncTimestampRef.current = Date.now();
 
       try {
         // 1. Membros e Mural de Recados via BFF Dashboard
@@ -870,7 +885,10 @@ export default function App() {
     currentHouse?.id || '',
     {
       onConnect: () => {
-        syncAllHouseData({ silent: true });
+        const timeSinceLastSync = Date.now() - lastSyncTimestampRef.current;
+        if (timeSinceLastSync > 10000) {
+          syncAllHouseData({ silent: true });
+        }
       },
       onPresence: (presenceData) => {
         if (presenceData?.onlineUserIds) {
@@ -936,7 +954,26 @@ export default function App() {
         const taskPayload = incomingData?.task || incomingData;
         if (taskPayload?.id) {
           const mapped = mapBackendTaskToHouseTask(taskPayload, familyMembers);
-          setTasks((prev) => prev.map((t) => (t.id === mapped.id ? mapped : t)));
+          setTasks((prev) =>
+            prev.map((t) => {
+              if (t.id === mapped.id) {
+                return {
+                  ...t,
+                  ...mapped,
+                  participantIds:
+                    mapped.participantIds && mapped.participantIds.length > 0
+                      ? mapped.participantIds
+                      : t.participantIds,
+                  participants:
+                    mapped.participants && mapped.participants.length > 0
+                      ? mapped.participants
+                      : t.participants,
+                  isRotation: mapped.isRotation ?? t.isRotation,
+                };
+              }
+              return t;
+            })
+          );
           setRotations((prev) => {
             const generated = mapBackendTasksToRotations([taskPayload], familyMembers);
             if (generated.length === 0) return prev.filter((r) => r.id !== mapped.id && r.taskId !== mapped.id);
@@ -962,9 +999,17 @@ export default function App() {
       onTaskDeleted: ({ taskId }: { taskId: string }) => {
         setTasks((prev) => prev.filter((t) => t.id !== taskId));
       },
-      onTaskStatusChanged: ({ taskId, status }: { taskId: string; status: HouseTask['status'] }) => {
+      onTaskStatusChanged: ({ taskId, status }: { taskId: string; status: any }) => {
+        const normalizedStatus: HouseTask['status'] =
+          status === 'OPEN'
+            ? 'pending'
+            : status === 'COMPLETED'
+            ? 'completed'
+            : status === 'BLOCKED'
+            ? 'alert'
+            : (status as HouseTask['status']);
         setTasks((prev) =>
-          prev.map((t) => (t.id === taskId ? { ...t, status } : t))
+          prev.map((t) => (t.id === taskId ? { ...t, status: normalizedStatus } : t))
         );
       },
       onNoteCreated: (incomingNote: any) => {
@@ -1048,7 +1093,15 @@ export default function App() {
       onRuleDeleted: ({ ruleId }: { ruleId: string }) => {
         setHouseRules((prev) => prev.filter((r) => r.id !== ruleId));
       },
-      onRotationAdvanced: ({ rotationId, taskId }: { rotationId: string; taskId?: string }) => {
+      onRotationAdvanced: ({
+        rotationId,
+        taskId,
+        nextAssignee,
+      }: {
+        rotationId: string;
+        taskId?: string;
+        nextAssignee?: any;
+      }) => {
         let nextMemberName = '';
         let nextMemberAvatar = '';
         let nextMemberId: string | undefined = undefined;
@@ -1056,6 +1109,33 @@ export default function App() {
         setRotations((prev) =>
           prev.map((rot) => {
             if (rot.id === rotationId || rot.taskId === rotationId) {
+              if (nextAssignee?.id || nextAssignee?.name) {
+                const targetId = nextAssignee.id;
+                const targetName = (nextAssignee.name || '').trim().toLowerCase();
+                const updatedQueue = rot.queue.map((q) => {
+                  const isMatch = targetId
+                    ? q.id === targetId
+                    : q.name.trim().toLowerCase() === targetName;
+                  return {
+                    ...q,
+                    isNext: isMatch,
+                  };
+                });
+                const matched = updatedQueue.find((q) => q.isNext) || updatedQueue[0];
+                nextMemberName = matched?.name || nextAssignee.name;
+                nextMemberAvatar =
+                  matched?.avatar ||
+                  nextAssignee.avatar_url ||
+                  `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(nextMemberName)}`;
+                nextMemberId = matched?.id || targetId;
+                return {
+                  ...rot,
+                  nextMember: nextMemberName,
+                  nextMemberAvatar: nextMemberAvatar,
+                  queue: updatedQueue,
+                };
+              }
+
               const queue = [...rot.queue];
               if (queue.length > 0) {
                 const first = queue.shift()!;
@@ -1536,17 +1616,25 @@ export default function App() {
       'Única (Um só dia)': 'ONCE',
     };
 
+    const isFreeTask =
+      newTask.nextMember === 'Qualquer pessoa' ||
+      newTask.nextMember === 'Livre' ||
+      (Array.isArray(newTask.participantIds) && newTask.participantIds.length === 0 && !newTask.isRotation);
+
     const matchedMember = familyMembers.find((m) => m.name === newTask.nextMember);
-    const participantIds =
-      newTask.participantIds && newTask.participantIds.length > 0
-        ? newTask.participantIds
-        : matchedMember
-        ? [matchedMember.id]
-        : [authUser.id];
+    const participantIds = isFreeTask
+      ? []
+      : newTask.participantIds && newTask.participantIds.length > 0
+      ? newTask.participantIds
+      : matchedMember
+      ? [matchedMember.id]
+      : [authUser.id];
 
     const tempId = `temp_t_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
     const optimisticTask: HouseTask = {
       ...newTask,
+      nextMember: isFreeTask ? 'Livre' : newTask.nextMember,
+      nextMemberAvatar: isFreeTask ? undefined : newTask.nextMemberAvatar,
       id: tempId,
       status: 'pending',
       participantIds,
@@ -1712,6 +1800,73 @@ export default function App() {
     const completedByName = authUser?.name || 'Morador';
     const completedById = authUser?.id;
 
+    const taskObj = tasks.find((t) => t.id === taskId);
+    const wasCompleted = taskObj?.status === 'completed';
+    const wasSkipped = taskObj?.status === 'skipped';
+
+    // Determinar com precisão o membro anterior a ser restaurado em caso de reversão para pendente
+    let resolvedRestoredMember: FamilyMember | undefined = undefined;
+
+    if (newStatus === 'pending' && (wasCompleted || wasSkipped)) {
+      const whoId = wasSkipped ? taskObj?.skippedById : taskObj?.completedById;
+      const whoName = wasSkipped ? taskObj?.skippedBy : taskObj?.completedBy;
+
+      // 1. Pelo ID ou Nome direto no objeto da tarefa (se for nome de membro válido)
+      if (whoId) {
+        resolvedRestoredMember = familyMembers.find((m) => m.id === whoId);
+      }
+      if (!resolvedRestoredMember && whoName && whoName !== 'Concluído' && whoName !== 'Livre') {
+        resolvedRestoredMember = familyMembers.find((m) => m.name.toLowerCase() === whoName.toLowerCase());
+      }
+
+      // 2. Se pertencer a um rodízio, o último que fez é o participante anterior ao isNext na fila circular
+      const targetRotation = rotations.find((r) => r.id === taskId || r.taskId === taskId);
+      if (!resolvedRestoredMember && targetRotation && targetRotation.queue && targetRotation.queue.length > 0) {
+        const nextIdx = targetRotation.queue.findIndex((q) => q.isNext);
+        const prevIdx = nextIdx > 0 ? nextIdx - 1 : targetRotation.queue.length - 1;
+        const prevMemberItem = targetRotation.queue[prevIdx];
+        if (prevMemberItem) {
+          resolvedRestoredMember = prevMemberItem.id
+            ? familyMembers.find((m) => m.id === prevMemberItem.id)
+            : familyMembers.find((m) => m.name.toLowerCase() === prevMemberItem.name.toLowerCase());
+        }
+      }
+
+      // 3. Fallback no histórico de atividades recente
+      if (!resolvedRestoredMember) {
+        const recentCompletedLog = activityLogs.find(
+          (l) =>
+            (l.id === taskId || (l as any).task_id === taskId || l.title?.toLowerCase().includes(taskObj?.title?.toLowerCase() || '')) &&
+            (l.title?.toLowerCase().includes('concluiu') || (l as any).action_type === 'COMPLETED')
+        );
+        if (recentCompletedLog && recentCompletedLog.author) {
+          resolvedRestoredMember = familyMembers.find(
+            (m) => m.name.toLowerCase() === recentCompletedLog.author.toLowerCase()
+          );
+        }
+      }
+
+      // 4. Fallback para o nextMember anterior da tarefa ou morador logado
+      if (!resolvedRestoredMember) {
+        if (taskObj?.nextMemberId) {
+          resolvedRestoredMember = familyMembers.find((m) => m.id === taskObj.nextMemberId);
+        } else if (taskObj?.nextMember && taskObj.nextMember !== 'Livre' && taskObj.nextMember !== 'Qualquer pessoa') {
+          resolvedRestoredMember = familyMembers.find((m) => m.name.toLowerCase() === taskObj.nextMember.toLowerCase());
+        }
+      }
+    }
+
+    const restoredMemberName =
+      resolvedRestoredMember?.name ||
+      (taskObj?.nextMember && taskObj.nextMember !== 'Livre' && taskObj.nextMember !== 'Qualquer pessoa'
+        ? taskObj.nextMember
+        : completedByName);
+    const restoredMemberId = resolvedRestoredMember?.id || taskObj?.nextMemberId;
+    const restoredMemberAvatar =
+      resolvedRestoredMember?.avatar ||
+      taskObj?.nextMemberAvatar ||
+      `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(restoredMemberName)}`;
+
     // Se for conclusão de tarefa, verificar se pertence a um rodízio e avançar automaticamente a fila
     let nextMemberName = '';
     let nextMemberAvatar = '';
@@ -1758,6 +1913,7 @@ export default function App() {
               status: newStatus,
               completedBy: completedByName,
               completedById: completedById,
+              completedByRole: currentUser.role,
               completedAt: new Date().toISOString(),
               ...(nextMemberName
                 ? {
@@ -1768,6 +1924,37 @@ export default function App() {
                 : {}),
             };
           }
+          if (newStatus === 'skipped') {
+            return {
+              ...t,
+              status: newStatus,
+              skippedBy: completedByName,
+              skippedById: completedById,
+              skippedAt: new Date().toISOString(),
+            };
+          }
+          if (newStatus === 'pending' && (t.status === 'completed' || t.status === 'skipped')) {
+            const matchingRot = rotations.find((r) => r.id === taskId || r.taskId === taskId);
+            return {
+              ...t,
+              status: 'pending',
+              completedBy: undefined,
+              completedById: undefined,
+              completedByRole: undefined,
+              completedAt: undefined,
+              skippedBy: undefined,
+              skippedById: undefined,
+              skippedAt: undefined,
+              nextMember: restoredMemberName,
+              nextMemberId: restoredMemberId,
+              nextMemberAvatar: restoredMemberAvatar,
+              isRotation: t.isRotation ?? Boolean(matchingRot),
+              participantIds:
+                t.participantIds && t.participantIds.length > 0
+                  ? t.participantIds
+                  : (matchingRot?.participantIds || []),
+            };
+          }
           return { ...t, status: newStatus };
         }
         return t;
@@ -1776,9 +1963,6 @@ export default function App() {
     if (currentHouse?.id) {
       emitTaskStatusChanged(currentHouse.id, taskId, newStatus);
     }
-
-    const taskObj = tasks.find((t) => t.id === taskId);
-    const wasCompleted = taskObj?.status === 'completed';
 
     if (newStatus === 'completed') {
       recordHouseActivity(
@@ -1844,7 +2028,49 @@ export default function App() {
       } else {
         showToast(`Tarefa "${taskObj?.title || 'Tarefa'}" concluída com sucesso!`);
       }
-    } else if (newStatus === 'pending' && wasCompleted) {
+    } else if (newStatus === 'skipped') {
+      recordHouseActivity(
+        `${completedByName} pulou a tarefa "${taskObj?.title || 'Tarefa'}".`,
+        completedByName,
+        'ROTATED',
+        taskId
+      );
+      if (authUser?.id) {
+        tasksApi
+          .skipTask(taskId, authUser.id, currentUser.role)
+          .catch((err: any) => {
+            console.warn('[DOMUS] Erro ao persistir pulamento da tarefa:', err);
+          });
+      }
+      showToast(`Tarefa "${taskObj?.title || 'Tarefa'}" foi pulada.`);
+    } else if (newStatus === 'pending' && (wasCompleted || wasSkipped)) {
+      setRotations((prev) =>
+        prev.map((rot) => {
+          if (rot.id === taskId || rot.taskId === taskId) {
+            const updatedQueue = rot.queue.map((q) => {
+              const isMatch = restoredMemberId
+                ? q.id === restoredMemberId
+                : q.name.trim().toLowerCase() === restoredMemberName.trim().toLowerCase();
+              return {
+                ...q,
+                isNext: isMatch,
+              };
+            });
+            if (!updatedQueue.some((q) => q.isNext) && updatedQueue.length > 0) {
+              updatedQueue[0].isNext = true;
+            }
+            const activeMember = updatedQueue.find((q) => q.isNext) || updatedQueue[0];
+            return {
+              ...rot,
+              nextMember: activeMember?.name || restoredMemberName,
+              nextMemberAvatar: activeMember?.avatar || restoredMemberAvatar,
+              queue: updatedQueue,
+            };
+          }
+          return rot;
+        })
+      );
+
       recordHouseActivity(
         `Tarefa "${taskObj?.title || 'Tarefa'}" foi revertida para pendente por ${completedByName}.`,
         completedByName,
@@ -1852,13 +2078,27 @@ export default function App() {
         taskId
       );
       if (authUser?.id) {
-        tasksApi.revertTask(taskId, authUser.id, currentUser.role).catch((err: any) => {
-          showToast(err.message || 'Erro ao reverter tarefa.');
-          // Reverte o estado visual caso o backend recuse (ex: 403)
-          setTasks((prev) =>
-            prev.map((t) => (t.id === taskId ? { ...t, status: 'completed' } : t))
-          );
-        });
+        tasksApi
+          .revertTask(taskId, authUser.id, currentUser.role)
+          .then((revertedBackendTask: any) => {
+            const taskData = revertedBackendTask?.data || revertedBackendTask;
+            if (taskData?.id) {
+              const mapped = mapBackendTaskToHouseTask(taskData, familyMembers);
+              setTasks((prev) => prev.map((t) => (t.id === mapped.id ? mapped : t)));
+              setRotations((prev) => {
+                const generated = mapBackendTasksToRotations([taskData], familyMembers);
+                if (generated.length === 0) return prev;
+                return prev.map((r) => (r.id === mapped.id || r.taskId === mapped.id ? generated[0] : r));
+              });
+            }
+          })
+          .catch((err: any) => {
+            showToast(err.message || 'Erro ao reverter tarefa.');
+            // Reverte o estado visual caso o backend recuse (ex: 403)
+            setTasks((prev) =>
+              prev.map((t) => (t.id === taskId ? { ...t, status: wasSkipped ? 'skipped' : 'completed' } : t))
+            );
+          });
       }
       showToast(`Tarefa "${taskObj?.title || 'Tarefa'}" revertida para pendente.`);
     } else if (newStatus === 'alert') {
@@ -1968,11 +2208,15 @@ export default function App() {
 
     // 2. Persistência assíncrona no backend
     try {
-      const backendRule = await rulesApi.createRule(currentHouse.id, {
-        title: rule.title,
-        description: rule.description,
-        number: createdRule.number,
-      });
+      const backendRule = await rulesApi.createRule(
+        currentHouse.id,
+        {
+          title: rule.title,
+          description: rule.description,
+          number: createdRule.number,
+        },
+        currentUser.role
+      );
 
       if (backendRule?.id) {
         setHouseRules((prev) => {
@@ -2000,8 +2244,11 @@ export default function App() {
     }
     if (currentHouse?.id) {
       for (const dr of deletedRules) {
+        recordHouseActivity(`Regra "${dr.title}" foi removida.`);
         if (!dr.id.startsWith('temp_hr_')) {
-          rulesApi.deleteRule(dr.id, currentHouse.id).catch(() => {});
+          rulesApi.deleteRule(dr.id, currentHouse.id, currentUser.role).catch((err) => {
+            console.warn('[Rules] Erro ao excluir regra no backend:', err);
+          });
         }
       }
     }
