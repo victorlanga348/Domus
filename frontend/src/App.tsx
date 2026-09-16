@@ -333,10 +333,18 @@ export default function App() {
     return saved ? JSON.parse(saved) : null;
   });
 
-  // 3. Navegação & Abas (Persistidas para manter o estado após bloqueio/reativação do celular)
+  // 3. Navegação & Abas (Persistidas para manter o estado após bloqueio/reativação do celular e sincronizadas com a URL)
+  const VALID_TABS: TabType[] = ['dashboard', 'tasks', 'meals', 'reports', 'statistics', 'settings'];
+
   const [currentTab, setCurrentTab] = useState<TabType>(() => {
+    if (typeof window !== 'undefined') {
+      const rawPath = window.location.pathname.replace(/^\/+/, '').split('/')[0];
+      if (VALID_TABS.includes(rawPath as TabType)) {
+        return rawPath as TabType;
+      }
+    }
     const saved = localStorage.getItem('domus_active_tab') as TabType | null;
-    return saved && ['dashboard', 'tasks', 'meals', 'reports', 'statistics', 'settings'].includes(saved) ? saved : 'dashboard';
+    return saved && VALID_TABS.includes(saved) ? saved : 'dashboard';
   });
   const [subTab, setSubTab] = useState<string>(() => {
     return localStorage.getItem('domus_active_subtab') || 'bulletin';
@@ -347,7 +355,27 @@ export default function App() {
 
   useEffect(() => {
     localStorage.setItem('domus_active_tab', currentTab);
+    if (typeof window !== 'undefined') {
+      const targetPath = currentTab === 'dashboard' ? '/' : `/${currentTab}`;
+      if (window.location.pathname !== targetPath) {
+        window.history.pushState(null, '', targetPath);
+      }
+    }
   }, [currentTab]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const handlePopState = () => {
+      const rawPath = window.location.pathname.replace(/^\/+/, '').split('/')[0];
+      if (VALID_TABS.includes(rawPath as TabType)) {
+        setCurrentTab(rawPath as TabType);
+      } else {
+        setCurrentTab('dashboard');
+      }
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
 
   useEffect(() => {
     localStorage.setItem('domus_active_subtab', subTab);
@@ -591,6 +619,9 @@ export default function App() {
     setMealPlan({ houseId: '', isLocked: false, meals: [] });
     setCurrentTab('dashboard');
     setSubTab('bulletin');
+    if (typeof window !== 'undefined' && window.location.pathname !== '/') {
+      window.history.replaceState(null, '', '/');
+    }
     showToast('Sessão encerrada.');
   }, [showToast]);
 

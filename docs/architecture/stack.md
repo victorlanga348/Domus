@@ -98,3 +98,10 @@ O backend conta com empacotamento completo em Docker e orquestração via Docker
   docker compose logs -f api
   ```
 
+---
+
+## 5. Hospedagem Frontend & Roteamento SPA (Vercel)
+O cliente React Vite é hospedado na plataforma Vercel sob arquitetura de Single Page Application (SPA).
+- **Rewrites de Rotas (`vercel.json`)**: Configurado com regra canônica de reescrita (`source: "/(.*)"` -> `destination: "/index.html"`), assegurando que recarregamentos de página (`F5`) ou acesso direto a rotas profundas (`/tasks`, `/meals`, `/settings`, `/reports`, `/statistics`, `/dashboard`) sejam entregues ao `/index.html` em vez de retornar erro HTTP 404 da Vercel.
+- **Compatibilidade de Monorepo**: Disponibilizado em `frontend/vercel.json` e `./vercel.json` para suportar projetos configurados com Root Directory tanto no subdiretório `frontend` quanto na raiz do repositório.
+- **Sincronização de Rotas no Cliente**: Sincronização bidirecional entre o estado de abas (`currentTab`), a barra de endereços (`window.location.pathname`) e a navegação histórica do navegador (`pushState` e evento `popstate`), preservando rigorosamente as camadas de autenticação e permissões de acesso.
