@@ -55,6 +55,20 @@
     - **Botão "Concluir":** Habilitado unicamente quando `canComplete = isAssignedUser || isGeneralAdmin`.
     - **Proteção Visual contra Execução Indevida:** Para moradores que não sejam os responsáveis nem o Admin Geral, o botão de conclusão é renderizado desabilitado em cinza com ícone de cadeado (`lock`) e tooltip informativo posicionado à direita: `"Aguardando confirmação de [Nome do Responsável]"`.
 
+### 1.10 Card Modal de Sucessão ao Trocar de Casa (`SwitchHouseSuccessorModal`)
+- **Objetivo:** Exibir os integrantes da casa ao Admin Geral que solicita a troca de residência ("Trocar Residência") quando houver mais de 2 pessoas na residência.
+- **Estrutura:** Card modal em `#16302e` com contorno `#ffca5e`/40, ícone `crown`, lista de moradores elegíveis (com foto, nome, e-mail e cargo), rádio/seleção interativa com destaque dourado.
+- **Acessibilidade:** Implementa `role="radiogroup"` e `role="radio"`, `aria-checked`, suporte a navegação por teclado (`Tab`, `Space`, `Enter`) e `Escape`.
+- **Fluxo:** Ao selecionar um morador e clicar em "Continuar", dispara o modal de confirmação de transferência de liderança (`LeadershipTransferModal`) antes de executar a troca.
+- **Casos Determinísticos na Troca de Casa:**
+  - **1 morador (Admin Geral sozinho):** Troca de casa direta sem card.
+  - **2 pessoas no total (Admin Geral + 1 morador):** Designação automática desse morador + abertura direta do modal de confirmação para passar cargo.
+  - **3 ou mais pessoas no total:** Abertura do card para escolha do sucessor + modal de confirmação.
 
-
-
+### 1.11 Modais Obrigatórios de Confirmação (`ConfirmActionModal` / `LeadershipTransferModal` / `LeaveHouseModal`)
+- **Regra de Governança Estrita:** Todas as ações de alteração de privilégio, desvinculação ou passagem de cargo exigem modal prévio de confirmação antes de qualquer modificação de estado:
+  1. **Passar Cargo Modal (`LeadershipTransferModal`):** Notifica a transição de Admin Geral para Administrador Normal e nomeia o novo líder.
+  2. **Sair Modal (`LeaveHouseModal`):** Exige sucessão obrigatória se houver membros, ou alerta sobre exclusão de residência vazia.
+  3. **Promover Modal (`ConfirmActionModal`):** Ícone `shield_person`, variante warning, solicitando confirmação antes de promover morador regular para Administrador.
+  4. **Despromover Modal (`ConfirmActionModal`):** Ícone `arrow_downward`, variante warning, solicitando confirmação antes de despromover Administrador para Morador regular.
+  5. **Remover Morador Modal (`ConfirmActionModal`):** Ícone `person_remove`, variante danger, prevenindo desvinculações acidentais de membros.

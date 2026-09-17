@@ -12,6 +12,7 @@ houseRoutes.post('/create', controller.createHouse);
 houseRoutes.post('/join', controller.joinHouse);
 houseRoutes.post('/switch', controller.switchHouse);
 houseRoutes.post('/leave', controller.leaveHouse);
+houseRoutes.post('/transfer-leadership', controller.transferLeadership);
 houseRoutes.post('/remove-member', controller.removeMember);
 houseRoutes.delete('/members/:memberId', controller.removeMember);
 houseRoutes.post('/:id/regenerate-code', controller.regenerateCode);

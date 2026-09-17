@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { FamilyMember, HouseRule, ActivityLog, HouseTask } from '../types';
 import { useBodyScrollLock } from '../shared/hooks/index.js';
 
@@ -100,7 +100,24 @@ export const LeadershipTransferModal: React.FC<{
   onClose: () => void;
   onConfirm: () => void;
   targetMemberName: string;
-}> = ({ isOpen, onClose, onConfirm, targetMemberName }) => {
+  title?: string;
+  subtitle?: string;
+  description?: string;
+  confirmText?: string;
+  cancelText?: string;
+  loading?: boolean;
+}> = ({
+  isOpen,
+  onClose,
+  onConfirm,
+  targetMemberName,
+  title = 'Transferência de Liderança',
+  subtitle = 'Apenas 1 Admin Geral',
+  description,
+  confirmText = 'Confirmar Transferência',
+  cancelText = 'Cancelar',
+  loading = false,
+}) => {
   useBodyScrollLock(isOpen);
   if (!isOpen) return null;
 
@@ -117,13 +134,13 @@ export const LeadershipTransferModal: React.FC<{
         <div className="absolute -top-6 -right-6 w-28 h-28 rounded-full bg-[#ffca5e]/10 blur-xl pointer-events-none" />
 
         <div className="flex items-center gap-3 mb-4">
-          <div className="w-12 h-12 rounded-2xl bg-[#ffca5e] text-[#755400] flex items-center justify-center font-black shadow-xs">
+          <div className="w-12 h-12 rounded-2xl bg-[#ffca5e] text-[#755400] flex items-center justify-center font-black shadow-xs shrink-0">
             <span className="material-symbols-outlined text-2xl font-black">workspace_premium</span>
           </div>
-          <div>
-            <h3 className="text-base sm:text-lg font-black text-white">Transferência de Liderança</h3>
+          <div className="min-w-0">
+            <h3 className="text-base sm:text-lg font-black text-white truncate">{title}</h3>
             <span className="text-[11px] font-bold text-[#ffca5e] uppercase tracking-wider">
-              Apenas 1 Admin Geral
+              {subtitle}
             </span>
           </div>
         </div>
@@ -133,7 +150,11 @@ export const LeadershipTransferModal: React.FC<{
             Existe estritamente <strong>1 Admin Geral</strong> por residência.
           </p>
           <p className="text-xs text-[#ffca5e] font-medium leading-relaxed">
-            Ao nomear <strong>{targetMemberName}</strong> como novo Admin Geral, você deixará de ser o Admin Geral e passará a ser um <strong>Administrador Normal (Admin)</strong>.
+            {description || (
+              <>
+                Ao nomear <strong>{targetMemberName}</strong> como novo Admin Geral, você deixará de ser o Admin Geral e passará a ser um <strong>Administrador Normal (Admin)</strong>.
+              </>
+            )}
           </p>
         </div>
 
@@ -141,20 +162,159 @@ export const LeadershipTransferModal: React.FC<{
           <button
             type="button"
             onClick={onClose}
-            className="flex-1 py-3 bg-[#2d4644] hover:bg-[#3d5c5a] text-white rounded-xl text-xs font-bold transition-all border border-[#486b68]"
+            disabled={loading}
+            className="flex-1 py-3 bg-[#2d4644] hover:bg-[#3d5c5a] text-white rounded-xl text-xs font-bold transition-all border border-[#486b68] cursor-pointer"
+          >
+            {cancelText}
+          </button>
+          <button
+            type="button"
+            disabled={loading}
+            onClick={() => {
+              onConfirm();
+            }}
+            className="flex-1 py-3 bg-[#ffca5e] hover:bg-[#e0b04a] active:scale-98 text-[#755400] rounded-xl text-xs font-black transition-all shadow-lg flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
+          >
+            {loading ? (
+              <span className="material-symbols-outlined text-sm animate-spin">progress_activity</span>
+            ) : (
+              <span className="material-symbols-outlined text-sm font-bold">verified</span>
+            )}
+            <span>{confirmText}</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+/* --- Switch House Successor Selection Card Modal --- */
+export const SwitchHouseSuccessorModal: React.FC<{
+  isOpen: boolean;
+  onClose: () => void;
+  members: FamilyMember[];
+  houseName: string;
+  onSelectSuccessor: (member: FamilyMember) => void;
+}> = ({ isOpen, onClose, members, houseName, onSelectSuccessor }) => {
+  useBodyScrollLock(isOpen);
+  const [selectedMemberId, setSelectedMemberId] = useState<string>(() => (members.length > 0 ? members[0].id : ''));
+
+  useEffect(() => {
+    if (isOpen && members.length > 0) {
+      setSelectedMemberId(members[0].id);
+    }
+  }, [isOpen, members]);
+
+  if (!isOpen) return null;
+
+  const handleContinue = () => {
+    const chosen = members.find((m) => m.id === selectedMemberId);
+    if (chosen) {
+      onSelectSuccessor(chosen);
+    }
+  };
+
+  return (
+    <div
+      onClick={onClose}
+      className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 animate-in fade-in"
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="bg-[#16302e] text-white rounded-3xl max-w-md w-full p-6 sm:p-7 shadow-2xl border-2 border-[#ffca5e]/40 relative overflow-hidden"
+      >
+        <div className="absolute -top-6 -right-6 w-28 h-28 rounded-full bg-[#ffca5e]/10 blur-xl pointer-events-none" />
+
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-12 h-12 rounded-2xl bg-[#ffca5e] text-[#755400] flex items-center justify-center font-black shadow-xs shrink-0">
+            <span className="material-symbols-outlined text-2xl">crown</span>
+          </div>
+          <div className="min-w-0">
+            <h3 className="text-base sm:text-lg font-black text-white truncate">Passar Liderança Geral</h3>
+            <p className="text-[11px] font-semibold text-[#ffca5e] truncate">
+              {houseName || 'Residência Atual'}
+            </p>
+          </div>
+        </div>
+
+        <p className="text-xs text-white/90 leading-relaxed mb-4">
+          Como <strong>Admin Geral</strong>, para alternar de residência você deve passar a liderança desta casa. Selecione para quem deseja transferir o cargo de líder:
+        </p>
+
+        <div className="space-y-2 max-h-60 overflow-y-auto pr-1 mb-6" role="radiogroup" aria-label="Integrantes da residência">
+          {members.map((member) => {
+            const isSelected = selectedMemberId === member.id;
+            const isAdmin = member.role === 'Admin';
+            return (
+              <div
+                key={member.id}
+                role="radio"
+                aria-checked={isSelected}
+                tabIndex={0}
+                onClick={() => setSelectedMemberId(member.id)}
+                onKeyDown={(e) => {
+                  if (e.key === ' ' || e.key === 'Enter') {
+                    e.preventDefault();
+                    setSelectedMemberId(member.id);
+                  }
+                }}
+                className={`p-3 rounded-2xl border transition-all cursor-pointer flex items-center justify-between gap-3 ${
+                  isSelected
+                    ? 'bg-[#2a4d49] border-[#ffca5e] shadow-xs'
+                    : 'bg-[#1b3836] border-[#2d5753] hover:border-[#486b68]'
+                }`}
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  <img
+                    src={member.avatar}
+                    alt={member.name}
+                    className="w-9 h-9 rounded-full border border-white/20 object-cover shrink-0"
+                  />
+                  <div className="min-w-0">
+                    <p className="text-xs font-bold text-white truncate">{member.name}</p>
+                    <p className="text-[10px] text-[#b0ccc9] truncate">{member.email}</p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 shrink-0">
+                  <span
+                    className={`text-[9px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider ${
+                      isAdmin
+                        ? 'bg-amber-400/20 text-[#ffca5e] border border-[#ffca5e]/30'
+                        : 'bg-white/10 text-white/70'
+                    }`}
+                  >
+                    {isAdmin ? 'Admin' : 'Morador'}
+                  </span>
+                  <div
+                    className={`w-4 h-4 rounded-full border flex items-center justify-center ${
+                      isSelected ? 'border-[#ffca5e] bg-[#ffca5e]' : 'border-white/40'
+                    }`}
+                  >
+                    {isSelected && <div className="w-1.5 h-1.5 rounded-full bg-[#16302e]" />}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        <div className="flex gap-3">
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex-1 py-3 bg-[#2d4644] hover:bg-[#3d5c5a] text-white rounded-xl text-xs font-bold transition-all border border-[#486b68] cursor-pointer"
           >
             Cancelar
           </button>
           <button
             type="button"
-            onClick={() => {
-              onConfirm();
-              onClose();
-            }}
-            className="flex-1 py-3 bg-[#ffca5e] hover:bg-[#e0b04a] active:scale-98 text-[#755400] rounded-xl text-xs font-black transition-all shadow-lg flex items-center justify-center gap-1.5"
+            onClick={handleContinue}
+            disabled={!selectedMemberId}
+            className="flex-1 py-3 bg-[#ffca5e] hover:bg-[#e0b04a] active:scale-98 text-[#755400] rounded-xl text-xs font-black transition-all shadow-lg flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <span className="material-symbols-outlined text-sm font-bold">verified</span>
-            <span>Confirmar Transferência</span>
+            <span className="material-symbols-outlined text-sm font-bold">arrow_forward</span>
+            <span>Continuar</span>
           </button>
         </div>
       </div>

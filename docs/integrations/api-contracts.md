@@ -381,6 +381,19 @@
   - **Redirecionamento Automático:** Caso o usuário ainda pertença a outras residências em `HouseMember`, seu `house_id` ativo é automaticamente direcionado para a próxima residência disponível. Caso contrário, `house_id = null`.
 - **Resposta (200):** `{ "status": "success", "data": { "user": {...}, "newAdmin": {...}, "houseDeleted": boolean } }`
 
+### `POST /api/houses/transfer-leadership` (ou `/api/house/transfer-leadership`)
+- Transfere formal e atomicamente a liderança geral (`ADMIN`) da residência para outro morador integrante da mesma casa.
+- **Payload:** `{ "houseId": "uuid-house", "currentAdminId": "uuid-admin", "newAdminId": "uuid-sucessor" }`
+- **Autorização (RBAC):**
+  - Solicitante deve ser o `Admin Geral` (`ADMIN`) da residência.
+  - O sucessor deve ser outro integrante pertencente à mesma residência.
+- **Efeitos Colaterais & Atomicidade:**
+  - Sucessor é promovido a `ADMIN` em `HouseMember` e em `User` (se for sua residência ativa).
+  - Administrador anterior é rebaixado a `MEMBER` em `HouseMember` e em `User` (se for sua residência ativa).
+  - Registra auditoria em `ActivityLog` (`ROTATED`).
+  - Emite WebSocket `house:admin_transferred` e `house:members_updated`.
+- **Resposta (200):** `{ "status": "success", "data": { "success": true, "previousAdminId": "...", "newAdminId": "...", "newAdminName": "..." } }`
+
 ### `POST /api/houses/remove-member` (ou `/api/house/remove-member`)
 - Remove e desvincula um morador da residência no PostgreSQL (`house_id = null`, `role = 'MEMBER'`), remove participações de tarefas e registra auditoria.
 - **Payload:** `{ "houseId": "uuid-house", "memberId": "uuid-member", "requesterId": "uuid-requester", "requesterRole": "Admin Geral | Admin" }`

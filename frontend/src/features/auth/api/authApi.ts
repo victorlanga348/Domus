@@ -193,6 +193,30 @@ export const authApi = {
     }
   },
 
+  async transferLeadership(
+    houseId: string,
+    currentAdminId: string,
+    newAdminId: string,
+    token?: string
+  ): Promise<any> {
+    const response = await fetch(`${APP_CONFIG.API_BASE_URL}/house/transfer-leadership`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-user-id': currentAdminId,
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify({ houseId, currentAdminId, newAdminId }),
+    });
+
+    const json = await response.json();
+    if (!response.ok) {
+      throw new Error(json.message || 'Erro ao transferir liderança');
+    }
+
+    return json.data;
+  },
+
   async regenerateHouseCode(houseId: string, userId: string, token?: string): Promise<{ invite_code: string }> {
     const response = await fetch(`${APP_CONFIG.API_BASE_URL}/house/${houseId}/regenerate-code`, {
       method: 'POST',

@@ -29,15 +29,24 @@ Gerenciamento de membros da casa, governança de cargos administrativos, remoç�
   - `👑 Admin Geral`: Único por residência. Possui governança total, promove moradores a `Admin`, destitui admins para `Resident`, remove qualquer membro (exceto a si próprio) ou transfere o cargo de Admin Geral.
   - `Admin`: Administrador auxiliar. Pode convidar novos moradores e remover moradores regulares (`Resident`/`Guest`), mas **não pode** remover outros admins nem o Admin Geral.
   - `Resident` / `Resident Restricted` / `Guest`: Moradores regulares. Não podem adicionar nem remover membros nem alterar papéis.
-- **Menu Contextual Dropdown (`MemberActionDropdown` / `more_vert`):**
+- **Menu Contextual Dropdown (`MemberActionDropdown` / `more_vert`) & Modais Obrigatórios:**
   - Substitui o alinhamento horizontal de botões em linha por um menu suspenso flutuante acionado por `...` (`more_vert`), fechando em clique externo ou tecla `Escape`.
   - Contém ações dinâmicas segundo o RBAC: "Promover a Admin", "Despromover a Morador", "Passar Admin Geral" e "Remover da Casa".
+  - **Modais Obrigatórios de Confirmação:** Nenhuma ação de alteração de cargo ou desligamento é executada de forma direta:
+    - **Promover:** Exibe diálogo de confirmação com ícone `shield_person`;
+    - **Despromover:** Exibe diálogo de confirmação com ícone `arrow_downward`;
+    - **Passar Admin Geral:** Exibe `LeadershipTransferModal` notificando a conversão para Admin Normal;
+    - **Remover da Casa:** Exibe diálogo de confirmação com ícone `person_remove` e variante danger.
 - **Botão Convidar Membro (`+`):** Visível exclusivamente para quem possui cargo `Admin Geral` ou `Admin`.
 - **Trava de Segurança:** A adição de membros é bloqueada para moradores comuns tanto no visual (botões e drawers ocultos) quanto no handler da aplicação (`handleAddFamilyMember`), emitindo mensagem explicativa caso tentada.
 
-### 2.3 Troca de Residência
-- Ação de troca rápida de casa ("Trocar Residência") sem deslogar a conta de usuário, acessível tanto pelo cabeçalho global quanto pelo rodapé da tela de Configurações.
-- Ao alternar, o usuário é redirecionado de forma persistente e protegida para a tela de seleção de casas (`HouseSelectionView`), colocando a residência de origem em modo de férias e reativando a residência de destino sem risco de reversão involuntária de tela.
+### 2.3 Troca de Residência & Sucessão Inteligente de Liderança
+- Ação de troca rápida de casa ("Trocar Residência") sem deslogar a conta de usuário, acessível tanto pelo cabeçalho global quanto pela barra lateral e rodapé da tela de Configurações.
+- **Governança Estrita para o Admin Geral:**
+  - Se for o único morador na residência (1 pessoa): a troca ocorre diretamente para o seletor de casas.
+  - Se existirem 2 pessoas no total na residência: o outro morador é designado automaticamente como sucessor e é exibido o modal de confirmação para transferir a liderança geral antes de prosseguir com a troca.
+  - Se existirem 3 ou mais pessoas no total: é exibido o card de integrantes (`SwitchHouseSuccessorModal`) para que o líder escolha o sucessor, seguido do modal de confirmação para transferência de liderança.
+- Ao alternar, o usuário é redirecionado para a tela de seleção de casas (`HouseSelectionView`), colocando a residência de origem em modo de férias e reativando a residência de destino sem risco de reversão involuntária de tela.
 
 ### 2.4 Sair da Residência, Sucessão Obrigatória & Exclusão de Casa Vazia
 - Botão "Sair da Residência" no rodapé de membros, permitindo desvincular o usuário da casa ativa.

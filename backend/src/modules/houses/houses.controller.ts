@@ -88,6 +88,23 @@ export class HouseController {
     }
   };
 
+  transferLeadership = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const currentAdminId =
+        req.userId ||
+        (req.headers['x-user-id'] as string) ||
+        req.body.currentAdminId ||
+        req.body.userId ||
+        req.body.user_id;
+      const houseId = req.body.houseId || req.body.house_id;
+      const newAdminId = req.body.newAdminId || req.body.new_admin_id || req.body.successorId;
+      const result = await this.houseService.transferLeadership(houseId, currentAdminId, newAdminId);
+      res.status(200).json({ status: 'success', data: result });
+    } catch (error) {
+      next(error);
+    }
+  };
+
   regenerateCode = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const houseId = String(req.params.id);

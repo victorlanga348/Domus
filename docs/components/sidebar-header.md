@@ -24,7 +24,7 @@
   - `currentUser`: Morador autenticado.
   - `activeUsers`: Lista de moradores da residência.
   - `onLogoutClick`: Callback para encerramento de sessão.
-  - `onSwitchHouseClick`: Callback para alternância de residência. Interceptado caso o morador ativo seja `Admin Geral` e existam outros membros na residência, solicitando transferência prévia de liderança.
+  - `onSwitchHouseClick`: Callback para alternância de residência. Interceptado caso o morador ativo seja `Admin Geral` e existam outros membros na residência: designa o sucessor automaticamente se forem apenas 2 pessoas no total na casa, ou exibe o card de integrantes (`SwitchHouseSuccessorModal`) se forem mais de 2 pessoas, sempre exigindo modal de confirmação antes de transferir a liderança e alternar de residência.
   - `isMobileOpen`: Booleano para controle do drawer mobile.
   - `onCloseMobile`: Callback de fechamento do drawer mobile.
 - **Animação & Estilo Visual (Desktop Cut-Out):**

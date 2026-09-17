@@ -39,6 +39,7 @@ import {
   LeadershipTransferModal,
   LeaveHouseModal,
   ConfirmActionModal,
+  SwitchHouseSuccessorModal,
 } from './components/index.js';
 import { AuthView, HouseSelectionView, authApi, type AuthUser, type HouseResponse } from './features/auth/index.js';
 import {
@@ -1434,7 +1435,13 @@ export default function App() {
     }
   };
 
-  const handleSwitchHouse = () => {
+  // Estados para Troca de Residência com Sucessão de Liderança
+  const [isSwitchSuccessorCardOpen, setIsSwitchSuccessorCardOpen] = useState(false);
+  const [switchHouseSuccessor, setSwitchHouseSuccessor] = useState<FamilyMember | null>(null);
+  const [isSwitchLeadershipConfirmOpen, setIsSwitchLeadershipConfirmOpen] = useState(false);
+  const [switchLeadershipLoading, setSwitchLeadershipLoading] = useState(false);
+
+  const executeDirectSwitchHouse = () => {
     isSwitchingHouseRef.current = true;
     setCurrentHouse(null);
     localStorage.removeItem('domus_auth_house');
@@ -1442,6 +1449,95 @@ export default function App() {
       window.history.pushState(null, '', '/');
     }
     showToast('Alternando de residência. Escolha uma residência salva ou funde uma nova.');
+  };
+
+  const handleSwitchHouse = () => {
+    const isGeneralAdmin = currentUser.role === 'Admin Geral';
+    const otherMembers = familyMembers.filter((m) => m.id !== authUser?.id);
+
+    if (isGeneralAdmin && otherMembers.length > 0) {
+      if (otherMembers.length === 1) {
+        // Exatamente 2 pessoas na casa: designa automaticamente essa pessoa e abre modal de confirmação
+        setSwitchHouseSuccessor(otherMembers[0]);
+        setIsSwitchLeadershipConfirmOpen(true);
+        return;
+      } else {
+        // Mais de 2 pessoas: abre card mostrando os integrantes para escolha do novo líder
+        setIsSwitchSuccessorCardOpen(true);
+        return;
+      }
+    }
+
+    // Apenas 1 pessoa na casa ou morador não é Admin Geral: alterna diretamente
+    executeDirectSwitchHouse();
+  };
+
+  const handleSuccessorSelectedFromCard = (chosenMember: FamilyMember) => {
+    setIsSwitchSuccessorCardOpen(false);
+    setSwitchHouseSuccessor(chosenMember);
+    setIsSwitchLeadershipConfirmOpen(true);
+  };
+
+  const handleConfirmSwitchLeadership = async () => {
+    if (!switchHouseSuccessor || !authUser?.id) return;
+
+    try {
+      setSwitchLeadershipLoading(true);
+
+      if (currentHouse?.id) {
+        try {
+          await authApi.transferLeadership(
+            currentHouse.id,
+            authUser.id,
+            switchHouseSuccessor.id,
+            authToken || undefined
+          );
+        } catch (apiErr) {
+          console.warn('[DOMUS] Erro ao sincronizar transferLeadership no backend:', apiErr);
+        }
+      }
+
+      // Atualizar lista de membros
+      const updatedMembers = familyMembers.map((m) => {
+        if (m.id === switchHouseSuccessor.id) {
+          return { ...m, role: 'Admin Geral' as const, isPrimary: true };
+        }
+        if (m.role === 'Admin Geral' || m.id === authUser.id) {
+          return { ...m, role: 'Admin' as const, isPrimary: false };
+        }
+        return m;
+      });
+
+      setFamilyMembers(updatedMembers);
+      if (houseKey) {
+        localStorage.setItem(`${houseKey}_members`, JSON.stringify(updatedMembers));
+      }
+      if (currentHouse?.id) {
+        emitMembersUpdated(currentHouse.id, { members: updatedMembers });
+      }
+
+      recordHouseActivity(
+        `Liderança da residência transferida para ${switchHouseSuccessor.name} por ${authUser.name} antes de alternar de casa.`
+      );
+
+      // Atualizar cargo do usuário no authUser
+      const updatedAuth: AuthUser = {
+        ...authUser,
+        role: 'MEMBER',
+      };
+      setAuthUser(updatedAuth);
+      localStorage.setItem('domus_auth_user', JSON.stringify(updatedAuth));
+
+      setIsSwitchLeadershipConfirmOpen(false);
+      setSwitchHouseSuccessor(null);
+
+      executeDirectSwitchHouse();
+    } catch (err: any) {
+      console.error('[DOMUS] Erro ao transferir liderança na troca de residência:', err);
+      showToast(err.message || 'Erro ao transferir liderança.');
+    } finally {
+      setSwitchLeadershipLoading(false);
+    }
   };
 
   const handleConfirmLeaveHouse = async (successorId?: string) => {
@@ -2334,12 +2430,72 @@ export default function App() {
     showToast(`Membro ${member.name} adicionado com sucesso!`);
   };
 
-  const handleRemoveMember = async (memberId: string, memberName: string) => {
+  // Estados para Modais de Confirmação de Governança (Promover, Despromover, Remover)
+  const [memberToPromote, setMemberToPromote] = useState<FamilyMember | null>(null);
+  const [memberToDemote, setMemberToDemote] = useState<FamilyMember | null>(null);
+  const [memberToRemove, setMemberToRemove] = useState<{ id: string; name: string } | null>(null);
+
+  const handleInitiateRemoveMember = (memberId: string, memberName: string) => {
     if (memberId === authUser?.id) {
       showToast('Você não pode se auto-remover pelas configurações. Use a opção Trocar ou Sair da Residência.');
       return;
     }
+    setMemberToRemove({ id: memberId, name: memberName });
+  };
 
+  const handleInitiatePromoteToAdmin = (memberOrId: string | FamilyMember) => {
+    const member = typeof memberOrId === 'string' ? familyMembers.find((m) => m.id === memberOrId) : memberOrId;
+    if (member) {
+      setMemberToPromote(member);
+    }
+  };
+
+  const handleConfirmPromoteToAdmin = () => {
+    if (!memberToPromote) return;
+    const memberId = memberToPromote.id;
+    const updated: FamilyMember[] = familyMembers.map((m) =>
+      m.id === memberId ? { ...m, role: 'Admin' as const } : m
+    );
+    setFamilyMembers(updated);
+    if (houseKey) {
+      localStorage.setItem(`${houseKey}_members`, JSON.stringify(updated));
+    }
+    if (currentHouse?.id) {
+      emitMembersUpdated(currentHouse.id, { members: updated });
+    }
+    recordHouseActivity(`${memberToPromote.name} foi promovido a Administrador Normal por ${authUser?.name}`);
+    showToast(`Membro ${memberToPromote.name} promovido a Administrador Normal.`);
+    setMemberToPromote(null);
+  };
+
+  const handleInitiateDemoteToResident = (memberOrId: string | FamilyMember) => {
+    const member = typeof memberOrId === 'string' ? familyMembers.find((m) => m.id === memberOrId) : memberOrId;
+    if (member) {
+      setMemberToDemote(member);
+    }
+  };
+
+  const handleConfirmDemoteToResident = () => {
+    if (!memberToDemote) return;
+    const memberId = memberToDemote.id;
+    const updated: FamilyMember[] = familyMembers.map((m) =>
+      m.id === memberId ? { ...m, role: 'Resident' as const } : m
+    );
+    setFamilyMembers(updated);
+    if (houseKey) {
+      localStorage.setItem(`${houseKey}_members`, JSON.stringify(updated));
+    }
+    if (currentHouse?.id) {
+      emitMembersUpdated(currentHouse.id, { members: updated });
+    }
+    recordHouseActivity(`${memberToDemote.name} foi destituído para Morador regular por ${authUser?.name}`);
+    showToast(`Administrador ${memberToDemote.name} destituído para Morador regular.`);
+    setMemberToDemote(null);
+  };
+
+  const handleConfirmRemoveMember = async () => {
+    if (!memberToRemove) return;
+    const { id: memberId, name: memberName } = memberToRemove;
     try {
       if (currentHouse?.id && authUser?.id) {
         await authApi.removeMember(
@@ -2368,43 +2524,9 @@ export default function App() {
     } catch (err: any) {
       console.error('[DOMUS] Erro ao remover membro:', err);
       showToast(err.message || 'Erro ao remover morador da residência.');
+    } finally {
+      setMemberToRemove(null);
     }
-  };
-
-  const handlePromoteToAdmin = (memberId: string) => {
-    const member = familyMembers.find((m) => m.id === memberId);
-    const updated: FamilyMember[] = familyMembers.map((m) =>
-      m.id === memberId ? { ...m, role: 'Admin' as const } : m
-    );
-    setFamilyMembers(updated);
-    if (houseKey) {
-      localStorage.setItem(`${houseKey}_members`, JSON.stringify(updated));
-    }
-    if (currentHouse?.id) {
-      emitMembersUpdated(currentHouse.id, { members: updated });
-    }
-    if (member) {
-      recordHouseActivity(`${member.name} foi promovido a Administrador Normal por ${authUser?.name}`);
-    }
-    showToast('Membro promovido a Administrador Normal.');
-  };
-
-  const handleDemoteToResident = (memberId: string) => {
-    const member = familyMembers.find((m) => m.id === memberId);
-    const updated: FamilyMember[] = familyMembers.map((m) =>
-      m.id === memberId ? { ...m, role: 'Resident' as const } : m
-    );
-    setFamilyMembers(updated);
-    if (houseKey) {
-      localStorage.setItem(`${houseKey}_members`, JSON.stringify(updated));
-    }
-    if (currentHouse?.id) {
-      emitMembersUpdated(currentHouse.id, { members: updated });
-    }
-    if (member) {
-      recordHouseActivity(`${member.name} foi destituído para Morador regular por ${authUser?.name}`);
-    }
-    showToast('Administrador destituído para Morador regular.');
   };
 
   const handleInitiateTransferGeneralAdmin = (targetMember: FamilyMember) => {
@@ -2417,12 +2539,26 @@ export default function App() {
     setIsTransferModalOpen(true);
   };
 
-  const handleConfirmLeadershipTransfer = () => {
+  const handleConfirmLeadershipTransfer = async () => {
     if (!transferTarget) return;
 
     let updated: FamilyMember[] = [];
     if (transferTarget.member) {
       const targetId = transferTarget.member.id;
+
+      if (currentHouse?.id && authUser?.id) {
+        try {
+          await authApi.transferLeadership(
+            currentHouse.id,
+            authUser.id,
+            targetId,
+            authToken || undefined
+          );
+        } catch (apiErr) {
+          console.warn('[DOMUS] Erro ao sincronizar transferLeadership no backend:', apiErr);
+        }
+      }
+
       updated = familyMembers.map((m) => {
         if (m.id === targetId) {
           return { ...m, role: 'Admin Geral' as const, isPrimary: true };
@@ -2433,6 +2569,16 @@ export default function App() {
         return m;
       });
       setFamilyMembers(updated);
+
+      if (authUser) {
+        const updatedAuth: AuthUser = {
+          ...authUser,
+          role: 'MEMBER',
+        };
+        setAuthUser(updatedAuth);
+        localStorage.setItem('domus_auth_user', JSON.stringify(updatedAuth));
+      }
+
       recordHouseActivity(`Liderança da residência transferida para ${transferTarget.member.name}`);
       showToast(`Liderança transferida para ${transferTarget.member.name}! Você agora é Admin Normal.`);
     } else if (transferTarget.newMemberData) {
@@ -2914,10 +3060,10 @@ export default function App() {
                   onSwitchHouse={handleSwitchHouse}
                   currentUserRole={currentUser.role}
                   currentUserId={authUser.id}
-                  onPromoteToAdmin={handlePromoteToAdmin}
-                  onDemoteToResident={handleDemoteToResident}
+                  onPromoteToAdmin={handleInitiatePromoteToAdmin}
+                  onDemoteToResident={handleInitiateDemoteToResident}
                   onTransferGeneralAdmin={handleInitiateTransferGeneralAdmin}
-                  onRemoveMember={handleRemoveMember}
+                  onRemoveMember={handleInitiateRemoveMember}
                   onLeaveHouse={() => setIsLeaveHouseOpen(true)}
                   houseInviteCode={currentHouse?.invite_code}
                   houseName={currentHouse?.name}
@@ -3039,6 +3185,75 @@ export default function App() {
         variant="warning"
         icon="autorenew"
         loading={regenerateCodeLoading}
+      />
+
+      {/* Card Modal para Seleção de Sucessor ao Trocar de Casa (quando > 2 pessoas) */}
+      <SwitchHouseSuccessorModal
+        isOpen={isSwitchSuccessorCardOpen}
+        onClose={() => setIsSwitchSuccessorCardOpen(false)}
+        members={familyMembers.filter((m) => m.id !== authUser?.id)}
+        houseName={currentHouse?.name || 'Residência Atual'}
+        onSelectSuccessor={handleSuccessorSelectedFromCard}
+      />
+
+      {/* Modal de Confirmação de Transferência de Liderança na Troca de Residência */}
+      <LeadershipTransferModal
+        isOpen={isSwitchLeadershipConfirmOpen}
+        onClose={() => {
+          setIsSwitchLeadershipConfirmOpen(false);
+          setSwitchHouseSuccessor(null);
+        }}
+        onConfirm={handleConfirmSwitchLeadership}
+        targetMemberName={switchHouseSuccessor?.name || 'Novo Líder'}
+        title="Transferência de Liderança"
+        subtitle="Troca de Residência"
+        description={
+          familyMembers.filter((m) => m.id !== authUser?.id).length === 1
+            ? `Como você é o Administrador Geral e existem apenas 2 pessoas na residência, a liderança geral de "${currentHouse?.name}" será transferida automaticamente para ${switchHouseSuccessor?.name} antes de alternar de residência.`
+            : `Ao confirmar, a liderança geral de "${currentHouse?.name}" será transferida para ${switchHouseSuccessor?.name} e você prosseguirá para a seleção de residências.`
+        }
+        confirmText="Confirmar e Trocar de Casa"
+        cancelText="Cancelar"
+        loading={switchLeadershipLoading}
+      />
+
+      {/* Modal de Confirmação para Promover a Administrador */}
+      <ConfirmActionModal
+        isOpen={Boolean(memberToPromote)}
+        onClose={() => setMemberToPromote(null)}
+        onConfirm={handleConfirmPromoteToAdmin}
+        title="Promover a Administrador"
+        description={`Tem certeza de que deseja promover ${memberToPromote?.name} a Administrador? Ele terá permissões para gerenciar tarefas, regras e outros membros da residência.`}
+        confirmText="Promover a Admin"
+        cancelText="Cancelar"
+        variant="warning"
+        icon="shield_person"
+      />
+
+      {/* Modal de Confirmação para Despromover para Morador */}
+      <ConfirmActionModal
+        isOpen={Boolean(memberToDemote)}
+        onClose={() => setMemberToDemote(null)}
+        onConfirm={handleConfirmDemoteToResident}
+        title="Despromover para Morador"
+        description={`Tem certeza de que deseja despromover ${memberToDemote?.name} para Morador regular? Ele perderá as permissões administrativas da residência.`}
+        confirmText="Despromover"
+        cancelText="Cancelar"
+        variant="warning"
+        icon="arrow_downward"
+      />
+
+      {/* Modal de Confirmação para Remover Morador */}
+      <ConfirmActionModal
+        isOpen={Boolean(memberToRemove)}
+        onClose={() => setMemberToRemove(null)}
+        onConfirm={handleConfirmRemoveMember}
+        title="Remover Morador da Residência"
+        description={`Tem certeza de que deseja remover ${memberToRemove?.name} da residência? Ele perderá o acesso a esta casa e ao seu histórico.`}
+        confirmText="Remover Morador"
+        cancelText="Cancelar"
+        variant="danger"
+        icon="person_remove"
       />
     </div>
   );

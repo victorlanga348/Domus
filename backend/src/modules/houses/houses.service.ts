@@ -540,6 +540,128 @@ export class HouseService {
   }
 
   /**
+   * transferLeadership:
+   * Transfere a liderança geral (role ADMIN) de uma residência de forma explícita entre moradores.
+   * O líder anterior permanece vinculado à residência, mas com cargo normal MEMBER.
+   */
+  async transferLeadership(houseId: string, currentAdminId: string, newAdminId: string) {
+    if (!houseId || !currentAdminId || !newAdminId) {
+      throw new AppError('Parâmetros obrigatórios ausentes.', 400, 'MISSING_PARAMS');
+    }
+
+    if (currentAdminId === newAdminId) {
+      throw new AppError('O sucessor deve ser outro morador da residência.', 400, 'INVALID_SUCCESSOR');
+    }
+
+    const currentAdmin = await prisma.user.findUnique({
+      where: { id: currentAdminId },
+    });
+
+    if (!currentAdmin) {
+      throw new AppError('Administrador não encontrado.', 404, 'USER_NOT_FOUND');
+    }
+
+    const currentMembership = await prisma.houseMember.findUnique({
+      where: { user_id_house_id: { user_id: currentAdminId, house_id: houseId } },
+    });
+
+    const isCurrentAdmin =
+      currentMembership?.role === 'ADMIN' || (currentAdmin.house_id === houseId && currentAdmin.role === 'ADMIN');
+
+    if (!isCurrentAdmin) {
+      throw new AppError('Apenas o Administrador Geral pode transferir a liderança da residência.', 403, 'ADMIN_REQUIRED');
+    }
+
+    const successor = await prisma.user.findUnique({
+      where: { id: newAdminId },
+    });
+
+    if (!successor) {
+      throw new AppError('Morador sucessor não encontrado.', 404, 'SUCCESSOR_NOT_FOUND');
+    }
+
+    const successorMembership = await prisma.houseMember.findUnique({
+      where: { user_id_house_id: { user_id: newAdminId, house_id: houseId } },
+    });
+
+    const isSuccessorInHouse = successorMembership !== null || successor.house_id === houseId;
+
+    if (!isSuccessorInHouse) {
+      throw new AppError('O sucessor indicado não pertence a esta residência.', 400, 'SUCCESSOR_NOT_IN_HOUSE');
+    }
+
+    return prisma.$transaction(async (tx) => {
+      // 1. Promover o sucessor em HouseMember
+      await tx.houseMember.upsert({
+        where: { user_id_house_id: { user_id: newAdminId, house_id: houseId } },
+        update: { role: 'ADMIN' },
+        create: {
+          user_id: newAdminId,
+          house_id: houseId,
+          role: 'ADMIN',
+          vacation_mode: false,
+        },
+      });
+
+      if (successor.house_id === houseId) {
+        await tx.user.update({
+          where: { id: newAdminId },
+          data: { role: 'ADMIN' },
+        });
+      }
+
+      // 2. Rebaixar o líder anterior para MEMBER
+      await tx.houseMember.upsert({
+        where: { user_id_house_id: { user_id: currentAdminId, house_id: houseId } },
+        update: { role: 'MEMBER' },
+        create: {
+          user_id: currentAdminId,
+          house_id: houseId,
+          role: 'MEMBER',
+          vacation_mode: false,
+        },
+      });
+
+      if (currentAdmin.house_id === houseId) {
+        await tx.user.update({
+          where: { id: currentAdminId },
+          data: { role: 'MEMBER' },
+        });
+      }
+
+      // 3. Auditoria em ActivityLog
+      await tx.activityLog.create({
+        data: {
+          user_id: currentAdminId,
+          house_id: houseId,
+          action_type: 'ROTATED',
+          comment: `${currentAdmin.name} transferiu a liderança geral da residência para ${successor.name}.`,
+        },
+      });
+
+      // 4. WebSocket
+      try {
+        const { emitToHouse } = await import('../../shared/socket/socketServer.js');
+        emitToHouse(houseId, 'house:admin_transferred', {
+          previousAdminId: currentAdminId,
+          newAdminId: newAdminId,
+          newAdminName: successor.name,
+        });
+        emitToHouse(houseId, 'house:members_updated', {
+          houseId: houseId,
+        });
+      } catch {}
+
+      return {
+        success: true,
+        previousAdminId: currentAdminId,
+        newAdminId: newAdminId,
+        newAdminName: successor.name,
+      };
+    });
+  }
+
+  /**
    * 6. regenerateInviteCode:
    * Gera um novo código determinístico para a residência, garantindo unicidade (@unique).
    * Ação exclusiva para o ADMIN (Admin Geral) da residência.
