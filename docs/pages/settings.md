@@ -36,7 +36,8 @@ Gerenciamento de membros da casa, governança de cargos administrativos, remoç�
 - **Trava de Segurança:** A adição de membros é bloqueada para moradores comuns tanto no visual (botões e drawers ocultos) quanto no handler da aplicação (`handleAddFamilyMember`), emitindo mensagem explicativa caso tentada.
 
 ### 2.3 Troca de Residência
-- Ação de troca rápida de casa ("Trocar Residência") sem deslogar a conta de usuário.
+- Ação de troca rápida de casa ("Trocar Residência") sem deslogar a conta de usuário, acessível tanto pelo cabeçalho global quanto pelo rodapé da tela de Configurações.
+- Ao alternar, o usuário é redirecionado de forma persistente e protegida para a tela de seleção de casas (`HouseSelectionView`), colocando a residência de origem em modo de férias e reativando a residência de destino sem risco de reversão involuntária de tela.
 
 ### 2.4 Sair da Residência, Sucessão Obrigatória & Exclusão de Casa Vazia
 - Botão "Sair da Residência" no rodapé de membros, permitindo desvincular o usuário da casa ativa.

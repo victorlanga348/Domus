@@ -45,5 +45,7 @@ Oferecer ao morador um espaço acolhedor, interativo e centralizado para recados
 ## 4. Estados de Carregamento & Perceived Performance
 - **`DashboardSkeleton`:** Durante a busca inicial de dados (`GET /api/v1/dashboard`), a interface exibe um esqueleto estruturado com animação de pulso suave nos tons da marca DOMUS (`#e4f0ee` e `#d0dddb`), eliminando a exibição prematura de falsos estados vazios e prevenindo deslocamentos acumulados de layout (CLS).
 - **Fallback Acessível:** Usuários com a diretiva `prefers-reduced-motion: reduce` visualizam o esqueleto estático sem ciclo de pulsação.
+- **Alternância de Residência a partir do Header:** O botão com ícone de prédio (`apartment`) permite navegação direta para `HouseSelectionView`. O estado de `currentHouse` é protegido com trava contra ressurgência assíncrona por callbacks pendentes do BFF Dashboard, garantindo transição sem recarregamento involuntário.
+- **Estabilização de Ícones e Tipografia:** Elementos com ligaduras do Material Symbols contam com contenção rígida de dimensões (`max-width: 1.5em; overflow: hidden`), impedindo que ligaduras em texto puro quebrem a grade do mural antes do carregamento de fontes.
 
 

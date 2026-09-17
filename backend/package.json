@@ -13,6 +13,7 @@
     "test": "tsx --test tests/**/*.test.ts",
     "test:unit": "tsx --test tests/unit/**/*.test.ts",
     "test:e2e": "tsx --test tests/e2e/**/*.test.ts",
+    "test:browser": "tsx --test tests/browser/**/*.test.ts",
     "prisma:generate": "prisma generate --schema=./src/database/schema.prisma",
     "prisma:migrate": "prisma migrate dev --schema=./src/database/schema.prisma",
     "prisma:deploy": "prisma migrate deploy --schema=./src/database/schema.prisma"

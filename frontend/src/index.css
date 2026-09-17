@@ -18,6 +18,8 @@
     box-sizing: border-box;
     touch-action: manipulation;
     overscroll-behavior-y: none;
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
   }
 
   /* Previne auto-zoom no iOS Safari e Android (mínimo de 16px para campos focáveis no mobile) */
@@ -114,10 +116,16 @@
   line-height: 1;
   letter-spacing: normal;
   text-transform: none;
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   white-space: nowrap;
   word-wrap: normal;
   direction: ltr;
+  overflow: hidden;
+  max-width: 1.5em;
+  max-height: 1.5em;
+  user-select: none;
   -webkit-font-smoothing: antialiased;
   font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
 }

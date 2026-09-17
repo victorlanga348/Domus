@@ -414,6 +414,7 @@ export default function App() {
   const familyMembersRef = useRef<FamilyMember[]>(familyMembers);
   familyMembersRef.current = familyMembers;
   const lastSyncTimestampRef = useRef<number>(0);
+  const isSwitchingHouseRef = useRef<boolean>(false);
 
   const [onlineUserIds, setOnlineUserIds] = useState<string[]>([]);
 
@@ -742,7 +743,7 @@ export default function App() {
   // Sincronização centralizada de dados da residência (Dashboard, Tarefas, Logs, Regras, Cardápio, Status)
   const syncAllHouseData = useCallback(
     async (options?: { silent?: boolean }) => {
-      if (!currentHouse?.id || !authUser?.id) return;
+      if (!currentHouse?.id || !authUser?.id || isSwitchingHouseRef.current) return;
       const houseId = currentHouse.id;
       const userId = authUser.id;
       lastSyncTimestampRef.current = Date.now();
@@ -752,13 +753,17 @@ export default function App() {
         dashboardApi
           .getDashboardData(houseId, userId, authToken || undefined)
           .then((data) => {
+            if (isSwitchingHouseRef.current) return;
             if (data?.house) {
-              setCurrentHouse((prev) => ({
-                ...(prev || {}),
-                id: data.house.id,
-                name: data.house.name,
-                invite_code: data.house.invite_code,
-              }));
+              setCurrentHouse((prev) => {
+                if (!prev || isSwitchingHouseRef.current) return null;
+                return {
+                  ...prev,
+                  id: data.house.id,
+                  name: data.house.name,
+                  invite_code: data.house.invite_code,
+                };
+              });
             }
             if (data?.members && data.members.length > 0) {
               handleSyncMembers(data.members);
@@ -877,35 +882,45 @@ export default function App() {
   useEffect(() => {
     if (!currentHouse?.id || !authUser?.id) return;
 
-    const handleResumeOrFocus = () => {
-      if (document.visibilityState === 'visible') {
-        ensureSocketConnected();
-        syncAllHouseData({ silent: true });
+    let resumeDebounceTimer: any = null;
+    const triggerDebouncedSync = () => {
+      if (isSwitchingHouseRef.current) return;
+      if (document.visibilityState === 'visible' && !document.hidden) {
+        clearTimeout(resumeDebounceTimer);
+        resumeDebounceTimer = setTimeout(() => {
+          ensureSocketConnected();
+          const timeSinceLastSync = Date.now() - lastSyncTimestampRef.current;
+          if (timeSinceLastSync > 8000) {
+            syncAllHouseData({ silent: true });
+          }
+        }, 300);
       }
     };
 
     const handleOnline = () => {
+      if (isSwitchingHouseRef.current) return;
       ensureSocketConnected();
       syncAllHouseData({ silent: true });
     };
 
-    document.addEventListener('visibilitychange', handleResumeOrFocus);
-    window.addEventListener('focus', handleResumeOrFocus);
-    window.addEventListener('pageshow', handleResumeOrFocus);
+    document.addEventListener('visibilitychange', triggerDebouncedSync);
+    window.addEventListener('focus', triggerDebouncedSync);
+    window.addEventListener('pageshow', triggerDebouncedSync);
     window.addEventListener('online', handleOnline);
 
     // Heartbeat passivo de sincronização (a cada 60 segundos) apenas enquanto a tela está ativa
     const heartbeatTimer = setInterval(() => {
-      if (document.visibilityState === 'visible' && !document.hidden) {
+      if (document.visibilityState === 'visible' && !document.hidden && !isSwitchingHouseRef.current) {
         ensureSocketConnected();
         syncAllHouseData({ silent: true });
       }
     }, 60000);
 
     return () => {
-      document.removeEventListener('visibilitychange', handleResumeOrFocus);
-      window.removeEventListener('focus', handleResumeOrFocus);
-      window.removeEventListener('pageshow', handleResumeOrFocus);
+      clearTimeout(resumeDebounceTimer);
+      document.removeEventListener('visibilitychange', triggerDebouncedSync);
+      window.removeEventListener('focus', triggerDebouncedSync);
+      window.removeEventListener('pageshow', triggerDebouncedSync);
       window.removeEventListener('online', handleOnline);
       clearInterval(heartbeatTimer);
     };
@@ -1333,6 +1348,7 @@ export default function App() {
   };
 
   const handleHouseSelected = (houseData: HouseResponse) => {
+    isSwitchingHouseRef.current = false;
     setCurrentHouse(houseData.house);
     setAuthUser(houseData.user);
 
@@ -1419,6 +1435,7 @@ export default function App() {
   };
 
   const handleSwitchHouse = () => {
+    isSwitchingHouseRef.current = true;
     setCurrentHouse(null);
     localStorage.removeItem('domus_auth_house');
     if (typeof window !== 'undefined' && window.location.pathname !== '/') {
@@ -2753,6 +2770,7 @@ export default function App() {
           token={authToken || undefined}
           onHouseSelected={handleHouseSelected}
           onLogout={handleLogout}
+          onShowToast={showToast}
         />
         {toastMessage && (
           <div
@@ -2809,13 +2827,13 @@ export default function App() {
           className="flex-1 min-w-0 max-w-full pb-6 md:pb-12"
           style={{ paddingBottom: 'calc(1.5rem + env(safe-area-inset-bottom, 0px))' }}
         >
-          <AnimatePresence mode="wait" initial={false}>
+          <AnimatePresence initial={false}>
             <motion.div
               key={currentTab}
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -6 }}
-              transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+              initial={{ opacity: 0.8 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0.8 }}
+              transition={{ duration: 0.16, ease: 'easeOut' }}
               className="w-full min-w-0 max-w-full"
             >
               {currentTab === 'dashboard' && (
@@ -2836,12 +2854,16 @@ export default function App() {
                   familyMembers={familyMembers}
                   onSyncMembers={handleSyncMembers}
                   onSyncHouse={(house) => {
-                    setCurrentHouse((prev) => ({
-                      ...(prev || {}),
-                      id: house.id,
-                      name: house.name,
-                      invite_code: house.invite_code,
-                    }));
+                    if (isSwitchingHouseRef.current) return;
+                    setCurrentHouse((prev) => {
+                      if (!prev || isSwitchingHouseRef.current) return null;
+                      return {
+                        ...prev,
+                        id: house.id,
+                        name: house.name,
+                        invite_code: house.invite_code,
+                      };
+                    });
                   }}
                 />
               )}
