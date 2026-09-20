@@ -41,6 +41,9 @@ function resolveValidAssigneeId(task: MockTask): string | null {
     }
     throw new Error('ALL_PARTICIPANTS_ON_VACATION');
   } else if (task.participants && task.participants.length === 1) {
+    if (task.participants[0].user?.vacation_mode) {
+      return null; // Tarefa fica temporariamente livre para qualquer membro da casa
+    }
     return task.participants[0].user_id;
   }
   return null; // Tarefa livre / comunitária (sem restrição de participantes)
@@ -61,8 +64,12 @@ function validateCompleteTaskPermission(
 
   const isGeneralAdmin = userRole === 'ADMIN' || userRole === 'ADMIN_GERAL' || userRole === 'Admin Geral';
   const isFreeTask = !task.participants || task.participants.length === 0;
+  const isSoleAssigneeOnVacation =
+    task.participants &&
+    task.participants.length === 1 &&
+    Boolean(task.participants[0].user?.vacation_mode);
 
-  if (isFreeTask) {
+  if (isFreeTask || isSoleAssigneeOnVacation) {
     if (userHouseId && task.house_id && userHouseId !== task.house_id && !isGeneralAdmin) {
       const err: any = new Error('Usuário não pertence à mesma residência da tarefa.');
       err.statusCode = 403;
@@ -256,6 +263,71 @@ describe('Regras de Permissão: Conclusão de Tarefas (Backend)', () => {
     assert.throws(() => {
       validateCompleteTaskPermission(task, 'u-alice');
     });
+  });
+
+  it('deve liberar tarefa individual para qualquer morador da casa quando o titular estiver em modo férias', () => {
+    const directTask: MockTask = {
+      id: 'task-direct-vacation',
+      title: 'Regar plantas de Alice',
+      status: 'OPEN',
+      rotation_index: 0,
+      creator_id: 'user-admin',
+      house_id: 'house-1',
+      participants: [
+        { user_id: 'u-alice', user: { id: 'u-alice', name: 'Alice', vacation_mode: true } },
+      ],
+    };
+
+    // Bruno (outro morador da mesma casa) consegue concluir a tarefa porque Alice está de férias
+    assert.doesNotThrow(() => {
+      validateCompleteTaskPermission(directTask, 'u-bruno', 'MEMBER', 'house-1');
+    });
+
+    // Morador de OUTRA residência continua bloqueado
+    assert.throws(
+      () => {
+        validateCompleteTaskPermission(directTask, 'u-estranho', 'MEMBER', 'house-outra');
+      },
+      (err: any) => {
+        assert.strictEqual(err.statusCode, 403);
+        assert.strictEqual(err.message, 'Usuário não pertence à mesma residência da tarefa.');
+        return true;
+      }
+    );
+  });
+
+  it('deve restaurar a exclusividade da tarefa individual quando o titular sair do modo férias', () => {
+    const directTaskActive: MockTask = {
+      id: 'task-direct-active',
+      title: 'Regar plantas de Alice',
+      status: 'OPEN',
+      rotation_index: 0,
+      creator_id: 'user-admin',
+      house_id: 'house-1',
+      participants: [
+        { user_id: 'u-alice', user: { id: 'u-alice', name: 'Alice', vacation_mode: false } },
+      ],
+    };
+
+    // Alice consegue concluir
+    assert.doesNotThrow(() => {
+      validateCompleteTaskPermission(directTaskActive, 'u-alice', 'MEMBER', 'house-1');
+    });
+
+    // Bruno é bloqueado com 403 pois Alice está ativa
+    assert.throws(
+      () => {
+        validateCompleteTaskPermission(directTaskActive, 'u-bruno', 'MEMBER', 'house-1');
+      },
+      (err: any) => {
+        assert.strictEqual(err.statusCode, 403);
+        assert.strictEqual(
+          err.message,
+          'Apenas a pessoa designada para esta tarefa ou o Admin Geral pode marcá-la como concluída.'
+        );
+        return true;
+      }
+    );
   });
 
   it('deve permitir que qualquer morador da residência conclua uma tarefa livre (sem participantes)', () => {

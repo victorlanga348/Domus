@@ -639,21 +639,14 @@ export const NotificationsDrawer: React.FC<{
                           <div className="min-w-0">
                             <h4 className="text-xs font-bold text-[#16302e] truncate">{task.title}</h4>
                             <p className="text-[10px] text-[#727877]">
-                              Turno da {task.period === 'morning' ? 'Manhã' : task.period === 'afternoon' ? 'Tarde' : 'Noite'}
+                              {task.period === 'flexible' ? 'Horário Livre' : `Turno da ${task.period === 'morning' ? 'Manhã' : task.period === 'afternoon' ? 'Tarde' : 'Noite'}`}
                             </p>
                           </div>
                         </div>
 
-                        {task.advanceNotice ? (
-                          <span className="px-2 py-0.5 rounded-md text-[10px] font-extrabold bg-[#7b5800] text-white shrink-0 flex items-center gap-1 shadow-2xs">
-                            <span className="material-symbols-outlined text-[11px]">timer</span>
-                            <span>{task.advanceNotice}</span>
-                          </span>
-                        ) : (
-                          <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-[#f0fcfa] text-[#16302e] border border-[#d0dddb] shrink-0">
-                            Prestes a vencer
-                          </span>
-                        )}
+                        <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-[#f0fcfa] text-[#16302e] border border-[#d0dddb] shrink-0">
+                          Pendente
+                        </span>
                       </div>
 
                       <div className="flex items-center justify-between pt-2 border-t border-[#f7e6bc] text-[11px]">

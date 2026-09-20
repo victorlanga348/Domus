@@ -17,10 +17,13 @@ stateDiagram-v2
 
 ---
 
-## 2. Turnos Operacionais
+## 2. Turnos e Frequências Operacionais
 - **Manhã (`MORNING`):** 06:00 às 12:00
 - **Tarde (`AFTERNOON`):** 12:00 às 18:00
 - **Noite (`NIGHT`):** 18:00 às 23:59
+- **Livre / Qualquer Horário (`FLEXIBLE`):** Sem restrição de turno ou horário fixo ao longo do dia.
+- **Frequências Suportadas:** Diária, Dias Úteis (Seg-Sex), Fim de Semana (Sáb-Dom), Semanal, Quinzenal, Mensal, Única, e **Quando necessário / Livre** (tarefas esporádicas ou sem periodicidade rígida).
+- **Notificações:** Alertas e avisos são acionados dinamicamente pelo centro de notificações em tempo real, sem necessidade de campos estáticos de aviso prévio.
 
 ---
 
@@ -34,11 +37,12 @@ stateDiagram-v2
 ## 4. Regras de Permissão & Governança
 
 ### 4.1 Conclusão de Tarefas
-- **Regra Universal:** Em todo o aplicativo, **nenhum morador pode concluir tarefas que não sejam suas**, com a **exclusiva exceção do Admin Geral** (`role === 'ADMIN' | 'Admin Geral'`) e de **Tarefas Livres / Comunitárias**.
+- **Regra Universal:** Em todo o aplicativo, **nenhum morador pode concluir tarefas que não sejam suas**, com a **exclusiva exceção do Admin Geral** (`role === 'ADMIN' | 'Admin Geral'`), de **Tarefas Livres / Comunitárias** e de **Tarefas Direcionadas cujo responsável esteja em Modo Férias**.
 - **Tarefa Direcionada:** Apenas o morador designado (`tarefa.responsavelId === usuarioAtual.id`) ou o Admin Geral.
+  - **Exceção de Férias:** Se o titular da tarefa direcionada entrar em **Modo Férias** (`vacation_mode: true`), a tarefa fica temporariamente **Livre** para que qualquer morador da mesma residência possa realizá-la e concluí-la. Ao retornar das férias (`vacation_mode: false`), a tarefa volta automaticamente a ser exclusiva do titular.
 - **Tarefa de Rodízio:** Apenas o morador da vez no turno (`rodizio.membroAtualId === usuarioAtual.id`, ordem A-Z com salto de férias) ou o Admin Geral.
 - **Tarefa Livre / Comunitária (`participants = []`):** Qualquer morador ativo pertencente à mesma residência (`task.house_id === user.house_id`) ou o Admin Geral. O botão permanece habilitado para todos os membros da casa e o ActivityLog registra o morador específico que realizou a conclusão.
-- **Violação (403 Forbidden):** Bloqueio estrito no backend e botão desabilitado em cinza no frontend (tanto na tela de tarefas quanto no Drawer de Alertas/Notificações) com tooltip: `"Aguardando confirmação de [Nome do Responsável]"`. Moradores de fora da residência recebem HTTP 403 mesmo em tarefas livres.
+- **Violação (403 Forbidden):** Bloqueio estrito no backend e botão desabilitado em cinza no frontend com tooltip explicativo. Moradores de fora da residência recebem HTTP 403.
 
 ### 4.2 Reversão / Cancelamento de Tarefas Concluídas
 - **Quem pode executar:** Exclusivo para o **Admin Geral** e **Sub-Admins** (`role === 'ADMIN' | 'SUB_ADMIN'`).

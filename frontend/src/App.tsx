@@ -57,9 +57,11 @@ import {
 } from './shared/socket/index.js';
 
 function mapBackendTaskToHouseTask(task: any, currentMembers: FamilyMember[]): HouseTask {
-  let period: 'morning' | 'afternoon' | 'night' = 'morning';
+  let period: HouseTask['period'] = 'morning';
   if (task.shift === 'AFTERNOON') period = 'afternoon';
-  if (task.shift === 'NIGHT') period = 'night';
+  else if (task.shift === 'NIGHT') period = 'night';
+  else if (task.shift === 'FLEXIBLE' || task.shift === 'ANYTIME') period = 'flexible';
+  else period = (task.shift?.toLowerCase() as any) || 'morning';
 
   let status: HouseTask['status'] = 'pending';
   if (task.status === 'COMPLETED') status = 'completed';
@@ -70,15 +72,20 @@ function mapBackendTaskToHouseTask(task: any, currentMembers: FamilyMember[]): H
   const isRotation = Boolean(task.participants && task.participants.length > 1);
   const rawParticipants = task.participants || [];
   const participantIds = rawParticipants.map((p: any) => p.user_id || p.user?.id || p.id).filter(Boolean);
+  
   const participants = rawParticipants.map((p: any) => {
     const u = p.user || p;
+    const member = currentMembers.find((m) => m.id === u.id);
+    const isVacation = Boolean(member?.vacation_mode ?? u.vacation_mode);
     return {
       id: u.id,
       name: u.name,
-      avatar: u.avatar_url || currentMembers.find((m) => m.id === u.id)?.avatar,
-      vacation_mode: Boolean(u.vacation_mode),
+      avatar: u.avatar_url || member?.avatar,
+      vacation_mode: isVacation,
     };
   });
+
+  let isSoleAssigneeOnVacation = false;
 
   if (isRotation) {
     const sorted = [...task.participants].map((p: any) => p.user || p).sort((a: any, b: any) =>
@@ -89,27 +96,50 @@ function mapBackendTaskToHouseTask(task: any, currentMembers: FamilyMember[]): H
     let chosen = null;
     for (let i = 0; i < poolSize; i++) {
       const cand = sorted[(baseIndex + i) % poolSize];
-      if (!cand?.vacation_mode) {
+      const member = currentMembers.find((m) => m.id === cand?.id);
+      const isCandVacation = Boolean(member?.vacation_mode ?? cand?.vacation_mode);
+      if (!isCandVacation) {
         chosen = cand;
         break;
       }
     }
     assignee = chosen || sorted[0];
   } else if (rawParticipants.length === 1) {
-    assignee = task.current_assignee || rawParticipants[0]?.user;
+    const sole = rawParticipants[0]?.user || rawParticipants[0];
+    const member = currentMembers.find((m) => m.id === sole?.id);
+    const isVacation = Boolean(member?.vacation_mode ?? sole?.vacation_mode);
+    if (isVacation) {
+      isSoleAssigneeOnVacation = true;
+      assignee = null; // Fica temporariamente livre durante as férias
+    } else {
+      assignee = task.current_assignee || sole;
+    }
   } else {
     // Tarefa Livre / Comunitária (sem participantes restritos)
     assignee = null;
   }
 
-  const isFreeTask = !isRotation && rawParticipants.length === 0;
-  const assigneeName = assignee?.name || (isFreeTask ? 'Livre' : 'Morador');
+  const isFreeTask = (!isRotation && rawParticipants.length === 0) || isSoleAssigneeOnVacation;
+  const assigneeName = assignee?.name || (isSoleAssigneeOnVacation ? 'Livre (Férias)' : isFreeTask ? 'Livre' : 'Morador');
   const assigneeId = assignee?.id;
   const assigneeAvatar = assignee
     ? assignee?.avatar_url ||
       currentMembers.find((m) => m.id === assignee?.id)?.avatar ||
       `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(assigneeName)}`
     : undefined;
+
+  const freq =
+    task.frequency === 'DAILY'
+      ? 'Diária'
+      : task.frequency === 'WEEKLY'
+      ? 'Semanal'
+      : task.frequency === 'MONTHLY'
+      ? 'Mensal'
+      : task.frequency === 'ONCE'
+      ? 'Única (Um só dia)'
+      : task.frequency === 'FLEXIBLE' || task.frequency === 'AS_NEEDED'
+      ? 'Quando necessário / Livre'
+      : task.frequency || 'Diária';
 
   return {
     id: task.id,
@@ -123,14 +153,7 @@ function mapBackendTaskToHouseTask(task: any, currentMembers: FamilyMember[]): H
     isRotation,
     participantIds,
     participants,
-    frequency:
-      task.frequency === 'DAILY'
-        ? 'Diária'
-        : task.frequency === 'WEEKLY'
-        ? 'Semanal'
-        : task.frequency === 'MONTHLY'
-        ? 'Mensal'
-        : 'Única (Um só dia)',
+    frequency: freq,
     completedBy:
       task.status === 'COMPLETED'
         ? (task.locked_by?.name || currentMembers.find((m) => m.id === task.locked_by_id)?.name || (task.locked_by_id ? 'Morador' : undefined))
@@ -155,22 +178,28 @@ function mapBackendTasksToRotations(backendTasks: any[], currentMembers: FamilyM
     let nextIdx = baseIndex;
     for (let i = 0; i < poolSize; i++) {
       const cand = sorted[(baseIndex + i) % poolSize];
-      if (!cand?.vacation_mode) {
+      const member = currentMembers.find((m) => m.id === cand?.id);
+      const isCandVacation = Boolean(member?.vacation_mode ?? cand?.vacation_mode);
+      if (!isCandVacation) {
         nextIdx = (baseIndex + i) % poolSize;
         break;
       }
     }
 
-    const queue = sorted.map((u: any, idx: number) => ({
-      id: u.id,
-      name: u.name,
-      avatar:
-        u.avatar_url ||
-        currentMembers.find((m) => m.id === u.id)?.avatar ||
-        `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(u.name)}`,
-      isNext: idx === nextIdx,
-      vacation_mode: Boolean(u.vacation_mode),
-    }));
+    const queue = sorted.map((u: any, idx: number) => {
+      const member = currentMembers.find((m) => m.id === u.id);
+      const isVacation = Boolean(member?.vacation_mode ?? u.vacation_mode);
+      return {
+        id: u.id,
+        name: u.name,
+        avatar:
+          u.avatar_url ||
+          member?.avatar ||
+          `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(u.name)}`,
+        isNext: idx === nextIdx,
+        vacation_mode: isVacation,
+      };
+    });
 
     const nextUser = queue.find((q) => q.isNext) || queue[0];
     const freq =
@@ -180,17 +209,32 @@ function mapBackendTasksToRotations(backendTasks: any[], currentMembers: FamilyM
         ? 'Semanal'
         : t.frequency === 'MONTHLY'
         ? 'Mensal'
-        : 'Única (Um só dia)';
+        : t.frequency === 'ONCE'
+        ? 'Única (Um só dia)'
+        : t.frequency === 'FLEXIBLE' || t.frequency === 'AS_NEEDED'
+        ? 'Quando necessário / Livre'
+        : t.frequency || 'Diária';
 
-    let period: 'morning' | 'afternoon' | 'night' = 'morning';
+    let period: HouseTask['period'] = 'morning';
     if (t.shift === 'AFTERNOON') period = 'afternoon';
-    if (t.shift === 'NIGHT') period = 'night';
+    else if (t.shift === 'NIGHT') period = 'night';
+    else if (t.shift === 'FLEXIBLE' || t.shift === 'ANYTIME') period = 'flexible';
+    else period = (t.shift?.toLowerCase() as any) || 'morning';
+
+    const periodLabel =
+      period === 'flexible'
+        ? 'Horário Livre'
+        : period === 'morning'
+        ? 'Turno Manhã'
+        : period === 'afternoon'
+        ? 'Turno Tarde'
+        : 'Turno Noite';
 
     return {
       id: t.id,
       taskId: t.id,
       title: t.title,
-      schedule: `${freq} • Turno ${period === 'morning' ? 'Manhã' : period === 'afternoon' ? 'Tarde' : 'Noite'}`,
+      schedule: `${freq} • ${periodLabel}`,
       nextMember: nextUser?.name || 'Morador',
       nextMemberAvatar: nextUser?.avatar || '',
       queue,
@@ -1031,17 +1075,20 @@ export default function App() {
         }
       },
       onVacationChanged: ({ userId, vacation_mode }: { userId: string; vacation_mode: boolean }) => {
-        setFamilyMembers((prev) =>
-          prev.map((m) => (m.id === userId ? { ...m, vacation_mode, statusTag: vacation_mode ? 'Férias' : undefined } : m))
-        );
-        if (currentHouse?.id && authUser?.id) {
-          tasksApi.getTasks(currentHouse.id, authUser.id).then((backendTasks) => {
-            if (Array.isArray(backendTasks)) {
-              setTasks(backendTasks.map((t) => mapBackendTaskToHouseTask(t, familyMembers)));
-              setRotations(mapBackendTasksToRotations(backendTasks, familyMembers));
-            }
-          }).catch(() => {});
-        }
+        setFamilyMembers((prev) => {
+          const updated = prev.map((m) =>
+            m.id === userId ? { ...m, vacation_mode, statusTag: vacation_mode ? 'Férias' : undefined } : m
+          );
+          if (currentHouse?.id && authUser?.id) {
+            tasksApi.getTasks(currentHouse.id, authUser.id).then((backendTasks) => {
+              if (Array.isArray(backendTasks)) {
+                setTasks(backendTasks.map((t) => mapBackendTaskToHouseTask(t, updated)));
+                setRotations(mapBackendTasksToRotations(backendTasks, updated));
+              }
+            }).catch(() => {});
+          }
+          return updated;
+        });
       },
       onTaskDeleted: ({ taskId }: { taskId: string }) => {
         setTasks((prev) => prev.filter((t) => t.id !== taskId));
@@ -1572,19 +1619,55 @@ export default function App() {
     }
   };
 
-  const handleToggleVacationMode = () => {
+  const handleToggleVacationMode = async () => {
     const next = !vacationMode;
     setVacationMode(next);
-    if (authUser) {
-      setAuthUser({ ...authUser, vacation_mode: next });
+    const updatedUser = authUser ? { ...authUser, vacation_mode: next } : null;
+    if (updatedUser) {
+      setAuthUser(updatedUser);
+      localStorage.setItem('domus_auth_user', JSON.stringify(updatedUser));
     }
+
+    const updatedMembers = familyMembers.map((m) =>
+      m.id === authUser?.id
+        ? { ...m, vacation_mode: next, statusTag: next ? 'Férias' : undefined }
+        : m
+    );
+    setFamilyMembers(updatedMembers);
+    if (houseKey) {
+      localStorage.setItem(`${houseKey}_members`, JSON.stringify(updatedMembers));
+    }
+
+    // Re-mapeamento local imediato (0ms de latência)
+    setTasks((prev) =>
+      prev.map((t) => {
+        const mapped = mapBackendTaskToHouseTask(t, updatedMembers);
+        return {
+          ...t,
+          nextMember: mapped.nextMember,
+          nextMemberId: mapped.nextMemberId,
+          nextMemberAvatar: mapped.nextMemberAvatar,
+          participants: mapped.participants,
+        };
+      })
+    );
+
     if (authUser?.id) {
-      tasksApi.toggleVacation(authUser.id).catch((err) => {
-        console.warn('[Vacation] Erro ao persistir modo férias no backend:', err);
-      });
+      try {
+        await tasksApi.toggleVacation(authUser.id);
+        if (currentHouse?.id) {
+          const backendTasks = await tasksApi.getTasks(currentHouse.id, authUser.id);
+          if (Array.isArray(backendTasks)) {
+            setTasks(backendTasks.map((t) => mapBackendTaskToHouseTask(t, updatedMembers)));
+            setRotations(mapBackendTasksToRotations(backendTasks, updatedMembers));
+          }
+        }
+      } catch (err) {
+        console.warn('[Vacation] Erro ao sincronizar modo férias no backend:', err);
+      }
     }
     recordHouseActivity(`${authUser?.name || 'Morador'} ${next ? 'ativou' : 'desativou'} o modo férias.`);
-    showToast(next ? 'Modo Férias Ativado: Você foi temporariamente pausado do rodízio.' : 'Modo Férias Desativado: Retornando à escala normal.');
+    showToast(next ? 'Modo Férias Ativado: Você foi temporariamente pausado do rodízio.' : 'Modo Férias Desativado: Você retornou à escala de tarefas!');
   };
 
   const handleAddMuralNote = async (newNote: Omit<MuralNote, 'id' | 'dateStr'>) => {

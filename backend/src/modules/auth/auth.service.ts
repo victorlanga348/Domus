@@ -136,7 +136,7 @@ export class AuthService {
     return true;
   }
 
-  async toggleVacation(userId: string) {
+  async toggleVacation(userId: string, houseId?: string) {
     const user = await prisma.user.findUnique({
       where: { id: userId },
     });
@@ -146,21 +146,34 @@ export class AuthService {
     }
 
     const newVacationState = !user.vacation_mode;
+    const targetHouseId = houseId || user.house_id;
 
-    const updatedUser = await prisma.user.update({
-      where: { id: userId },
-      data: { vacation_mode: newVacationState },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        role: true,
-        vacation_mode: true,
-        house_id: true,
-      },
+    return prisma.$transaction(async (tx) => {
+      const updatedUser = await tx.user.update({
+        where: { id: userId },
+        data: { vacation_mode: newVacationState },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          role: true,
+          vacation_mode: true,
+          house_id: true,
+        },
+      });
+
+      if (targetHouseId) {
+        await tx.houseMember.updateMany({
+          where: { user_id: userId, house_id: targetHouseId },
+          data: { vacation_mode: newVacationState },
+        });
+      }
+
+      return {
+        ...updatedUser,
+        house_id: targetHouseId || updatedUser.house_id,
+      };
     });
-
-    return updatedUser;
   }
 
   async googleLogin(credential: string) {

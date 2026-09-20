@@ -34,18 +34,17 @@ export interface FamilyMember {
 export interface HouseTask {
   id: string;
   title: string;
-  period: 'morning' | 'afternoon' | 'night';
+  period: 'morning' | 'afternoon' | 'night' | 'flexible' | 'anytime';
   nextMember: string;
   nextMemberId?: string;
   nextMemberAvatar?: string;
   status: 'pending' | 'completed' | 'skipped' | 'cancelled' | 'alert';
   timeLabel?: string;
   icon: string;
-  frequency?: string; // e.g. "Diária", "Dias Úteis (Seg-Sex)", "Semanal", "Quinzenal", "Mensal", "Única (Um só dia)", "Dia do Mês", "Personalizada"
+  frequency?: string; // e.g. "Diária", "Quando necessário / Livre", "Semanal", "Mensal", "Única (Um só dia)", etc.
   days?: string[];
   singleDate?: string;
   monthDay?: number;
-  advanceNotice?: string;
   isRotation?: boolean;
   participantIds?: string[];
   participants?: { id: string; name: string; avatar?: string; vacation_mode?: boolean }[];
@@ -70,7 +69,7 @@ export interface TaskRotation {
   poolSelection: string;
   icon: string;
   days?: string[];
-  period?: 'morning' | 'afternoon' | 'night';
+  period?: 'morning' | 'afternoon' | 'night' | 'flexible' | 'anytime';
   participantIds?: string[];
 }
 

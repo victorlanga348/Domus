@@ -100,18 +100,24 @@ export class TaskService {
     const role = userRole || user.role;
     const isGeneralAdmin = user.role === 'ADMIN' || role === 'ADMIN_GERAL' || role === 'Admin Geral';
 
-    // Trava de segurança: apenas a pessoa designada para esta tarefa, qualquer morador da casa (se tarefa livre), ou o Admin Geral pode marcá-la como concluída
+    // Trava de segurança: apenas a pessoa designada para esta tarefa, qualquer morador da casa (se tarefa livre ou responsável em férias), ou o Admin Geral pode marcá-la como concluída
     let idResponsavelValido: string | null = null;
+    let isSoleAssigneeOnVacation = false;
     const isFreeTask = !task.participants || task.participants.length === 0;
 
     if (task.participants && task.participants.length > 1) {
       const responsible = await this.rotationService.getCurrentResponsible(taskId);
       idResponsavelValido = responsible.id;
     } else if (task.participants && task.participants.length === 1) {
-      idResponsavelValido = task.participants[0].user_id;
+      const soleParticipant = task.participants[0].user;
+      if (soleParticipant?.vacation_mode) {
+        isSoleAssigneeOnVacation = true;
+      } else {
+        idResponsavelValido = task.participants[0].user_id;
+      }
     }
 
-    if (isFreeTask) {
+    if (isFreeTask || isSoleAssigneeOnVacation) {
       if (user.house_id && task.house_id && user.house_id !== task.house_id && !isGeneralAdmin) {
         throw new AppError('Usuário não pertence à mesma residência da tarefa.', 403, 'FORBIDDEN');
       }
@@ -134,6 +140,8 @@ export class TaskService {
     let logComment: string;
     if (isFreeTask) {
       logComment = `${user.name} concluiu a tarefa livre "${task.title}"`;
+    } else if (isSoleAssigneeOnVacation && userId !== task.participants[0].user_id) {
+      logComment = `${user.name} concluiu a tarefa "${task.title}" (responsável ${task.participants[0].user?.name || 'titular'} em férias)`;
     } else if (isGeneralAdmin && idResponsavelValido !== userId) {
       logComment = `${user.name} (Admin Geral) concluiu a tarefa "${task.title}"`;
     } else {

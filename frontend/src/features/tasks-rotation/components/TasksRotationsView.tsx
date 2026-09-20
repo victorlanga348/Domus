@@ -62,7 +62,7 @@ export const TasksRotationsView: React.FC<TasksRotationsViewProps> = ({
   const [customFrequencyText, setCustomFrequencyText] = useState('');
   const [selectedDays, setSelectedDays] = useState<string[]>([]);
 
-  const [taskPeriod, setTaskPeriod] = useState<'morning' | 'afternoon' | 'night'>('morning');
+  const [taskPeriod, setTaskPeriod] = useState<'morning' | 'afternoon' | 'night' | 'flexible'>('morning');
   const [taskAssignmentType, setTaskAssignmentType] = useState<'member' | 'rotation'>('member');
   const [selectedMember, setSelectedMember] = useState(familyMembers[0]?.name || 'Qualquer pessoa');
 
@@ -74,16 +74,12 @@ export const TasksRotationsView: React.FC<TasksRotationsViewProps> = ({
     familyMembers.map((m) => m.name)
   );
 
-  // Advance notice / reminder time state
-  const [advanceNoticeOption, setAdvanceNoticeOption] = useState('Sem aviso');
-  const [customAdvanceNotice, setCustomAdvanceNotice] = useState('');
-
   const [taskIcon] = useState('checklist');
 
   // Edit Rotation Modal state
   const [editingTask, setEditingTask] = useState<HouseTask | null>(null);
   const [editTitle, setEditTitle] = useState('');
-  const [editPeriod, setEditPeriod] = useState<'morning' | 'afternoon' | 'night'>('morning');
+  const [editPeriod, setEditPeriod] = useState<'morning' | 'afternoon' | 'night' | 'flexible'>('morning');
   const [editFrequency, setEditFrequency] = useState('Diária');
   const [editParticipantIds, setEditParticipantIds] = useState<string[]>([]);
   const [isSavingEdit, setIsSavingEdit] = useState(false);
@@ -221,13 +217,6 @@ export const TasksRotationsView: React.FC<TasksRotationsViewProps> = ({
     return taskFrequency;
   };
 
-  const getFinalAdvanceNoticeString = () => {
-    if (advanceNoticeOption === 'Personalizado') {
-      return customAdvanceNotice.trim() ? `${customAdvanceNotice.trim()} antes` : 'Aviso personalizado';
-    }
-    return advanceNoticeOption;
-  };
-
   const handleCreateTask = (e: React.FormEvent) => {
     e.preventDefault();
     if (!taskTitle.trim()) return;
@@ -334,7 +323,6 @@ export const TasksRotationsView: React.FC<TasksRotationsViewProps> = ({
     }
 
     const finalFrequency = getFinalFrequencyString();
-    const finalNotice = getFinalAdvanceNoticeString();
 
     let taskParticipantIds: string[] = [];
     if (taskAssignmentType === 'member') {
@@ -370,7 +358,6 @@ export const TasksRotationsView: React.FC<TasksRotationsViewProps> = ({
         frequency: finalFrequency,
         icon: taskIcon,
         period: taskPeriod,
-        advanceNotice: finalNotice !== 'Sem aviso' ? finalNotice : undefined,
         participantIds: taskParticipantIds,
       });
     }
@@ -379,8 +366,6 @@ export const TasksRotationsView: React.FC<TasksRotationsViewProps> = ({
     setTaskTitle('');
     setCustomFrequencyText('');
     setSelectedDays([]);
-    setAdvanceNoticeOption('Sem aviso');
-    setCustomAdvanceNotice('');
     setNewRotationTitle('');
     setIsAddTaskModalOpen(false);
   };
@@ -533,12 +518,6 @@ export const TasksRotationsView: React.FC<TasksRotationsViewProps> = ({
                                   <span className="material-symbols-outlined text-[11px]">repeat</span>
                                   <span>{task.frequency || 'Diária'}</span>
                                 </span>
-                                {task.advanceNotice && (
-                                  <span className="text-[10px] text-[#7b5800] font-bold bg-[#fff8e6] px-1.5 py-0.5 rounded border border-[#ffca5e]/50 flex items-center gap-0.5">
-                                    <span className="material-symbols-outlined text-[11px]">notifications_active</span>
-                                    <span>{task.advanceNotice}</span>
-                                  </span>
-                                )}
                               </div>
                             </div>
                           </div>
@@ -551,7 +530,7 @@ export const TasksRotationsView: React.FC<TasksRotationsViewProps> = ({
                             </span>
                           ) : (
                             <span className="px-1.5 py-0.5 rounded text-[10px] font-extrabold bg-[#f0fcfa] text-[#16302e] border border-[#d0dddb] shrink-0">
-                              {task.period === 'morning' ? 'Manhã' : task.period === 'afternoon' ? 'Tarde' : 'Noite'}
+                              {task.period === 'flexible' ? 'Livre' : task.period === 'morning' ? 'Manhã' : task.period === 'afternoon' ? 'Tarde' : 'Noite'}
                             </span>
                           )}
                         </div>
@@ -1079,6 +1058,7 @@ export const TasksRotationsView: React.FC<TasksRotationsViewProps> = ({
                       className="w-full p-2.5 bg-[#f0fcfa] border border-[#c1c8c6] rounded-xl text-xs font-bold text-[#16302e]"
                     >
                       <option value="Diária">Diária</option>
+                      <option value="Quando necessário / Livre">Quando necessário / Livre</option>
                       <option value="Dias Úteis (Seg-Sex)">Dias Úteis (Seg-Sex)</option>
                       <option value="Fim de Semana (Sáb-Dom)">Fim de Semana (Sáb-Dom)</option>
                       <option value="Semanal">Semanal</option>
@@ -1101,6 +1081,7 @@ export const TasksRotationsView: React.FC<TasksRotationsViewProps> = ({
                       <option value="morning">Manhã</option>
                       <option value="afternoon">Tarde</option>
                       <option value="night">Noite</option>
+                      <option value="flexible">Livre / Qualquer horário</option>
                     </select>
                   </div>
                 </div>
@@ -1145,40 +1126,6 @@ export const TasksRotationsView: React.FC<TasksRotationsViewProps> = ({
                         })}
                       </div>
                     </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Tempo de Aviso / Lembrete Section */}
-              <div>
-                <label className="block text-xs font-bold text-[#16302e] mb-1 flex items-center gap-1">
-                  <span className="material-symbols-outlined text-sm text-[#7b5800]">notifications_active</span>
-                  <span>Aviso Prévio / Lembrete</span>
-                </label>
-                <select
-                  value={advanceNoticeOption}
-                  onChange={(e) => setAdvanceNoticeOption(e.target.value)}
-                  className="w-full p-2.5 bg-[#f0fcfa] border border-[#c1c8c6] rounded-xl text-xs font-bold text-[#16302e]"
-                >
-                  <option value="Sem aviso">Sem aviso (No horário)</option>
-                  <option value="5 minutos antes">5 minutos antes</option>
-                  <option value="15 minutos antes">15 minutos antes</option>
-                  <option value="30 minutos antes">30 minutos antes</option>
-                  <option value="1 hora antes">1 hora antes</option>
-                  <option value="2 horas antes">2 horas antes</option>
-                  <option value="1 dia antes">1 dia antes</option>
-                  <option value="Personalizado">Personalizado...</option>
-                </select>
-
-                {advanceNoticeOption === 'Personalizado' && (
-                  <div className="mt-2 bg-[#f0fcfa] p-2 rounded-xl border border-[#d0dddb]">
-                    <input
-                      type="text"
-                      value={customAdvanceNotice}
-                      onChange={(e) => setCustomAdvanceNotice(e.target.value)}
-                      placeholder="ex: 45 minutos, 3 horas"
-                      className="w-full p-2 bg-white border border-[#c1c8c6] rounded-lg text-xs"
-                    />
                   </div>
                 )}
               </div>
@@ -1271,6 +1218,7 @@ export const TasksRotationsView: React.FC<TasksRotationsViewProps> = ({
                     <option value="morning">Manhã</option>
                     <option value="afternoon">Tarde</option>
                     <option value="night">Noite</option>
+                    <option value="flexible">Livre / Qualquer horário</option>
                   </select>
                 </div>
 
@@ -1284,6 +1232,7 @@ export const TasksRotationsView: React.FC<TasksRotationsViewProps> = ({
                     className="w-full p-2 bg-[#f0fcfa] border border-[#c1c8c6] rounded-xl text-xs font-medium focus:outline-none focus:border-[#7b5800] cursor-pointer"
                   >
                     <option value="Diária">Diária</option>
+                    <option value="Quando necessário / Livre">Quando necessário / Livre</option>
                     <option value="Semanal">Semanal</option>
                     <option value="Mensal">Mensal</option>
                     <option value="Única (Um só dia)">Única (Um só dia)</option>
